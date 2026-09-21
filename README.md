@@ -74,6 +74,10 @@ GET /api/metrics/runs                                últimos envíos recibidos
 `compare=true` añade la comparación con el periodo anterior de la misma
 duración, con un campo `improved` por métrica.
 
+> La cadena entera —un clic en un front, el evento, la consolidación y el
+> número en el panel— se puede montar en local sin desplegar nada:
+> [`docs/PRUEBAS-EN-LOCAL.md`](./docs/PRUEBAS-EN-LOCAL.md).
+
 ### Para desarrollar sin credenciales
 
 ```bash

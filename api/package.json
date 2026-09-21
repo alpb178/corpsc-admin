@@ -20,7 +20,8 @@
     "seed": "tsx prisma/seed.ts",
     "postinstall": "prisma generate",
     "typecheck": "tsc --noEmit",
-    "seed:demo": "tsx prisma/seed-demo.ts"
+    "seed:demo": "tsx prisma/seed-demo.ts",
+    "rollup": "tsx scripts/rollup.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

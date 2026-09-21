@@ -22,6 +22,6 @@
     "types": ["node", "vitest/globals"],
     "paths": { "@/*": ["src/*"] }
   },
-  "include": ["src/**/*", "prisma/**/*.ts", "prisma.config.ts", "vitest.config.mts"],
+  "include": ["src/**/*", "prisma/**/*.ts", "scripts/**/*.ts", "prisma.config.ts", "vitest.config.mts"],
   "exclude": ["node_modules", "dist"]
 }

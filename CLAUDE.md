@@ -178,6 +178,7 @@ pnpm lint
 pnpm prisma migrate dev         # nueva migración
 pnpm seed                       # idempotente
 pnpm seed:demo                  # métricas sintéticas para desarrollo
+pnpm rollup [slug] [de] [a]     # consolidar eventos sin esperar al cron de las 03:00
 
 cd ../web
 pnpm dev                        # panel en :3000
