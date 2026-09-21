@@ -1,0 +1,132 @@
+# CORPSC Hub
+
+Panel centralizado de analítica y KPIs de los **14 sitios** del grupo CORPSC
+(7 productos propios, 7 de clientes). Consolida en una sola base el tráfico y las
+métricas de negocio que cada sitio envía, para poder decidir marketing con
+datos del grupo y no de un sitio suelto.
+
+```
+corpsc-hub/
+├── api/    NestJS 12 + Prisma 7 + PostgreSQL
+└── web/    Next.js 16 + Recharts
+```
+
+## Arranque local
+
+```bash
+# 1. Base de datos
+docker compose up -d
+
+# 2. API
+cd api
+cp .env.example .env          # rellenar JWT_SECRET y HUB_ENCRYPTION_KEY
+pnpm install
+pnpm prisma migrate dev
+SEED_ADMIN_EMAIL=tu@corpsc.com SEED_ADMIN_PASSWORD='<10+ caracteres>' pnpm seed
+pnpm start:dev
+```
+
+API en `http://localhost:3001/api`, documentación Swagger en
+`http://localhost:3001/docs`.
+
+Las dos claves se generan así:
+
+```bash
+openssl rand -base64 48   # JWT_SECRET
+openssl rand -base64 32   # HUB_ENCRYPTION_KEY — exactamente 32 bytes
+```
+
+> `HUB_ENCRYPTION_KEY` cifra las claves de envío guardadas en la tabla
+> `credential`. Si se pierde, hay que volver a introducir todas las
+> credenciales; si se regenera en producción, las existentes quedan ilegibles.
+
+## Estado
+
+| Fase | Contenido | Estado |
+|---|---|---|
+| **F0** | Base: esquema, auth con roles, cifrado de credenciales, catálogo de sitios y métricas | ✅ |
+| **F1** | Recepción de envíos, validación de contrato, vigilancia de frescura | ✅ |
+| **F2** | Endpoints de lectura, ratios derivados, comparación de periodos | ✅ |
+| **F3** | Panel en Next.js: resumen, ficha de sitio, comparador y envíos | ✅ |
+| **F4** | Contrato de envío y KPIs de negocio | ✅ hub · pendiente en los 4 repos |
+| F5 | Alertas, objetivos y exportación | pendiente |
+
+## Modelo de datos, en una frase
+
+La tabla de hechos `metric_daily` es **estrecha**: una fila por (proyecto,
+fuente, día, métrica, dimensión, valor de dimensión). Y solo guarda medidas
+**aditivas** — nunca CTR, tasas ni posiciones medias, que se calculan al leer,
+porque promediar promedios entre días da números falsos.
+
+El detalle del diseño, con las decisiones y los riesgos, está en [`CLAUDE.md`](./CLAUDE.md).
+
+## Leer los datos
+
+```
+GET /api/metrics/overview?from=&to=&compare=true     KPIs del grupo y tabla por sitio
+GET /api/metrics/projects/:slug?from=&to=            ficha completa de un sitio
+GET /api/metrics/compare?slugs=a,b&metric=sessions   una métrica, varios sitios
+GET /api/metrics/definitions                         catálogo de métricas
+GET /api/metrics/freshness                           quién ha enviado y cuándo
+GET /api/metrics/runs                                últimos envíos recibidos
+```
+
+`compare=true` añade la comparación con el periodo anterior de la misma
+duración, con un campo `improved` por métrica.
+
+### Para desarrollar sin credenciales
+
+```bash
+pnpm seed:demo   # métricas sintéticas de 4 sitios, 2 meses
+```
+
+Son cifras inventadas con forma plausible, no datos de ningún sitio real.
+
+## Cómo entran los datos
+
+**Los proyectos empujan; el hub recibe.** Cada sitio del grupo calcula sus
+agregados diarios —tráfico de su propio registro y métricas de negocio— y los
+envía a `POST /api/ingest/metrics` con su clave. El hub no sale a buscar nada:
+no habla con Google ni con ningún servicio externo.
+
+El contrato, las reglas y las implementaciones de referencia están en
+[`docs/envio-de-metricas/`](./docs/envio-de-metricas/).
+
+El hub **valida el envío** y devuelve 400 si no encaja, en lugar de guardar
+datos mal formados. Una métrica que no conozca se registra desactivada: se
+guarda igual, pero no se muestra hasta revisarla.
+
+> La contrapartida de recibir en vez de ir a buscar: si el cron de un proyecto
+> se rompe, no falla nada visible — simplemente dejan de llegar datos. Por eso
+> la pestaña **Envíos** vigila el silencio, y un cron diario avisa de quién
+> lleva más de 72 h sin enviar.
+
+Falta implementarlo en `tu-chamba`, `Iris Natural`, `toma` e `invoice-gen`.
+
+## Panel
+
+```bash
+cd web
+cp .env.example .env          # API_URL apuntando a la API
+pnpm install
+pnpm dev                      # http://localhost:3000
+```
+
+Cuatro vistas: **Resumen** del grupo, **ficha de cada sitio**, **comparador** y
+**envíos**. Todas aceptan `?rango=7d|28d|90d|12m`, y el rango vive en la
+URL para poder compartir una vista concreta.
+
+Y **Ajustes**, solo para administradores: en `Proyectos` se editan zona
+horaria, moneda, orden y visibilidad de cada sitio, y se genera, asigna o
+revoca su clave de envío —la clave en claro se enseña una sola vez, al
+crearla—; en `Usuarios`, el alta de quien entra al panel.
+
+El rango siempre termina **ayer**: los proyectos envían de madrugada el día
+cerrado, así que incluir hoy solo añadiría una caída al final de cada gráfica
+que no significa nada.
+
+
+## Flujo de trabajo
+
+El de siempre: ramas `feature/*` → PR a `develop` → PR a `main`.
+Ver [`FLUJO-TRABAJO-DEVS.md`](./FLUJO-TRABAJO-DEVS.md).

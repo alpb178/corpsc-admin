@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "project": "tu-chamba",
+  "timezone": "America/La_Paz",
+  "generatedAt": "2026-04-01T09:00:00.000Z",
+  "range": { "from": "2026-03-01", "to": "2026-03-02" },
+  "definitions": [
+    { "key": "visits", "label": "Visitas", "unit": "count", "aggregation": "sum" },
+    { "key": "page_views", "label": "Páginas vistas", "unit": "count", "aggregation": "sum" },
+    { "key": "publications", "label": "Publicaciones", "unit": "count", "aggregation": "sum" },
+    { "key": "leads", "label": "Contactos", "unit": "count", "aggregation": "sum" },
+    { "key": "signups", "label": "Altas", "unit": "count", "aggregation": "sum" }
+  ],
+  "days": [
+    {
+      "date": "2026-03-01",
+      "metrics": { "visits": 254, "page_views": 661, "publications": 23, "leads": 7, "signups": 4 },
+      "breakdowns": [
+        { "metric": "visits", "dimension": "country", "values": { "BO": 198, "AR": 32, "__other__": 24 } },
+        { "metric": "visits", "dimension": "device", "values": { "mobile": 173, "desktop": 71, "tablet": 10 } },
+        { "metric": "leads", "dimension": "type", "values": { "chat": 5, "call": 2 } }
+      ]
+    },
+    {
+      "date": "2026-03-02",
+      "metrics": { "visits": 231, "page_views": 598, "publications": 18, "leads": 11, "signups": 6 }
+    }
+  ]
+}
