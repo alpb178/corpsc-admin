@@ -1,0 +1,153 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ──────────────────────────────────────────────────────────────────
+   Tokens del panel.
+
+   La paleta de superficie y marca es la misma de corpsc-portfolio, derivada
+   del emblema de CORPSC: el navy profundo del fondo y el azul de la marca.
+
+   La paleta de series de los gráficos está VALIDADA, no elegida a ojo:
+   banda de luminosidad, suelo de croma, separación para daltonismo (ΔE ≥ 8
+   en pares adyacentes) y contraste contra la superficie. El slot 1 es el azul
+   de CORPSC. El orden de los slots es el mecanismo de seguridad para
+   daltonismo, no una decisión estética: no reordenar sin volver a validar.
+   ────────────────────────────────────────────────────────────────── */
+@theme {
+  --color-surface: var(--surface);
+  --color-elevated: var(--elevated);
+  --color-deep: var(--deep);
+  --color-card: var(--card);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-fg-faint: var(--fg-faint);
+
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-contrast: var(--accent-contrast);
+
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+
+  --color-brand-navy: #06132e;
+  --color-brand-blue: #1668e3;
+
+  --radius-tile: 6px;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+:root,
+.light {
+  color-scheme: light;
+
+  --surface: #ffffff;
+  --elevated: #f1f3f7;
+  --deep: #06132e;
+  --card: #ffffff;
+  --line: #d7dce6;
+  --line-strong: #b4bece;
+
+  --fg: #0d1526;
+  --fg-muted: #48546b;
+  --fg-subtle: #5f6b82;
+  --fg-faint: #78839a;
+
+  --accent: #1668e3;
+  --accent-soft: rgba(22, 104, 227, 0.08);
+  --accent-strong: #0f52bd;
+  --accent-contrast: #ffffff;
+
+  --positive: #0f7a55;
+  --negative: #c0392f;
+
+  /* Serie categórica — modo claro, superficie #ffffff */
+  --series-1: #1668e3;  /* azul CORPSC */
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #4a3aa7;
+  --series-8: #e34948;
+
+  /* Magnitud (una sola tinta, más es más oscuro) */
+  --seq-1: #cfe0fa;
+  --seq-2: #9dc1f3;
+  --seq-3: #5b96ea;
+  --seq-4: #1668e3;
+  --seq-5: #0f52bd;
+
+  --grid: #e8ebf1;
+  --axis: #8a93a6;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --surface: #06132e;
+  --elevated: #0a1c3d;
+  --deep: #030b1d;
+  --card: #0a1c3d;
+  --line: rgba(255, 255, 255, 0.12);
+  --line-strong: rgba(255, 255, 255, 0.22);
+
+  --fg: #eef2f9;
+  --fg-muted: #b6c2d8;
+  --fg-subtle: #93a1bb;
+  --fg-faint: #7b89a4;
+
+  --accent: #7fb0ff;
+  --accent-soft: rgba(127, 176, 255, 0.14);
+  --accent-strong: #4d90ff;
+  --accent-contrast: #06132e;
+
+  --positive: #4ade9f;
+  --negative: #ff8a80;
+
+  /* Las mismas ocho tintas, escalonadas para la superficie oscura.
+     No es un volteo automático de la paleta clara: se validó como conjunto
+     contra #0a1c3d. */
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+
+  --seq-1: #14315f;
+  --seq-2: #1b4a8f;
+  --seq-3: #2464bf;
+  --seq-4: #3987e5;
+  --seq-5: #7fb0ff;
+
+  --grid: rgba(255, 255, 255, 0.08);
+  --axis: #6f7d95;
+}
+
+html,
+body {
+  background: var(--surface);
+  color: var(--fg);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Las cifras de los KPI y las tablas se alinean en columna: sin esto, un 1
+   ocupa menos que un 8 y los números bailan al actualizarse. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
