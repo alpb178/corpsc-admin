@@ -3,6 +3,10 @@
 Todas las estadísticas del hub entran por aquí. Cada proyecto del grupo calcula
 sus **agregados diarios** y los envía; el hub no sale a buscar nada.
 
+> ¿Un sitio sin base de datos donde agregar —una página en Vercel, un sitio de
+> cliente? Entonces no es este contrato, sino [`eventos.md`](./eventos.md): manda
+> el hecho suelto y el hub lo consolida.
+
 ```
 POST https://hub.corpsc.com/api/ingest/metrics
 X-Api-Key: <la clave del proyecto>
