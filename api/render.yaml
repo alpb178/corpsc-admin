@@ -1,0 +1,46 @@
+# Blueprint de Render para la API del hub (NestJS + Prisma + PostgreSQL).
+# Importar en: Render → New → Blueprint.
+#
+# Calcado de tu-chamba/render.yaml, con una diferencia importante:
+# HUB_ENCRYPTION_KEY NO se genera con generateValue. Si Render la regenerase en
+# un redeploy, las credenciales ya guardadas quedarían ilegibles para siempre.
+# Se introduce a mano una sola vez y no se toca.
+
+databases:
+  - name: corpsc-hub-db
+    databaseName: corpsc_hub
+    plan: free
+
+services:
+  - type: web
+    name: corpsc-hub-api
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: api
+    # En el plan free de Render no se ejecuta preDeployCommand, así que las
+    # migraciones van en el build. `migrate deploy` es idempotente.
+    buildCommand: pnpm install && pnpm prisma generate && pnpm build && pnpm prisma migrate deploy
+    startCommand: node dist/main
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: corpsc-hub-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      # Dominio del dashboard. Se rellena a mano en el panel de Render.
+      - key: CORS_ORIGINS
+        sync: false
+      # Clave maestra con la que se cifran las claves de envío de los
+      # proyectos. 32 bytes en base64:
+      #   openssl rand -base64 32
+      # NUNCA generateValue: una regeneración dejaría ilegibles las claves ya
+      # cifradas y habría que volver a darlas de alta en los cuatro repos.
+      - key: HUB_ENCRYPTION_KEY
+        sync: false
+      - key: NODE_VERSION
+        value: 24.1.0

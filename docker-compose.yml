@@ -1,0 +1,23 @@
+# Postgres local para desarrollo. En producción la base la provee Render
+# (ver api/render.yaml), así que este compose no se despliega en ningún sitio.
+services:
+  db:
+    image: postgres:18-alpine
+    container_name: corpsc-hub-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hub
+      POSTGRES_PASSWORD: hub
+      POSTGRES_DB: corpsc_hub
+    ports:
+      - "5433:5432"   # 5433 para no chocar con un Postgres local en el 5432
+    volumes:
+      - hub_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hub -d corpsc_hub"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  hub_pgdata:

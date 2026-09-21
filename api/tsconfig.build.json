@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  // rootDir solo aquí: si prisma/ o los configs de la raíz entrasen en el
+  // programa del build, tsc subiría el rootDir y la salida quedaría en
+  // dist/src/main.js en lugar de dist/main.js.
+  "compilerOptions": { "rootDir": "./src" },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "coverage", "**/*.spec.ts"]
+}
