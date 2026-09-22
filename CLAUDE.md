@@ -115,7 +115,7 @@ de salida puede exponer `credential.ciphertext`.
   login en lugar de una pantalla vacía.
 - **La paleta de gráficos está validada, no elegida a ojo.** Banda de
   luminosidad, suelo de croma, separación para daltonismo (ΔE ≥ 8 en pares
-  adyacentes) y contraste, en los dos modos. **El orden de los slots es el
+  adyacentes) y contraste contra la superficie blanca. **El orden de los slots es el
   mecanismo de seguridad, no una decisión estética: no reordenar sin volver a
   validar.**
 - **El color sigue al sitio, nunca a su posición en el ranking**
@@ -130,8 +130,9 @@ de salida puede exponer `credential.ciphertext`.
   donde aporta: series temporales con crosshair.
 - **Las líneas son rectas (`type="linear"`), no suavizadas.** Suavizar inventa
   valores intermedios que ningún día tuvo.
-- **El modo oscuro tiene sus propios pasos de paleta**, validados contra la
-  superficie navy. No es un volteo automático de la paleta clara.
+- **Solo modo claro, sobre blanco**, como los admins de tu-chamba e Iris
+  Natural. El modo oscuro se retiró el 2026-09-22; si vuelve, necesita sus
+  propios pasos de paleta validados, no un volteo de la clara.
 - **El color nunca va solo**: las variaciones llevan flecha y texto, y el
   estado de las fuentes lleva icono y palabra.
 - **Ajustes comprueba el rol en cada página y en cada acción**, no solo en su
