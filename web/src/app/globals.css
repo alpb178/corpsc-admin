@@ -1,7 +1,5 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:where(.dark, .dark *));
-
 /* ──────────────────────────────────────────────────────────────────
    Tokens del panel.
 
@@ -43,8 +41,7 @@
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
-:root,
-.light {
+:root {
   color-scheme: light;
 
   --surface: #ffffff;
@@ -86,51 +83,6 @@
 
   --grid: #e8ebf1;
   --axis: #8a93a6;
-}
-
-.dark {
-  color-scheme: dark;
-
-  --surface: #06132e;
-  --elevated: #0a1c3d;
-  --deep: #030b1d;
-  --card: #0a1c3d;
-  --line: rgba(255, 255, 255, 0.12);
-  --line-strong: rgba(255, 255, 255, 0.22);
-
-  --fg: #eef2f9;
-  --fg-muted: #b6c2d8;
-  --fg-subtle: #93a1bb;
-  --fg-faint: #7b89a4;
-
-  --accent: #7fb0ff;
-  --accent-soft: rgba(127, 176, 255, 0.14);
-  --accent-strong: #4d90ff;
-  --accent-contrast: #06132e;
-
-  --positive: #4ade9f;
-  --negative: #ff8a80;
-
-  /* Las mismas ocho tintas, escalonadas para la superficie oscura.
-     No es un volteo automático de la paleta clara: se validó como conjunto
-     contra #0a1c3d. */
-  --series-1: #3987e5;
-  --series-2: #d95926;
-  --series-3: #199e70;
-  --series-4: #c98500;
-  --series-5: #d55181;
-  --series-6: #008300;
-  --series-7: #9085e9;
-  --series-8: #e66767;
-
-  --seq-1: #14315f;
-  --seq-2: #1b4a8f;
-  --seq-3: #2464bf;
-  --seq-4: #3987e5;
-  --seq-5: #7fb0ff;
-
-  --grid: rgba(255, 255, 255, 0.08);
-  --axis: #6f7d95;
 }
 
 html,
