@@ -19,6 +19,11 @@ Documento canónico: [`FLUJO-TRABAJO-DEVS.md`](./FLUJO-TRABAJO-DEVS.md).
   Atómicos y compilables.
 - PRs siempre a `develop`, uno por cosa, con `gh pr create --base develop --assignee @me`.
   Merge con **Squash and merge**.
+- **Todo en inglés salvo lo que ve el usuario:** nombres de rama, mensajes de
+  commit, títulos y descripciones de PR, y el código (modelos, campos, enums,
+  clases, rutas nuevas, claves JSON, variables). Los textos de la UI siguen en
+  español. El código legado en español no se renombra "de paso". Detalle en
+  `FLUJO-TRABAJO-DEVS.md`, secciones "Idioma del código" e "Idioma de git".
 
 ## Decisiones de diseño que no hay que deshacer sin querer
 
