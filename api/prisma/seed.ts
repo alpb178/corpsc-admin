@@ -1,9 +1,13 @@
 /**
- * Seed del hub: el sitio corporativo, los 14 del catálogo y las métricas.
+ * Seed del hub: el sitio corporativo, los cuatro productos y las métricas.
  *
  * El registro canónico de proyectos vive en
  * corpsc-portfolio/src/content/projects.ts; este archivo es su espejo. Si allí
  * se añade un sitio, hay que añadirlo aquí — comparten el `slug`.
+ *
+ * Solo están los cinco sitios del ecosistema. El resto del catálogo del
+ * portfolio (HumanCore, los sitios de cliente…) no pertenece a él y se
+ * retiró del hub el 2026-09-22.
  *
  * Es idempotente: `upsert` por slug/key, así que se puede volver a ejecutar
  * sin duplicar ni pisar los ajustes que alguien haya cambiado desde el panel.
@@ -25,7 +29,7 @@ interface ProjectSeed {
 }
 
 const PROJECTS: ProjectSeed[] = [
-  // El sitio corporativo. No es uno de los catorce productos del catálogo: es
+  // El sitio corporativo. No es uno de los productos del catálogo: es
   // el escaparate que los enseña, y por eso su métrica útil no son los pedidos
   // sino a qué sitio del grupo se lleva el clic. No tiene base de datos donde
   // agregar, así que manda eventos (docs/envio-de-metricas/eventos.md).
@@ -35,18 +39,7 @@ const PROJECTS: ProjectSeed[] = [
   { slug: 'take',         name: 'Take',         domain: 'take.corpsc.com',       kind: ProjectKind.OWN },
   { slug: 'invoices',     name: 'Invoices',     domain: 'invoices.corpsc.com',   kind: ProjectKind.OWN },
   { slug: 'iris-natural', name: 'Iris Natural', domain: 'irisnatural.corpsc.com', kind: ProjectKind.OWN },
-  { slug: 'humancore',    name: 'HumanCore',    domain: 'humancore.corpsc.com',  kind: ProjectKind.OWN },
-  { slug: 'histolword',   name: 'HistolWord',   domain: 'histolword.corpsc.com', kind: ProjectKind.OWN },
   { slug: 'tu-chamba',    name: 'Tu Chamba',    domain: 'tu-chamba.corpsc.com',  kind: ProjectKind.OWN },
-  { slug: 'dandomuela',   name: 'Dando Muela',  domain: 'dandomuela.com',        kind: ProjectKind.OWN },
-  // Sitios de clientes
-  { slug: 'kods-ai',    name: 'Kods AI',    domain: 'kods.ai',        kind: ProjectKind.CLIENT },
-  { slug: 'popyplan',   name: 'Popyplan',   domain: 'popyplan.com',   kind: ProjectKind.CLIENT },
-  { slug: 'zendinit',   name: 'Zendinit',   domain: 'zendinit.com',   kind: ProjectKind.CLIENT },
-  { slug: 'orlegitech', name: 'Orlegitech', domain: 'orlegitech.com', kind: ProjectKind.CLIENT },
-  { slug: 'tikneo',     name: 'Tikneo',     domain: 'tikneo.com',     kind: ProjectKind.CLIENT },
-  { slug: 'calculum',   name: 'Calculum',   domain: 'www.calculum.ai', kind: ProjectKind.CLIENT },
-  { slug: 'emasex',     name: 'Emasex',     domain: 'emasex.com',     kind: ProjectKind.CLIENT },
 ];
 
 interface MetricSeed {

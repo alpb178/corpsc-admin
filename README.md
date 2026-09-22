@@ -1,7 +1,7 @@
 # CORPSC Hub
 
-Panel centralizado de analítica y KPIs de los **14 sitios** del grupo CORPSC
-(7 productos propios, 7 de clientes). Consolida en una sola base el tráfico y las
+Panel centralizado de analítica y KPIs de los **5 sitios** del grupo CORPSC
+(el corporativo y los cuatro productos propios). Consolida en una sola base el tráfico y las
 métricas de negocio que cada sitio envía, para poder decidir marketing con
 datos del grupo y no de un sitio suelto.
 
