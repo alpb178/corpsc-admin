@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { requireUser } from '@/lib/dal';
-import { ThemeToggle } from '@/components/ThemeToggle';
 import { logout } from './actions';
 
 const NAV = [
@@ -19,8 +18,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const user = await requireUser();
 
   return (
-    <div className="min-h-screen bg-elevated">
-      <header className="sticky top-0 z-20 border-b border-line bg-card/95 backdrop-blur">
+    <div className="min-h-screen bg-surface">
+      <header className="sticky top-0 z-20 border-b border-line bg-surface/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-[1240px] items-center gap-6 px-4">
           <Link href="/" className="flex items-baseline gap-2">
             <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent">CORPSC</span>
@@ -43,7 +42,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <span className="hidden text-[12px] text-fg-faint sm:inline">
               {user.name} · {user.role.toLowerCase()}
             </span>
-            <ThemeToggle />
             <form action={logout}>
               <button
                 type="submit"

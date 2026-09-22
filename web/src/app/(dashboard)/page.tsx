@@ -35,7 +35,7 @@ export default async function OverviewPage({
     <>
       <PageHeader
         title="Resumen del grupo"
-        subtitle="14 sitios"
+        subtitle={`${data.projects.length} sitios`}
         range={data.range}
         preset={preset}
         comparedTo={comparison?.range}

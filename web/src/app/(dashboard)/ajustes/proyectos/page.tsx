@@ -34,7 +34,7 @@ export default async function ProyectosPage() {
   const groups = [
     { title: 'Productos propios', items: projects.filter((p) => p.kind === 'OWN') },
     { title: 'Sitios de clientes', items: projects.filter((p) => p.kind === 'CLIENT') },
-  ];
+  ].filter((group) => group.items.length > 0);
 
   return (
     <>

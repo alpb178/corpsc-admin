@@ -35,5 +35,7 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.svg$).*)'],
+  // `api/ingest` queda fuera: la usan los sitios, sin sesión, y la reenvía a la
+  // API un rewrite de next.config.ts.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/ingest|.*\\.svg$).*)'],
 };
