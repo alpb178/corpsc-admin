@@ -21,6 +21,15 @@ export interface WriteParams {
   from: IsoDate;
   to: IsoDate;
   rows: MetricRow[];
+  /**
+   * Métricas de las que este escritor se hace dueño dentro de la ventana.
+   *
+   * Sin esto, el borrado de huérfanos limpia la ventana ENTERA, que es lo
+   * correcto para un envío: el proyecto manda todo lo suyo de esos días. La
+   * consolidación de eventos, en cambio, solo produce visitas y clics, y sin
+   * acotar se llevaría por delante las demás métricas del mismo proyecto.
+   */
+  ownedMetricKeys?: string[];
 }
 
 /**
@@ -45,7 +54,7 @@ export class FactWriterService {
   constructor(private readonly prisma: PrismaService) {}
 
   async write(params: WriteParams): Promise<WriteResult> {
-    const { projectId, runId, from, to, rows } = params;
+    const { projectId, runId, from, to, rows, ownedMetricKeys } = params;
 
     // Salvaguarda contra el colapso silencioso de datos.
     //
@@ -55,7 +64,11 @@ export class FactWriterService {
     // mirar una gráfica con un agujero. Ante la duda, no se toca nada.
     if (rows.length === 0) {
       const existing = await this.prisma.metricDaily.count({
-        where: { projectId, date: { gte: toUtcDate(from), lte: toUtcDate(to) } },
+        where: {
+          projectId,
+          date: { gte: toUtcDate(from), lte: toUtcDate(to) },
+          ...(ownedMetricKeys ? { metricKey: { in: ownedMetricKeys } } : {}),
+        },
       });
 
       if (existing > 0) {
@@ -85,11 +98,18 @@ export class FactWriterService {
         );
       }
 
-      const rowsDeleted = await tx.$executeRaw`
-        DELETE FROM metric_daily
-         WHERE project_id = ${projectId}
-           AND date BETWEEN ${toUtcDate(from)}::date AND ${toUtcDate(to)}::date
-           AND ingested_at < ${startedAt}`;
+      const rowsDeleted = ownedMetricKeys
+        ? await tx.$executeRaw`
+            DELETE FROM metric_daily
+             WHERE project_id = ${projectId}
+               AND date BETWEEN ${toUtcDate(from)}::date AND ${toUtcDate(to)}::date
+               AND metric_key = ANY(${ownedMetricKeys}::varchar[])
+               AND ingested_at < ${startedAt}`
+        : await tx.$executeRaw`
+            DELETE FROM metric_daily
+             WHERE project_id = ${projectId}
+               AND date BETWEEN ${toUtcDate(from)}::date AND ${toUtcDate(to)}::date
+               AND ingested_at < ${startedAt}`;
 
       return { rowsWritten, rowsDeleted };
     });

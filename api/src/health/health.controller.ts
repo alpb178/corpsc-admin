@@ -1,30 +1,21 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { PrismaService } from '../prisma/prisma.service';
+import { HealthService } from './health.service';
 
 @ApiTags('health')
 @Controller('health')
 export class HealthController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly healthService: HealthService) {}
 
   @Get()
   @ApiOperation({ summary: 'Liveness — lo que consulta Render' })
   check() {
-    return { status: 'ok', timestamp: new Date().toISOString() };
+    return this.healthService.check();
   }
 
   @Get('db')
   @ApiOperation({ summary: 'Readiness — comprueba la conexión a Postgres' })
-  async checkDb() {
-    try {
-      await this.prisma.$queryRaw`SELECT 1`;
-      return { status: 'ok', database: 'up' };
-    } catch (error) {
-      return {
-        status: 'error',
-        database: 'down',
-        message: error instanceof Error ? error.message : 'error desconocido',
-      };
-    }
+  checkDatabase() {
+    return this.healthService.checkDatabase();
   }
 }

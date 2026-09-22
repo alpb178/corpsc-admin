@@ -1,5 +1,5 @@
 /**
- * Seed del hub: los 14 sitios del grupo y el catálogo de métricas.
+ * Seed del hub: el sitio corporativo, los 14 del catálogo y las métricas.
  *
  * El registro canónico de proyectos vive en
  * corpsc-portfolio/src/content/projects.ts; este archivo es su espejo. Si allí
@@ -25,6 +25,12 @@ interface ProjectSeed {
 }
 
 const PROJECTS: ProjectSeed[] = [
+  // El sitio corporativo. No es uno de los catorce productos del catálogo: es
+  // el escaparate que los enseña, y por eso su métrica útil no son los pedidos
+  // sino a qué sitio del grupo se lleva el clic. No tiene base de datos donde
+  // agregar, así que manda eventos (docs/envio-de-metricas/eventos.md).
+  { slug: 'corpsc',       name: 'CORPSC',       domain: 'www.corpsc.com',        kind: ProjectKind.OWN },
+
   // Productos propios de CORPSC
   { slug: 'take',         name: 'Take',         domain: 'take.corpsc.com',       kind: ProjectKind.OWN },
   { slug: 'invoices',     name: 'Invoices',     domain: 'invoices.corpsc.com',   kind: ProjectKind.OWN },

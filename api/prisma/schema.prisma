@@ -89,6 +89,7 @@ model Project {
 
   metrics MetricDaily[]
   runs    IngestionRun[]
+  events  SiteEvent[]
 
   @@index([active, sortOrder])
   @@map("project")
@@ -211,6 +212,51 @@ model MetricDaily {
   @@map("metric_daily")
 }
 
+/// Evento suelto de un sitio que no tiene backend donde agregar.
+///
+/// El portfolio del grupo y los sitios de cliente son páginas en Vercel sin
+/// base de datos: no pueden contar sus visitas y mandar el agregado como hacen
+/// Take o Tu Chamba. Mandan el hecho, y el hub lo consolida cada noche.
+///
+/// Es la tabla cruda: se conserva 90 días y se borra sola. Guardarla permite
+/// recalcular un día —filtrar un bot que se descubre tarde, corregir una
+/// consulta— cosa que un contador incrementado sobre la marcha no permitiría.
+model SiteEvent {
+  id BigInt @id @default(autoincrement())
+
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String  @map("project_id")
+
+  type SiteEventType
+
+  /// Sesión anónima que emite el propio sitio, para no contar cinco páginas
+  /// como cinco visitas. No identifica a una persona ni dura más que la visita.
+  sessionId String @map("session_id") @db.VarChar(64)
+
+  /// Ruta donde ocurrió. Sin dominio y sin parámetros de campaña.
+  path String @db.VarChar(512)
+
+  /// Solo en SITE_CLICK: slug del proyecto del grupo al que va el clic.
+  target String? @db.VarChar(64)
+  /// Solo en SITE_CLICK: web · android · ios.
+  linkType String? @map("link_type") @db.VarChar(16)
+
+  /// Instante en UTC. A qué DÍA pertenece se decide al consolidar, en la zona
+  /// horaria del proyecto: guardarlo ya recortado impediría corregirlo si la
+  /// zona del proyecto estaba mal puesta.
+  occurredAt DateTime @map("occurred_at")
+  receivedAt DateTime @default(now()) @map("received_at")
+
+  // La consulta de la consolidación: un proyecto, una ventana de días.
+  @@index([projectId, occurredAt])
+  @@map("site_event")
+}
+
+enum SiteEventType {
+  PAGE_VIEW
+  SITE_CLICK
+}
+
 // ─────────────────────── Control de ejecución ───────────────────────
 
 enum RunStatus {
@@ -224,6 +270,9 @@ enum RunTrigger {
   PUSH
   /// Reenvío lanzado a mano, normalmente para corregir un histórico.
   BACKFILL
+  /// Consolidación de los eventos de un sitio sin backend propio. No lo manda
+  /// nadie: lo ejecuta el hub cada noche sobre lo que ha ido recibiendo.
+  ROLLUP
 }
 
 /// Un envío recibido. Es el registro que permite responder "¿por qué falta
