@@ -3,6 +3,12 @@
 Todas las estadísticas del hub entran por aquí. Cada proyecto del grupo calcula
 sus **agregados diarios** y los envía; el hub no sale a buscar nada.
 
+> **Hoy no lo usa ningún proyecto del grupo.** El tráfico lo mandan los fronts
+> por eventos ([`eventos.md`](./eventos.md)) y los backends no se tocan; el
+> reparto completo está en [`INTEGRACIONES.md`](./INTEGRACIONES.md). Este
+> contrato sigue vigente y documentado para el día que alguien necesite en el
+> panel lo que un navegador no puede ver: pedidos, ingresos, facturas.
+
 ```
 POST https://hub.corpsc.com/api/ingest/metrics
 X-Api-Key: <la clave del proyecto>

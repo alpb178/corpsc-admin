@@ -19,6 +19,11 @@ Documento canónico: [`FLUJO-TRABAJO-DEVS.md`](./FLUJO-TRABAJO-DEVS.md).
   Atómicos y compilables.
 - PRs siempre a `develop`, uno por cosa, con `gh pr create --base develop --assignee @me`.
   Merge con **Squash and merge**.
+- **Todo en inglés salvo lo que ve el usuario:** nombres de rama, mensajes de
+  commit, títulos y descripciones de PR, y el código (modelos, campos, enums,
+  clases, rutas nuevas, claves JSON, variables). Los textos de la UI siguen en
+  español. El código legado en español no se renombra "de paso". Detalle en
+  `FLUJO-TRABAJO-DEVS.md`, secciones "Idioma del código" e "Idioma de git".
 
 ## Decisiones de diseño que no hay que deshacer sin querer
 
@@ -58,6 +63,29 @@ de salida puede exponer `credential.ciphertext`.
   contrapartida de recibir en vez de ir a buscar.
 - **Nunca sumar `revenue` entre proyectos sin mirar `currency`.** Take factura
   en USD y CUP, Iris en BOB, Invoices en EUR/USD.
+
+## Los sitios sin backend
+
+- **Hay dos puertas, y un proyecto usa una sola.** Quien puede agregar, empuja
+  su resumen diario a `/ingest/metrics`. Quien no —el portfolio y los sitios de
+  cliente, páginas en Vercel sin base de datos— manda el hecho suelto a
+  `/ingest/events`. Un proyecto que use las dos para la misma métrica se borra
+  sus propios datos: el envío reemplaza la ventana entera.
+- **El evento se guarda crudo y el día se decide al consolidar**, en la zona
+  horaria del proyecto. Guardarlo ya recortado impediría rehacerlo cuando la
+  zona estaba mal puesta, y un contador incrementado sobre la marcha no se
+  puede deshacer. Se conserva 90 días: lo justo para recalcular, no como
+  archivo.
+- **La consolidación es dueña de `visits`, `page_views` y `site_clicks`** y de
+  nada más. Por eso `FactWriterService` acepta `ownedMetricKeys`: sin acotar el
+  borrado de huérfanos, rehacer las visitas se llevaría por delante los pedidos
+  del mismo día.
+- **Sin eventos no se escribe nada.** Un sitio callado no es un sitio con cero
+  visitas, y escribir ceros haría indistinguible "no entró nadie" de "los
+  beacons están rotos".
+- **La clave nunca baja al navegador.** El sitio manda los beacons a una ruta
+  suya y esa ruta llama al hub. Publicar la clave en el cliente sería dejar que
+  cualquiera escriba métricas de ese proyecto.
 
 ## El contrato de envío
 
@@ -155,6 +183,7 @@ pnpm lint
 pnpm prisma migrate dev         # nueva migración
 pnpm seed                       # idempotente
 pnpm seed:demo                  # métricas sintéticas para desarrollo
+pnpm rollup [slug] [de] [a]     # consolidar eventos sin esperar al cron de las 03:00
 
 cd ../web
 pnpm dev                        # panel en :3000
