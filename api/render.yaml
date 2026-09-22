@@ -28,6 +28,11 @@ services:
         fromDatabase:
           name: corpsc-hub-db
           property: connectionString
+      # Conexión directa para `prisma migrate deploy` (prisma.config.ts). Con
+      # Supabase: la del session pooler (puerto 5432), nunca la del 6543, que
+      # es modo transacción y deja colgado el build.
+      - key: DIRECT_URL
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRES_IN
