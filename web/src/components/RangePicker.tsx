@@ -5,8 +5,8 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { PRESETS } from '@/lib/ranges';
 
 /**
- * Los filtros van en una fila, encima de los gráficos, y son enlaces: así el
- * rango queda en la URL y una vista concreta se puede compartir o guardar.
+ * The filters sit in a row above the charts, and they're links: that way the
+ * range stays in the URL and a specific view can be shared or bookmarked.
  */
 export function RangePicker({ current }: { current: string }) {
   const pathname = usePathname();

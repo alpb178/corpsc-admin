@@ -27,15 +27,15 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
   }
 
   if (!response.ok) {
-    // El mismo mensaje para correo inexistente y contraseña incorrecta: la API
-    // ya lo hace así, y distinguirlos aquí convertiría el login en un
-    // verificador de qué correos existen.
+    // The same message for an unknown email and a wrong password: the API
+    // already does it this way, and telling them apart here would turn the
+    // login into a checker for which emails exist.
     return { error: 'Credenciales incorrectas.' };
   }
 
   const { accessToken } = (await response.json()) as { accessToken: string };
   await setSession(accessToken);
 
-  // Solo rutas internas: un `next` con host propio sería un redirect abierto.
+  // Internal paths only: a `next` with its own host would be an open redirect.
   redirect(next.startsWith('/') && !next.startsWith('//') ? next : '/');
 }

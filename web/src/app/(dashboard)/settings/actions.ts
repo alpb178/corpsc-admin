@@ -12,25 +12,26 @@ export interface ActionState {
 
 export interface KeyState extends ActionState {
   /**
-   * La clave en claro. La API la devuelve UNA sola vez, al crearla, y después
-   * solo queda cifrada. Viaja hasta el formulario para poder enseñarla y de
-   * ahí no pasa: no se guarda en ningún sitio del panel.
+   * The plaintext key. The API returns it ONCE, when it's created, and after
+   * that it only exists encrypted. It travels as far as the form so it can be
+   * shown, and goes no further: the panel doesn't store it anywhere.
    */
   secret?: { value: string; project: string };
 }
 
 /**
- * Cada acción comprueba el rol antes de tocar la API.
+ * Every action checks the role before touching the API.
  *
- * No sustituye al guard del servidor —esa sigue siendo la última palabra—,
- * pero sin ella una Server Function quedaría abierta a cualquiera con sesión,
- * porque se ejecuta como POST contra su propia ruta y el proxy no la cubre.
+ * It doesn't replace the server's guard —that still has the last word—, but
+ * without it a Server Function would be open to anyone with a session,
+ * because it runs as a POST against its own route and the proxy doesn't
+ * cover it.
  */
 async function requireAdmin(): Promise<void> {
   await requireRole('ADMIN');
 }
 
-/** Convierte el error de la API en algo que se pueda leer en el formulario. */
+/** Turns the API error into something readable in the form. */
 function readableError(error: unknown, fallback: string): string {
   if (error instanceof ApiError) return error.message;
   return fallback;
@@ -45,16 +46,16 @@ export async function updateProject(_prev: ActionState, formData: FormData): Pro
   const sortOrder = Number(formData.get('sortOrder'));
   if (!Number.isInteger(sortOrder)) return { error: 'El orden debe ser un número entero.' };
 
-  // ISO 4217 en mayúsculas: la API compara el código tal cual y "bob" y "BOB"
-  // acabarían siendo dos monedas distintas al sumar ingresos.
+  // ISO 4217 in upper case: the API compares the code as is, so "bob" and
+  // "BOB" would end up as two different currencies when summing revenue.
   const currency = String(formData.get('currency') ?? '').trim().toUpperCase();
 
   try {
     await apiWrite<AdminProject>(`/projects/${slug}`, 'PATCH', {
       name: String(formData.get('name') ?? '').trim(),
       timezone: String(formData.get('timezone') ?? '').trim(),
-      // Vacío no es lo mismo que "quítala": la API solo acepta un código de
-      // tres letras, así que un campo en blanco se deja como estaba.
+      // Empty is not the same as "remove it": the API only accepts a
+      // three-letter code, so a blank field is left as it was.
       ...(currency ? { currency } : {}),
       active: formData.get('active') === 'on',
       sortOrder,
@@ -68,11 +69,11 @@ export async function updateProject(_prev: ActionState, formData: FormData): Pro
 }
 
 /**
- * Genera una clave nueva y se la asigna al proyecto en el mismo paso.
+ * Generates a new key and assigns it to the project in the same step.
  *
- * Son dos llamadas porque la API separa crear de asignar: una clave puede
- * existir sin proyecto. Si la segunda falla, la clave queda creada y sin
- * asignar, así que se dice en vez de dejar un huérfano silencioso.
+ * It's two calls because the API separates creating from assigning: a key can
+ * exist without a project. If the second one fails, the key stays created and
+ * unassigned, so we say so instead of leaving a silent orphan.
  */
 export async function createKey(_prev: KeyState, formData: FormData): Promise<KeyState> {
   await requireAdmin();
@@ -132,7 +133,7 @@ export async function revokeKey(_prev: ActionState, formData: FormData): Promise
   }
 
   revalidatePath('/settings/projects');
-  // Los datos ya enviados no se borran: son el histórico.
+  // Data already sent is not deleted: it's the history.
   return { ok: 'Clave revocada. Los datos ya enviados se conservan.' };
 }
 

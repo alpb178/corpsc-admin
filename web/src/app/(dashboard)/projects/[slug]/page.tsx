@@ -80,14 +80,14 @@ export default async function ProjectPage({
           </section>
 
           <section className="mt-3 rounded-[6px] border border-line bg-card p-4">
-            {/* Una sola serie: sin leyenda, el título la nombra. */}
+            {/* A single series: no legend, the title names it. */}
             <h2 className="mb-3 text-[13px] font-semibold text-fg">Visitas por día</h2>
             <TrendChart data={chartData} series={[{ key: 'visits', label: 'Visitas', slot: 1 }]} />
           </section>
 
           <SiteNavigation pages={breakdowns.path} elements={breakdowns.element ?? []} />
 
-          {/* De dónde y cuándo llegan las visitas. */}
+          {/* Where and when the visits come from. */}
           <div className="mt-3 grid gap-3 lg:grid-cols-3">
             <RankBar title="Países" slices={breakdowns.country} metricKey="visits" />
             <RankBar title="Canales" slices={breakdowns.channel} metricKey="visits" />
@@ -106,8 +106,8 @@ export default async function ProjectPage({
             />
           </div>
 
-          {/* Solo los proyectos que empujan agregados mandan el dispositivo:
-              los beacons no leen el agente de usuario, a propósito. */}
+          {/* Only projects that push aggregates send the device: the beacons
+              don't read the user agent, on purpose. */}
           {breakdowns.device.length > 0 ? (
             <div className="mt-3 grid gap-3 lg:grid-cols-3">
               <RankBar title="Dispositivos" slices={breakdowns.device} metricKey="visits" limit={5} />
@@ -122,9 +122,10 @@ export default async function ProjectPage({
   );
 }
 
-/** Cuándo envió este proyecto por última vez. Va arriba porque es la primera
- *  explicación de una gráfica vacía: el dato no cayó, el envío dejó de llegar.
- *  La clasificación la hace la API — el reloj del navegador puede estar mal. */
+/** When this project last sent. It goes at the top because it's the first
+ *  explanation for an empty chart: the numbers didn't drop, the submissions
+ *  stopped arriving. The API does the classification — the browser's clock
+ *  may be wrong. */
 function PushStatus({
   lastPushAt,
   freshness,

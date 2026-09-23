@@ -8,13 +8,13 @@ const NAV = [
   { href: '/submissions', label: 'Envíos' },
 ];
 
-/** Ajustes solo para ADMIN: a quien no puede tocar nada no se le enseña la
- *  puerta. La protección de verdad está en `requireRole` de cada página y de
- *  cada acción; esto es para no ofrecer un enlace que acabaría en el resumen. */
+/** Settings only for ADMIN: someone who can't change anything isn't shown the
+ *  door. The real protection is `requireRole` in every page and every action;
+ *  this is just so we don't offer a link that would land on the overview. */
 const NAV_ADMIN = { href: '/settings/projects', label: 'Ajustes' };
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  // La comprobación de sesión vive aquí y en cada acción, no en el proxy.
+  // The session check lives here and in every action, not in the proxy.
   const user = await requireUser();
 
   return (

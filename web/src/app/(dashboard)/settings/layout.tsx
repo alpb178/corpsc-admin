@@ -2,13 +2,13 @@ import { requireRole } from '@/lib/dal';
 import { SettingsTabs } from './SettingsTabs';
 
 /**
- * Ajustes del hub: lo que se configura una vez y casi nunca se toca.
+ * Hub settings: what gets configured once and is hardly ever touched.
  *
- * `requireRole` aquí no basta —un layout no protege una Server Function—, así
- * que cada página y cada acción vuelven a comprobarlo. Esto solo evita que
- * alguien llegue a ver la pantalla.
+ * `requireRole` here isn't enough —a layout doesn't protect a Server
+ * Function—, so every page and every action checks it again. This only keeps
+ * someone from getting to see the screen.
  */
-export default async function AjustesLayout({ children }: { children: React.ReactNode }) {
+export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
   await requireRole('ADMIN');
 
   return (

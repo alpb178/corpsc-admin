@@ -5,12 +5,13 @@ import { ProjectCard } from './ProjectCard';
 import type { AdminProject, CredentialSummary } from '@/lib/types';
 
 /**
- * Los sitios del grupo y su clave de envío.
+ * The group's sites and their submission key.
  *
- * Se piden **incluyendo los inactivos**: esta es la única pantalla desde la
- * que se vuelven a activar, así que esconderlos aquí los dejaría sin puerta.
+ * They're requested **including the inactive ones**: this is the only screen
+ * from which they can be reactivated, so hiding them here would leave them
+ * with no way back.
  */
-export default async function ProyectosPage() {
+export default async function ProjectsPage() {
   await requireRole('ADMIN');
 
   let projects: AdminProject[];
@@ -56,8 +57,8 @@ export default async function ProyectosPage() {
                 key={project.slug}
                 project={project}
                 credential={credentials.find((c) => c.id === project.credentialId) ?? null}
-                // Claves creadas que no usa nadie: normalmente la de un
-                // proyecto que se revocó y se quiere volver a asignar.
+                // Keys created that nobody uses: usually one from a project that
+                // was revoked and is meant to be reassigned.
                 unassigned={credentials.filter((c) => c.projects.length === 0)}
               />
             ))}
