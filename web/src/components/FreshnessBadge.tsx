@@ -7,7 +7,7 @@ const STATE: Record<Freshness, { text: string; tone: string; icon: string }> = {
   NEVER: { text: 'nunca ha enviado', tone: 'text-fg-faint', icon: '○' },
 };
 
-/** El color nunca va solo: siempre lo acompañan icono y palabra. */
+/** Colour never goes alone: an icon and a word always come with it. */
 export function FreshnessBadge({ freshness, hoursSince }: { freshness: Freshness; hoursSince: number | null }) {
   const state = STATE[freshness];
 

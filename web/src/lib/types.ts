@@ -1,13 +1,13 @@
-/** Formas que devuelve la API del hub. Espejo de los DTO de `api/src/metrics`. */
+/** Shapes returned by the hub API. Mirror of the DTOs in `api/src/metrics`. */
 
 export type MetricTotals = Record<string, number>;
 
 export interface Delta {
   current: number;
   previous: number;
-  /** Fracción: 0.12 es +12%. `null` cuando el periodo anterior era 0. */
+  /** Fraction: 0.12 is +12%. `null` when the previous period was 0. */
   change: number | null;
-  /** `null` cuando no hay variación o no se puede juzgar. */
+  /** `null` when there's no change or it can't be judged. */
   improved: boolean | null;
 }
 
@@ -62,7 +62,19 @@ export interface ProjectDetail {
   range: Range;
   totals: MetricTotals;
   series: SeriesPoint[];
-  breakdowns: { country: DimensionSlice[]; device: DimensionSlice[]; path: DimensionSlice[] };
+  breakdowns: {
+    country: DimensionSlice[];
+    device: DimensionSlice[];
+    /** Pages, with both `page_views` and `clicks`. */
+    path: DimensionSlice[];
+    /** Where people clicked: "path | section | label", ranked by `clicks`. */
+    element: DimensionSlice[];
+    channel: DimensionSlice[];
+    source: DimensionSlice[];
+    campaign: DimensionSlice[];
+    /** "00"–"23" in the project's time zone, with `visits` and `page_views`. */
+    hour: DimensionSlice[];
+  };
   comparison?: Comparison;
 }
 
@@ -89,10 +101,10 @@ export interface MetricDefinition {
   derivedFrom: { numerator: string; denominator: string } | null;
 }
 
-/* ── Ajustes ──────────────────────────────────────────────────────────
-   Espejo de `api/src/projects`, `api/src/credentials` y `api/src/auth`.
-   Ninguna de estas formas incluye el secreto de una credencial: la API no lo
-   devuelve nunca salvo en el instante de crearla. */
+/* ── Settings ─────────────────────────────────────────────────────────
+   Mirror of `api/src/projects`, `api/src/credentials` and `api/src/auth`.
+   None of these shapes include a credential's secret: the API never returns
+   it except at the moment it is created. */
 
 export type HubRole = 'ADMIN' | 'ANALYST' | 'VIEWER';
 
@@ -103,12 +115,12 @@ export interface AdminProject {
   domain: string;
   kind: 'OWN' | 'CLIENT';
   timezone: string;
-  /** Puede no estar puesta: hay sitios que no facturan. */
+  /** May be unset: some sites don't bill. */
   currency: string | null;
   active: boolean;
   sortOrder: number;
   lastPushAt: string | null;
-  /** Tener clave asignada es lo que habilita a un proyecto a enviar. */
+  /** Having a key assigned is what allows a project to send. */
   credentialId: string | null;
 }
 
@@ -116,7 +128,7 @@ export interface CredentialSummary {
   id: string;
   kind: string;
   label: string;
-  /** Huella para reconocerla; no sirve para reconstruir la clave. */
+  /** Fingerprint to recognise it by; it can't be used to rebuild the key. */
   fingerprint: string;
   createdAt: string;
   projects: Array<{ slug: string; name: string }>;

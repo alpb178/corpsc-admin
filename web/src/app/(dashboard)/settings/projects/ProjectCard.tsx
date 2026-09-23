@@ -5,7 +5,7 @@ import { formatFullDate } from '@/lib/format';
 import { assignKey, createKey, revokeKey, updateProject, type ActionState, type KeyState } from '../actions';
 import type { AdminProject, CredentialSummary } from '@/lib/types';
 
-/** Las zonas del grupo, como atajo. La API acepta cualquiera que conozca el runtime. */
+/** The group's time zones, as a shortcut. The API accepts any the runtime knows. */
 const ZONES = ['America/La_Paz', 'America/Havana', 'America/Bogota', 'Europe/Madrid', 'UTC'];
 
 const fieldClass =
@@ -48,7 +48,7 @@ export function ProjectCard({ project, credential, unassigned }: Props) {
       </summary>
 
       <div className="grid gap-5 border-t border-line px-4 py-4 md:grid-cols-2">
-        {/* ── Ajustes del sitio ── */}
+        {/* ── Site settings ── */}
         <form action={save}>
           <input type="hidden" name="slug" value={project.slug} />
 
@@ -130,7 +130,7 @@ export function ProjectCard({ project, credential, unassigned }: Props) {
           </div>
         </form>
 
-        {/* ── Clave de envío ── */}
+        {/* ── Submission key ── */}
         <div className="md:border-l md:border-line md:pl-5">
           <h3 className="text-[12px] font-semibold text-fg">Clave de envío</h3>
 
@@ -229,11 +229,11 @@ export function ProjectCard({ project, credential, unassigned }: Props) {
 }
 
 /**
- * La clave en claro, que solo se ve una vez.
+ * The plaintext key, which is only shown once.
  *
- * No se puede volver a consultar: en la base queda cifrada. Por eso ocupa
- * sitio, se puede copiar de un clic y lo dice en voz alta en vez de quedar
- * como un dato más de la ficha.
+ * It can't be looked up again: in the database it's stored encrypted. That's
+ * why it takes up space, can be copied in one click and says so out loud
+ * instead of sitting there as just another detail of the card.
  */
 function NewKey({ value, project }: { value: string; project: string }) {
   const [copied, setCopied] = useState(false);

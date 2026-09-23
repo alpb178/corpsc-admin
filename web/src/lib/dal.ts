@@ -4,8 +4,8 @@ import { redirect } from 'next/navigation';
 import { getToken } from './session';
 import type { HubRole } from './types';
 
-/** El mismo enum que la API. Vive en `types.ts` para que lo puedan leer
- *  también los componentes de cliente, que no pueden importar este módulo. */
+/** The same enum as the API. It lives in `types.ts` so client components,
+ *  which can't import this module, can read it too. */
 export type Role = HubRole;
 
 export interface AuthUser {
@@ -16,17 +16,17 @@ export interface AuthUser {
 }
 
 /**
- * Capa de acceso a datos: AQUÍ vive la seguridad del panel.
+ * Data access layer: the panel's security lives HERE.
  *
- * La documentación de Next 16 es explícita: `proxy.ts` es capa de experiencia,
- * no de seguridad. Las Server Functions se ejecutan como POST contra su propia
- * ruta, así que un cambio en el `matcher` del proxy puede dejarlas sin
- * cobertura sin que nadie lo note. Por eso toda página y toda acción llaman a
- * `requireUser()`, y el proxy solo se encarga de que quien no tenga cookie vea
- * el login en vez de una pantalla vacía.
+ * The Next 16 docs are explicit: `proxy.ts` is an experience layer, not a
+ * security one. Server Functions run as a POST against their own route, so a
+ * change to the proxy's `matcher` can leave them uncovered without anyone
+ * noticing. That's why every page and every action calls `requireUser()`, and
+ * the proxy only makes sure someone without a cookie sees the login instead of
+ * an empty screen.
  *
- * `cache()` de React lo memoriza por petición: diez componentes pueden pedir
- * el usuario y solo se pregunta una vez a la API.
+ * React's `cache()` memoizes it per request: ten components can ask for the
+ * user and the API is only asked once.
  */
 export const getUser = cache(async (): Promise<AuthUser | null> => {
   const token = await getToken();
@@ -40,13 +40,13 @@ export const getUser = cache(async (): Promise<AuthUser | null> => {
     if (!response.ok) return null;
     return (await response.json()) as AuthUser;
   } catch {
-    // La API caída no es lo mismo que una sesión inválida, pero desde aquí no
-    // se distinguen: en ambos casos no hay usuario verificado y no se entra.
+    // The API being down is not the same as an invalid session, but from here
+    // they can't be told apart: either way there's no verified user and no way in.
     return null;
   }
 });
 
-/** Para páginas y acciones: o hay usuario, o no se sigue. */
+/** For pages and actions: either there's a user, or we go no further. */
 export async function requireUser(): Promise<AuthUser> {
   const user = await getUser();
   if (!user) redirect('/login');

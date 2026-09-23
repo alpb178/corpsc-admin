@@ -6,16 +6,16 @@ interface Props {
   value: number | undefined;
   unit?: Unit;
   delta?: Delta;
-  /** El KPI principal se muestra más grande. */
+  /** The main KPI is shown larger. */
   hero?: boolean;
   hint?: string;
 }
 
 /**
- * Un KPI. Cifra, variación y nada más.
+ * A KPI. Figure, change and nothing else.
  *
- * Es una baldosa y no un gráfico de una sola barra a propósito: un número
- * suelto se lee de un vistazo, y una barra sin comparación no añade nada.
+ * It's a tile and not a single-bar chart on purpose: a lone number reads at a
+ * glance, and a bar with nothing to compare against adds nothing.
  */
 export function StatTile({ label, value, unit = 'COUNT', delta, hero = false, hint }: Props) {
   return (
@@ -35,8 +35,9 @@ export function StatTile({ label, value, unit = 'COUNT', delta, hero = false, hi
 }
 
 function DeltaLabel({ delta, unit }: { delta: Delta; unit: Unit }) {
-  // El color NUNCA va solo: lo acompaña una flecha y el texto del periodo
-  // anterior, para que la información llegue igual sin distinguir colores.
+  // Colour NEVER goes alone: an arrow and the previous period's text come
+  // with it, so the information gets across just as well without telling
+  // colours apart.
   const tone =
     delta.improved === null
       ? 'text-fg-subtle'

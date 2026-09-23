@@ -21,30 +21,30 @@ const admin: AuthUser = { id: '1', email: 'a@corpsc.com', name: 'A', role: Role.
 const viewer: AuthUser = { id: '2', email: 'v@corpsc.com', name: 'V', role: Role.VIEWER };
 
 describe('RolesGuard', () => {
-  it('deja pasar cuando la ruta no declara roles', () => {
+  it('lets the request through when the route declares no roles', () => {
     expect(guardRequiring(undefined).canActivate(contextWith(viewer))).toBe(true);
     expect(guardRequiring([]).canActivate(contextWith(viewer))).toBe(true);
   });
 
-  it('deja pasar al rol exigido', () => {
+  it('lets the required role through', () => {
     expect(guardRequiring([Role.ADMIN]).canActivate(contextWith(admin))).toBe(true);
   });
 
-  it('bloquea a quien no tiene el rol', () => {
+  it('blocks users without the role', () => {
     expect(() => guardRequiring([Role.ADMIN]).canActivate(contextWith(viewer))).toThrow(
       ForbiddenException,
     );
   });
 
-  it('acepta cualquiera de varios roles admitidos', () => {
+  it('accepts any of several allowed roles', () => {
     const guard = guardRequiring([Role.ADMIN, Role.ANALYST]);
     expect(guard.canActivate(contextWith(admin))).toBe(true);
     expect(() => guard.canActivate(contextWith(viewer))).toThrow(ForbiddenException);
   });
 
-  it('bloquea si no hay usuario en la petición', () => {
-    // Pasa si alguien pone RolesGuard sin JwtAuthGuard delante: debe cerrar la
-    // puerta, no dejarla abierta.
+  it('blocks when there is no user on the request', () => {
+    // Happens if someone uses RolesGuard without JwtAuthGuard in front: it must
+    // shut the door, not leave it open.
     expect(() => guardRequiring([Role.VIEWER]).canActivate(contextWith(undefined))).toThrow(
       ForbiddenException,
     );

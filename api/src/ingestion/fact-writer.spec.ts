@@ -7,9 +7,9 @@ import { TOTAL, TOTAL_DIMENSION, type MetricRow } from './common/metric-row';
 import type { PrismaService } from '../prisma/prisma.service';
 
 /**
- * Estos tests tocan Postgres de verdad. La lógica que prueban —upsert
- * idempotente y borrado de huérfanos— vive en SQL, así que con un mock no se
- * estaría probando nada.
+ * These tests hit a real Postgres. The logic they test —idempotent upsert and
+ * orphan deletion— lives in SQL, so with a mock nothing would actually be
+ * tested.
  */
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -68,7 +68,7 @@ afterAll(async () => {
 });
 
 describe('FactWriterService', () => {
-  it('escribe las filas de la ventana', async () => {
+  it('writes the rows of the window', async () => {
     const result = await writer.write({
       projectId,
       runId,
@@ -82,13 +82,13 @@ describe('FactWriterService', () => {
     expect(await storedRows()).toHaveLength(2);
   });
 
-  it('reingerir lo mismo no duplica y actualiza el valor', async () => {
+  it('re-ingesting the same data does not duplicate and updates the value', async () => {
     await writer.write({
       projectId, runId, from: FROM, to: TO,
       rows: [row('2026-03-01', TOTAL, 100)],
     });
 
-    // Un pedido pendiente que se cobra: el mismo día vuelve con otro número.
+    // A pending order that gets paid: the same day comes back with another number.
     const second = await writer.write({
       projectId, runId: await newRun(), from: FROM, to: TO,
       rows: [row('2026-03-01', TOTAL, 115)],
@@ -100,9 +100,10 @@ describe('FactWriterService', () => {
     expect(second.rowsDeleted).toBe(0);
   });
 
-  it('borra las filas que el origen ya no devuelve', async () => {
-    // 'CL' estaba en el top-N ayer; hoy ya no. Si no se borrase, se quedaría
-    // congelada con su valor viejo y el desglose dejaría de sumar el total.
+  it('deletes the rows the source no longer returns', async () => {
+    // 'CL' was in the top-N yesterday; today it isn't. If it weren't deleted, it
+    // would stay frozen with its old value and the breakdown would stop adding
+    // up to the total.
     await writer.write({
       projectId, runId, from: FROM, to: TO,
       rows: [row('2026-03-01', 'BO', 60), row('2026-03-01', 'CL', 5)],
@@ -117,7 +118,7 @@ describe('FactWriterService', () => {
     expect((await storedRows()).map((r) => r.dimValue)).toEqual(['BO']);
   });
 
-  it('no toca lo que está fuera de la ventana', async () => {
+  it('does not touch what is outside the window', async () => {
     await writer.write({
       projectId, runId, from: '2026-02-01', to: '2026-02-28',
       rows: [row('2026-02-15', TOTAL, 999)],
@@ -128,14 +129,14 @@ describe('FactWriterService', () => {
       rows: [row('2026-03-01', TOTAL, 100)],
     });
 
-    const fechas = (await storedRows()).map((r) => r.date.toISOString().slice(0, 10));
-    expect(fechas).toContain('2026-02-15');
+    const dates = (await storedRows()).map((r) => r.date.toISOString().slice(0, 10));
+    expect(dates).toContain('2026-02-15');
   });
 
-  it('NO borra nada si el origen devuelve cero filas habiendo datos', async () => {
-    // El fallo más peligroso del diseño: un cambio de permisos o un id mal
-    // escrito devuelven 200 con cero filas, y el borrado de huérfanos se
-    // llevaría por delante datos buenos. Debe abortar, no vaciar.
+  it('deletes NOTHING if the source returns zero rows while data exists', async () => {
+    // The most dangerous failure in the design: a permissions change or a
+    // mistyped id return 200 with zero rows, and orphan deletion would wipe out
+    // good data. It must abort, not empty.
     await writer.write({
       projectId, runId, from: FROM, to: TO,
       rows: [row('2026-03-01', TOTAL, 100), row('2026-03-02', TOTAL, 120)],
@@ -150,7 +151,7 @@ describe('FactWriterService', () => {
     expect(await storedRows()).toHaveLength(2);
   });
 
-  it('acepta cero filas si la ventana también estaba vacía', async () => {
+  it('accepts zero rows if the window was also empty', async () => {
     const result = await writer.write({
       projectId, runId, from: FROM, to: TO, rows: [],
     });
@@ -158,9 +159,9 @@ describe('FactWriterService', () => {
     expect(result).toEqual({ rowsWritten: 0, rowsDeleted: 0 });
   });
 
-  it('escribe lotes grandes de una vez', async () => {
+  it('writes large batches in one go', async () => {
     const rows = Array.from({ length: 2_500 }, (_, i) =>
-      row('2026-03-01', `pais-${i}`, i + 1),
+      row('2026-03-01', `country-${i}`, i + 1),
     );
 
     const result = await writer.write({

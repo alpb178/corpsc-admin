@@ -8,11 +8,11 @@ const fieldClass =
 const labelClass = 'block text-[12px] font-medium text-fg-muted';
 
 /**
- * Alta de usuario.
+ * User sign-up.
  *
- * El rol por defecto es el de menos permisos: el panel enseña datos de sitios
- * de clientes, y dar de alta con lectura y subir después es reversible;
- * al revés, no.
+ * The default role is the least privileged one: the panel shows data from
+ * client sites, and creating someone as read-only and promoting them later is
+ * reversible; the other way round isn't.
  */
 export function NewUserForm() {
   const id = useId();

@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const TABS = [
-  { href: '/ajustes/proyectos', label: 'Proyectos' },
-  { href: '/ajustes/usuarios', label: 'Usuarios' },
+  { href: '/settings/projects', label: 'Proyectos' },
+  { href: '/settings/users', label: 'Usuarios' },
 ];
 
 export function SettingsTabs() {

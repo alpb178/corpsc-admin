@@ -1,13 +1,13 @@
 import 'dotenv/config';
 import { defineConfig } from 'prisma/config';
 
-// Prisma 7 saca la URL de conexión del schema: el CLI (migrate, studio, seed)
-// la lee de aquí, y el cliente en runtime la recibe vía driver adapter en
-// src/prisma/prisma.service.ts.
+// Prisma 7 takes the connection URL out of the schema: the CLI (migrate,
+// studio, seed) reads it from here, and the runtime client receives it via a
+// driver adapter in src/prisma/prisma.service.ts.
 //
-// El CLI prefiere DIRECT_URL: `migrate deploy` toma un advisory lock de sesión
-// y se cuelga detrás de un pooler en modo transacción (Supabase, puerto 6543).
-// El runtime sigue usando DATABASE_URL, que sí puede ir por el pooler.
+// The CLI prefers DIRECT_URL: `migrate deploy` takes a session advisory lock
+// and hangs behind a pooler in transaction mode (Supabase, port 6543).
+// The runtime keeps using DATABASE_URL, which can go through the pooler.
 export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {

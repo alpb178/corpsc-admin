@@ -1,15 +1,15 @@
 import 'dotenv/config';
 import { PrismaClient, ProjectKind, SiteEventType } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { EventRollupService } from './event-rollup.service';
+import { EventRollupService, elementKey } from './event-rollup.service';
 import { FactWriterService } from './fact-writer.service';
 import { toUtcDate } from './common/dates';
 import type { PrismaService } from '../prisma/prisma.service';
 
 /**
- * Tests contra Postgres de verdad: lo que se prueba —el recorte del día en la
- * zona del proyecto y el conteo de sesiones distintas— vive en SQL, así que
- * con un mock no se estaría probando nada.
+ * Tests against a real Postgres: what's being tested —cutting the day in the
+ * project's zone and counting distinct sessions— lives in SQL, so with a mock
+ * nothing would actually be tested.
  */
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -21,7 +21,7 @@ const service = new EventRollupService(
 );
 
 const SLUG = 'test-event-rollup';
-/** La Paz es UTC−4: un evento de las 01:00 UTC todavía es del día anterior. */
+/** La Paz is UTC−4: an event at 01:00 UTC still belongs to the previous day. */
 const TZ = 'America/La_Paz';
 const FROM = '2026-03-01';
 const TO = '2026-03-02';
@@ -35,6 +35,13 @@ interface EventSeed {
   path?: string;
   target?: string;
   linkType?: string;
+  section?: string;
+  label?: string;
+  country?: string;
+  referrer?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
 }
 
 async function seedEvents(events: EventSeed[]): Promise<void> {
@@ -46,6 +53,13 @@ async function seedEvents(events: EventSeed[]): Promise<void> {
       path: e.path ?? '/es',
       target: e.target ?? null,
       linkType: e.linkType ?? null,
+      section: e.section ?? null,
+      label: e.label ?? null,
+      country: e.country ?? null,
+      referrer: e.referrer ?? null,
+      utmSource: e.utmSource ?? null,
+      utmMedium: e.utmMedium ?? null,
+      utmCampaign: e.utmCampaign ?? null,
       occurredAt: new Date(e.at),
     })),
   });
@@ -67,7 +81,7 @@ async function valueOf(metricKey: string, dimValue = '__total__'): Promise<numbe
 beforeAll(async () => {
   await prisma.project.deleteMany({ where: { slug: SLUG } });
   project = await prisma.project.create({
-    data: { slug: SLUG, name: 'Test eventos', domain: `${SLUG}.invalid`, kind: ProjectKind.OWN, timezone: TZ },
+    data: { slug: SLUG, name: 'Test events', domain: `${SLUG}.invalid`, kind: ProjectKind.OWN, timezone: TZ },
     select: { id: true, slug: true, timezone: true },
   });
 });
@@ -83,13 +97,13 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-describe('consolidación de eventos', () => {
-  it('cuenta una visita por sesión, no por página vista', async () => {
+describe('event rollup', () => {
+  it('counts one visit per session, not per page view', async () => {
     await seedEvents([
-      { type: SiteEventType.PAGE_VIEW, sessionId: 'sesion-uno-aaaa', at: '2026-03-01T15:00:00Z' },
-      { type: SiteEventType.PAGE_VIEW, sessionId: 'sesion-uno-aaaa', at: '2026-03-01T15:02:00Z' },
-      { type: SiteEventType.PAGE_VIEW, sessionId: 'sesion-uno-aaaa', at: '2026-03-01T15:05:00Z' },
-      { type: SiteEventType.PAGE_VIEW, sessionId: 'sesion-dos-bbbb', at: '2026-03-01T18:00:00Z' },
+      { type: SiteEventType.PAGE_VIEW, sessionId: 'session-one-aaa', at: '2026-03-01T15:00:00Z' },
+      { type: SiteEventType.PAGE_VIEW, sessionId: 'session-one-aaa', at: '2026-03-01T15:02:00Z' },
+      { type: SiteEventType.PAGE_VIEW, sessionId: 'session-one-aaa', at: '2026-03-01T15:05:00Z' },
+      { type: SiteEventType.PAGE_VIEW, sessionId: 'session-two-bbb', at: '2026-03-01T18:00:00Z' },
     ]);
 
     await service.rollupWindow(project, FROM, TO);
@@ -98,16 +112,16 @@ describe('consolidación de eventos', () => {
     expect(await valueOf('page_views')).toBe(4);
   });
 
-  it('recorta el día en la zona del proyecto, no en UTC', async () => {
+  it('cuts the day in the project timezone, not in UTC', async () => {
     await seedEvents([
-      // 01:00 UTC del día 2 son las 21:00 del día 1 en La Paz.
-      { type: SiteEventType.PAGE_VIEW, sessionId: 'sesion-tarde-aa', at: '2026-03-02T01:00:00Z' },
-      { type: SiteEventType.PAGE_VIEW, sessionId: 'sesion-manana-b', at: '2026-03-02T14:00:00Z' },
+      // 01:00 UTC on the 2nd is 21:00 on the 1st in La Paz.
+      { type: SiteEventType.PAGE_VIEW, sessionId: 'session-late-aa', at: '2026-03-02T01:00:00Z' },
+      { type: SiteEventType.PAGE_VIEW, sessionId: 'session-morn-bb', at: '2026-03-02T14:00:00Z' },
     ]);
 
     await service.rollupWindow(project, FROM, TO);
 
-    // Solo la fila agregada: el desglose por ruta trae las mismas cifras otra vez.
+    // Only the aggregate row: the path breakdown carries the same figures again.
     const rows = (await stored()).filter(
       (r) => r.metricKey === 'page_views' && r.dimension === 'total',
     );
@@ -117,11 +131,11 @@ describe('consolidación de eventos', () => {
     ]);
   });
 
-  it('desglosa los clics por proyecto de destino y por tipo de enlace', async () => {
+  it('breaks down clicks by target project and by link type', async () => {
     await seedEvents([
-      { type: SiteEventType.SITE_CLICK, sessionId: 'sesion-uno-aaaa', at: '2026-03-01T15:00:00Z', target: 'take', linkType: 'web' },
-      { type: SiteEventType.SITE_CLICK, sessionId: 'sesion-uno-aaaa', at: '2026-03-01T15:01:00Z', target: 'take', linkType: 'web' },
-      { type: SiteEventType.SITE_CLICK, sessionId: 'sesion-dos-bbbb', at: '2026-03-01T16:00:00Z', target: 'iris-natural', linkType: 'android' },
+      { type: SiteEventType.SITE_CLICK, sessionId: 'session-one-aaa', at: '2026-03-01T15:00:00Z', target: 'take', linkType: 'web' },
+      { type: SiteEventType.SITE_CLICK, sessionId: 'session-one-aaa', at: '2026-03-01T15:01:00Z', target: 'take', linkType: 'web' },
+      { type: SiteEventType.SITE_CLICK, sessionId: 'session-two-bbb', at: '2026-03-01T16:00:00Z', target: 'iris-natural', linkType: 'android' },
     ]);
 
     await service.rollupWindow(project, FROM, TO);
@@ -133,15 +147,15 @@ describe('consolidación de eventos', () => {
     expect(await valueOf('site_clicks', 'web')).toBe(2);
   });
 
-  it('reconsolidar la misma ventana no duplica ni deja rastro del anterior', async () => {
+  it('re-rolling the same window neither duplicates nor leaves traces of the previous one', async () => {
     await seedEvents([
-      { type: SiteEventType.PAGE_VIEW, sessionId: 'sesion-uno-aaaa', at: '2026-03-01T15:00:00Z' },
+      { type: SiteEventType.PAGE_VIEW, sessionId: 'session-one-aaa', at: '2026-03-01T15:00:00Z' },
     ]);
     await service.rollupWindow(project, FROM, TO);
 
-    // Llega un evento con retraso y se vuelve a consolidar el mismo día.
+    // A late event arrives and the same day is rolled up again.
     await seedEvents([
-      { type: SiteEventType.PAGE_VIEW, sessionId: 'sesion-dos-bbbb', at: '2026-03-01T16:00:00Z' },
+      { type: SiteEventType.PAGE_VIEW, sessionId: 'session-two-bbb', at: '2026-03-01T16:00:00Z' },
     ]);
     await service.rollupWindow(project, FROM, TO);
 
@@ -149,9 +163,9 @@ describe('consolidación de eventos', () => {
     expect((await stored()).filter((r) => r.metricKey === 'page_views' && r.dimension === 'total')).toHaveLength(1);
   });
 
-  it('no toca las métricas que no son suyas', async () => {
-    // Un proyecto que además empuja sus pedidos: la consolidación solo manda
-    // sobre visitas, páginas y clics.
+  it('does not touch metrics it does not own', async () => {
+    // A project that also pushes its orders: the rollup only owns visits,
+    // pages and clicks.
     await prisma.metricDaily.create({
       data: {
         projectId: project.id,
@@ -163,7 +177,7 @@ describe('consolidación de eventos', () => {
       },
     });
     await seedEvents([
-      { type: SiteEventType.PAGE_VIEW, sessionId: 'sesion-uno-aaaa', at: '2026-03-01T15:00:00Z' },
+      { type: SiteEventType.PAGE_VIEW, sessionId: 'session-one-aaa', at: '2026-03-01T15:00:00Z' },
     ]);
 
     await service.rollupWindow(project, FROM, TO);
@@ -171,7 +185,7 @@ describe('consolidación de eventos', () => {
     expect(await valueOf('orders')).toBe(7);
   });
 
-  it('sin eventos no escribe nada: el silencio no es un cero', async () => {
+  it('writes nothing without events: silence is not a zero', async () => {
     const result = await service.rollupWindow(project, FROM, TO);
 
     expect(result).toBeNull();
@@ -180,17 +194,104 @@ describe('consolidación de eventos', () => {
   });
 });
 
-describe('consolidación en vivo', () => {
+describe('in-page clicks', () => {
+  it('counts clicks by page and by element, including outbound ones', async () => {
+    await seedEvents([
+      { type: SiteEventType.CLICK, sessionId: 'session-one-aaa', at: '2026-03-01T15:00:00Z', path: '/es', section: 'hero', label: 'Ver proyectos' },
+      { type: SiteEventType.CLICK, sessionId: 'session-two-bbb', at: '2026-03-01T15:10:00Z', path: '/es', section: 'hero', label: 'Ver proyectos' },
+      { type: SiteEventType.CLICK, sessionId: 'session-one-aaa', at: '2026-03-01T15:20:00Z', path: '/es/contacto', section: 'footer', label: 'Email' },
+      { type: SiteEventType.SITE_CLICK, sessionId: 'session-one-aaa', at: '2026-03-01T15:30:00Z', path: '/es', section: 'projects', label: 'Take', target: 'take', linkType: 'web' },
+    ]);
+
+    await service.rollupWindow(project, FROM, TO);
+
+    expect(await valueOf('clicks')).toBe(4);
+    expect(await valueOf('site_clicks')).toBe(1);
+    expect(await valueOf('clicks', '/es')).toBe(3);
+    expect(await valueOf('clicks', '/es | hero | Ver proyectos')).toBe(2);
+    expect(await valueOf('clicks', '/es | projects | Take')).toBe(1);
+    expect(await valueOf('clicks', '/es/contacto | footer | Email')).toBe(1);
+  });
+
+  it('a site click without a section counts in the total but not in the breakdown', async () => {
+    await seedEvents([
+      { type: SiteEventType.SITE_CLICK, sessionId: 'session-one-aaa', at: '2026-03-01T15:00:00Z', target: 'take', linkType: 'web' },
+    ]);
+
+    await service.rollupWindow(project, FROM, TO);
+
+    expect(await valueOf('clicks')).toBe(1);
+    const elements = (await stored()).filter((r) => r.dimension === 'element');
+    expect(elements).toHaveLength(0);
+  });
+
+  it('strips the pipe from the parts so the value can be split back', () => {
+    expect(elementKey('/es', 'nav | top', 'A|B')).toBe('/es | nav / top | A/B');
+  });
+});
+
+describe('where and when visits come from', () => {
+  const PV = SiteEventType.PAGE_VIEW;
+
+  it('takes country, source and hour from the first event of each visit', async () => {
+    await seedEvents([
+      // 14:00 UTC is 10:00 in La Paz.
+      { type: PV, sessionId: 'session-one-aaa', at: '2026-03-01T14:00:00Z', country: 'BO', referrer: 'google.com' },
+      // The second page of the same visit carries no origin: it doesn't count again.
+      { type: PV, sessionId: 'session-one-aaa', at: '2026-03-01T14:05:00Z', country: 'BO' },
+      { type: PV, sessionId: 'session-two-bbb', at: '2026-03-01T22:30:00Z', country: 'AR',
+        utmSource: 'instagram', utmMedium: 'social', utmCampaign: 'autumn' },
+      { type: PV, sessionId: 'session-three-c', at: '2026-03-01T22:40:00Z' },
+    ]);
+
+    await service.rollupWindow(project, FROM, TO);
+
+    expect(await valueOf('visits')).toBe(3);
+    expect(await valueOf('visits', 'BO')).toBe(1);
+    expect(await valueOf('visits', 'AR')).toBe(1);
+    expect(await valueOf('visits', '__unknown__')).toBe(1);
+    expect(await valueOf('visits', 'Organic Search')).toBe(1);
+    expect(await valueOf('visits', 'Organic Social')).toBe(1);
+    expect(await valueOf('visits', 'Direct')).toBe(1);
+    expect(await valueOf('visits', 'google.com')).toBe(1);
+    expect(await valueOf('visits', 'instagram')).toBe(1);
+    expect(await valueOf('visits', '__direct__')).toBe(1);
+    expect(await valueOf('visits', 'autumn')).toBe(1);
+    expect(await valueOf('visits', '10')).toBe(1);
+    expect(await valueOf('visits', '18')).toBe(2);
+    expect(await valueOf('page_views', '10')).toBe(2);
+  });
+
+  it('every visits breakdown adds up to the total', async () => {
+    await seedEvents([
+      { type: PV, sessionId: 'session-one-aaa', at: '2026-03-01T14:00:00Z', country: 'BO', referrer: 'google.com' },
+      { type: PV, sessionId: 'session-two-bbb', at: '2026-03-01T15:00:00Z' },
+    ]);
+
+    await service.rollupWindow(project, FROM, TO);
+
+    const rows = await stored();
+    const sum = (dimension: string) =>
+      rows
+        .filter((r) => r.metricKey === 'visits' && r.dimension === dimension)
+        .reduce((acc, r) => acc + Number(r.value), 0);
+    for (const dimension of ['country', 'channel', 'source', 'hour']) {
+      expect(sum(dimension), dimension).toBe(2);
+    }
+  });
+});
+
+describe('live rollup', () => {
   const runs = () => prisma.ingestionRun.findMany({ where: { projectId: project.id } });
 
-  it('reutiliza el registro de su ventana en vez de dejar uno por visita', async () => {
+  it('reuses the run for its window instead of leaving one per visit', async () => {
     await seedEvents([
-      { type: SiteEventType.PAGE_VIEW, sessionId: 'sesion-uno-aaaa', at: '2026-03-01T15:00:00Z' },
+      { type: SiteEventType.PAGE_VIEW, sessionId: 'session-one-aaa', at: '2026-03-01T15:00:00Z' },
     ]);
     await service.rollupWindow(project, FROM, TO, { live: true });
 
     await seedEvents([
-      { type: SiteEventType.PAGE_VIEW, sessionId: 'sesion-dos-bbbb', at: '2026-03-01T16:00:00Z' },
+      { type: SiteEventType.PAGE_VIEW, sessionId: 'session-two-bbb', at: '2026-03-01T16:00:00Z' },
     ]);
     await service.rollupWindow(project, FROM, TO, { live: true });
 
@@ -198,9 +299,9 @@ describe('consolidación en vivo', () => {
     expect(await valueOf('visits')).toBe(2);
   });
 
-  it('la de la noche sigue dejando su propio registro', async () => {
+  it('the nightly one still leaves its own run', async () => {
     await seedEvents([
-      { type: SiteEventType.PAGE_VIEW, sessionId: 'sesion-uno-aaaa', at: '2026-03-01T15:00:00Z' },
+      { type: SiteEventType.PAGE_VIEW, sessionId: 'session-one-aaa', at: '2026-03-01T15:00:00Z' },
     ]);
     await service.rollupWindow(project, FROM, TO, { live: true });
     await service.rollupWindow(project, FROM, TO);
@@ -208,7 +309,7 @@ describe('consolidación en vivo', () => {
     expect(await runs()).toHaveLength(2);
   });
 
-  it('agrupa una ráfaga de envíos en una sola consolidación', async () => {
+  it('groups a burst of submissions into a single rollup', async () => {
     vi.useFakeTimers();
     const spy = vi.spyOn(service, 'rollupWindow').mockResolvedValue(null);
     try {
@@ -225,7 +326,7 @@ describe('consolidación en vivo', () => {
     }
   });
 
-  it('lo que llega durante una consolidación deja otra para después', async () => {
+  it('anything arriving during a rollup schedules another one afterwards', async () => {
     vi.useFakeTimers();
     let release!: () => void;
     const spy = vi
@@ -237,7 +338,7 @@ describe('consolidación en vivo', () => {
       await vi.advanceTimersByTimeAsync(10_000);
       expect(spy).toHaveBeenCalledTimes(1);
 
-      // Llega un evento mientras la primera sigue en marcha.
+      // An event arrives while the first one is still running.
       service.scheduleLive(project);
       release();
       await vi.advanceTimersByTimeAsync(10_000);

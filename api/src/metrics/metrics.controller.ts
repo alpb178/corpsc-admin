@@ -9,7 +9,7 @@ import { FreshnessService } from '../ingestion/freshness.service';
 @ApiTags('metrics')
 @ApiBearerAuth()
 @Controller('metrics')
-// Sin @Roles: leer métricas es lo que puede hacer cualquier rol, incluido VIEWER.
+// No @Roles: reading metrics is something any role can do, VIEWER included.
 @UseGuards(JwtAuthGuard)
 export class MetricsController {
   constructor(
@@ -20,17 +20,17 @@ export class MetricsController {
 
   @Get('freshness')
   @ApiOperation({
-    summary: 'Qué proyectos han enviado y cuándo',
+    summary: 'Which projects have sent data and when',
     description:
-      'Es la contrapartida de recibir en vez de ir a buscar: si el cron de un ' +
-      'proyecto se rompe, no falla nada visible — simplemente dejan de llegar datos.',
+      "The flip side of receiving instead of fetching: if a project's cron " +
+      'breaks, nothing visibly fails — data simply stops arriving.',
   })
   freshnessReport() {
     return this.freshness.report();
   }
 
   @Get('runs')
-  @ApiOperation({ summary: 'Últimos envíos recibidos, con sus avisos' })
+  @ApiOperation({ summary: 'Latest submissions received, with their warnings' })
   runs() {
     return this.prisma.ingestionRun.findMany({
       orderBy: { receivedAt: 'desc' },
@@ -40,7 +40,7 @@ export class MetricsController {
   }
 
   @Get('definitions')
-  @ApiOperation({ summary: 'Catálogo de métricas, con unidad y cuáles son derivadas' })
+  @ApiOperation({ summary: 'Metric catalog, with units and which ones are derived' })
   definitions() {
     return this.prisma.metricDefinition.findMany({
       where: { active: true },
@@ -49,14 +49,14 @@ export class MetricsController {
   }
 
   @Get('overview')
-  @ApiOperation({ summary: 'KPIs del grupo, reparto propio/cliente y tabla por sitio' })
+  @ApiOperation({ summary: 'Group KPIs, own/client split and per-site table' })
   overview(@Query() q: RangeDto) {
     return this.metrics.overview({ from: q.from, to: q.to }, q.compare ?? false);
   }
 
 
   @Get('compare')
-  @ApiOperation({ summary: 'Una métrica, varios sitios, serie diaria' })
+  @ApiOperation({ summary: 'One metric, several sites, daily series' })
   compare(@Query() q: CompareDto) {
     const slugs = q.slugs
       .split(',')
@@ -66,7 +66,7 @@ export class MetricsController {
   }
 
   @Get('projects/:slug')
-  @ApiOperation({ summary: 'Ficha de un sitio: totales, serie diaria, desgloses y SEO' })
+  @ApiOperation({ summary: 'Site detail: totals, daily series, breakdowns and SEO' })
   project(@Param('slug') slug: string, @Query() q: RangeDto) {
     return this.metrics.project(slug, { from: q.from, to: q.to }, q.compare ?? false);
   }

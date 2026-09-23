@@ -7,24 +7,25 @@ import { isIsoDate } from '../src/ingestion/common/dates';
 import type { PrismaService } from '../src/prisma/prisma.service';
 
 /**
- * Consolida a mano los eventos de un sitio, sin esperar al cron de las 03:00.
+ * Rolls up a site's events by hand, without waiting for the 03:00 cron.
  *
- * Para dos cosas:
- *   - Probar en local: se mandan cuatro beacons y se ven las cifras al momento,
- *     en lugar de dejar el portátil encendido hasta la madrugada.
- *   - Rehacer un histórico en producción cuando algo cambió después: una zona
- *     horaria mal puesta, un bot que se descubre tarde.
+ * Good for two things:
+ *   - Testing locally: send four beacons and see the figures right away,
+ *     instead of leaving the laptop on until the small hours.
+ *   - Redoing history in production when something changed afterwards: a
+ *     wrongly set timezone, a bot discovered late.
  *
- *   pnpm rollup                       todos los proyectos activos, últimos 4 días
- *   pnpm rollup corpsc                solo ese proyecto
+ *   pnpm rollup                       all active projects, last 4 days
+ *   pnpm rollup corpsc                only that project
  *   pnpm rollup corpsc 2026-09-01 2026-09-21
  *
- * Es idempotente: reconsolidar una ventana la reescribe entera, no la duplica.
+ * It's idempotent: rolling up a window again rewrites it whole, it doesn't
+ * duplicate it.
  *
- * Los servicios se construyen a mano en lugar de levantar el contexto de Nest
- * porque este script corre con tsx, y esbuild no emite `design:paramtypes`: la
- * inyección por tipo dejaría el PrismaService sin resolver. Es el mismo cableado
- * manual que usan los tests.
+ * The services are built by hand instead of booting the Nest context because
+ * this script runs on tsx, and esbuild doesn't emit `design:paramtypes`:
+ * type-based injection would leave PrismaService unresolved. It's the same
+ * manual wiring the tests use.
  */
 async function main(): Promise<void> {
   const [slug, from, to] = process.argv.slice(2);
@@ -60,8 +61,8 @@ async function main(): Promise<void> {
           ? await rollup.rollupWindow(project, from, to)
           : await rollup.rollup(project);
 
-      // Sin eventos no se escribe nada, y decirlo importa: un sitio callado no
-      // es un sitio con cero visitas.
+      // Without events nothing is written, and saying so matters: a quiet site
+      // isn't a site with zero visits.
       console.log(
         result
           ? `  ✓ ${project.slug}: ${result.rowsWritten} filas (${result.rowsDeleted} reemplazadas)`

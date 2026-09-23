@@ -1,4 +1,4 @@
-/** Rangos de fechas del panel. */
+/** The panel's date ranges. */
 
 export interface Preset {
   key: string;
@@ -20,11 +20,11 @@ function iso(date: Date): string {
 }
 
 /**
- * Rango a partir de un preset.
+ * Range from a preset.
  *
- * Termina AYER, no hoy: los proyectos envían de madrugada el día ya cerrado,
- * así que incluir hoy solo añade una caída al final de todas las gráficas que
- * no significa nada.
+ * It ends YESTERDAY, not today: projects send the already-closed day in the
+ * early hours, so including today only adds a meaningless drop at the end of
+ * every chart.
  */
 export function resolveRange(preset: string, now = new Date()): { from: string; to: string } {
   const days = PRESETS.find((p) => p.key === preset)?.days ?? 28;
@@ -35,8 +35,9 @@ export function resolveRange(preset: string, now = new Date()): { from: string; 
   return { from: iso(from), to: iso(to) };
 }
 
-/** Lee el preset de los searchParams, cayendo al de por defecto si es raro. */
-export function presetFrom(params: { rango?: string } | undefined): string {
-  const value = params?.rango;
+/** Reads the preset from searchParams, falling back to the default if it's odd. */
+export function presetFrom(params: { range?: string; rango?: string } | undefined): string {
+  // `rango` is the pre-rename name: links shared before it still work.
+  const value = params?.range ?? params?.rango;
   return PRESETS.some((p) => p.key === value) ? value! : DEFAULT_PRESET;
 }

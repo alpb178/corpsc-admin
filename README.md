@@ -124,11 +124,14 @@ pnpm install
 pnpm dev                      # http://localhost:3000
 ```
 
-Cuatro vistas: **Resumen** del grupo, **ficha de cada sitio**, **comparador** y
-**envíos**. Todas aceptan `?rango=7d|28d|90d|12m`, y el rango vive en la
-URL para poder compartir una vista concreta.
+Cuatro vistas: **Resumen** del grupo (`/`), **ficha de cada sitio**
+(`/projects/[slug]`), **comparador** (`/compare?sites=a,b`) y **envíos**
+(`/submissions`). Todas aceptan `?range=7d|28d|90d|12m`, y el rango vive en la
+URL para poder compartir una vista concreta. Las rutas y los parámetros
+antiguos en español (`/comparar`, `/envios`, `/proyectos/…`, `/ajustes/…`,
+`?rango=`, `?sitios=`) siguen funcionando: redirigen o se aceptan como alias.
 
-Y **Ajustes**, solo para administradores: en `Proyectos` se editan zona
+Y **Ajustes** (`/settings`), solo para administradores: en `Proyectos` se editan zona
 horaria, moneda, orden y visibilidad de cada sitio, y se genera, asigna o
 revoca su clave de envío —la clave en claro se enseña una sola vez, al
 crearla—; en `Usuarios`, el alta de quien entra al panel.

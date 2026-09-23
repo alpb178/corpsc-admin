@@ -4,11 +4,11 @@ import { cookies } from 'next/headers';
 export const SESSION_COOKIE = 'corpsc_hub_session';
 
 /**
- * La cookie guarda el JWT que emite la API.
+ * The cookie holds the JWT issued by the API.
  *
- * `httpOnly` es lo que impide que un XSS se lleve el token: el JavaScript de
- * la página nunca llega a verlo, solo el servidor de Next lo lee para
- * reenviarlo a la API.
+ * `httpOnly` is what stops an XSS from stealing the token: the page's
+ * JavaScript never gets to see it; only the Next server reads it to forward
+ * it to the API.
  */
 export async function setSession(token: string): Promise<void> {
   const store = await cookies();
@@ -17,7 +17,7 @@ export async function setSession(token: string): Promise<void> {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    maxAge: 60 * 60 * 24 * 7, // igual que JWT_EXPIRES_IN en la API
+    maxAge: 60 * 60 * 24 * 7, // same as JWT_EXPIRES_IN in the API
   });
 }
 

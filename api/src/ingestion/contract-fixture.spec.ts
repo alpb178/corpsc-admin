@@ -5,29 +5,29 @@ import { validate } from 'class-validator';
 import { InternalMetricsDto, SCHEMA_VERSION } from './contract';
 
 /**
- * El ejemplo que se les da a los cuatro equipos tiene que pasar la validación
- * de verdad. Si la documentación y el código se separan, cada equipo
- * implementará lo que dice el ejemplo y el hub se lo rechazará.
+ * The example handed to the four teams has to pass the real validation. If
+ * the docs and the code drift apart, each team will implement what the
+ * example says and the hub will reject it.
  */
 describe('docs/envio-de-metricas/ejemplo.json', () => {
-  // Relativo a la raíz de `api/`, que es el root de vitest.
+  // Relative to the `api/` root, which is vitest's root.
   const fixture = JSON.parse(
     readFileSync(resolve(process.cwd(), '../docs/envio-de-metricas/ejemplo.json'), 'utf8'),
   ) as unknown;
 
-  it('cumple el contrato que valida el hub', async () => {
+  it('satisfies the contract the hub validates', async () => {
     const dto = plainToInstance(InternalMetricsDto, fixture);
     const errors = await validate(dto);
 
     expect(errors.flatMap((e) => Object.values(e.constraints ?? {}))).toEqual([]);
   });
 
-  it('declara la versión que el hub entiende', () => {
+  it('declares the version the hub understands', () => {
     expect((fixture as { schemaVersion: number }).schemaVersion).toBe(SCHEMA_VERSION);
   });
 
-  it('declara moneda en las métricas de importe', () => {
-    // Sin esto el hub no puede agregar y la referencia enseñaría a hacerlo mal.
+  it('declares a currency on amount metrics', () => {
+    // Without it the hub can't aggregate, and the reference would teach doing it wrong.
     const defs = (fixture as { definitions: Array<{ unit: string; currency?: string }> }).definitions;
     for (const def of defs.filter((d) => d.unit === 'currency')) {
       expect(def.currency).toBeTruthy();

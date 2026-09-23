@@ -17,14 +17,15 @@ export interface PushingProject {
 }
 
 /**
- * Identifica al proyecto que envía sus métricas.
+ * Identifies the project pushing its metrics.
  *
- * La cabecera trae la clave en claro; en la base está cifrada, así que hay que
- * descifrar las candidatas y comparar. Son catorce proyectos como mucho, de
- * modo que el coste es irrelevante frente a guardar un hash sin cifrar.
+ * The header carries the key in plain text; in the database it's encrypted,
+ * so the candidates have to be decrypted and compared. There are fourteen
+ * projects at most, so the cost is irrelevant compared to storing an
+ * unencrypted hash.
  *
- * La comparación es en tiempo constante: hacerlo con `===` filtraría la clave
- * carácter a carácter por el tiempo de respuesta.
+ * The comparison runs in constant time: doing it with `===` would leak the key
+ * character by character through the response time.
  */
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
@@ -37,9 +38,9 @@ export class ApiKeyGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<Request & { project?: PushingProject }>();
     const received = request.header('x-api-key');
 
-    // Mismo error para "sin cabecera", "clave que no existe" y "proyecto
-    // desactivado": distinguirlos convertiría el endpoint en un verificador
-    // de qué claves son válidas.
+    // Same error for "no header", "key that doesn't exist" and "deactivated
+    // project": telling them apart would turn the endpoint into an oracle for
+    // which keys are valid.
     const invalid = new UnauthorizedException('Clave no válida');
     if (!received) throw invalid;
 
@@ -71,7 +72,7 @@ export class ApiKeyGuard implements CanActivate {
   }
 }
 
-/** Lee el proyecto que ha identificado el guard. */
+/** Reads the project the guard identified. */
 export const CurrentProject = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): PushingProject =>
     ctx.switchToHttp().getRequest<{ project: PushingProject }>().project,

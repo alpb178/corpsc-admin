@@ -14,7 +14,7 @@ export class ProjectsService {
         id: true, slug: true, name: true, domain: true, kind: true,
         timezone: true, currency: true, active: true, sortOrder: true,
         lastPushAt: true,
-        // Solo si tiene clave asignada, nunca la clave.
+        // Only whether it has a key assigned, never the key.
         credentialId: true,
       },
     });
@@ -24,8 +24,8 @@ export class ProjectsService {
     const project = await this.prisma.project.findUnique({
       where: { slug },
       include: {
-        // Nunca el ciphertext: solo lo justo para saber qué clave tiene
-        // asignada y si sigue siendo la misma.
+        // Never the ciphertext: just enough to know which key it has
+        // assigned and whether it's still the same one.
         credential: { select: { id: true, label: true, fingerprint: true } },
       },
     });
@@ -46,7 +46,7 @@ export class ProjectsService {
     });
   }
 
-  /** Comprueba la zona contra el ICU del runtime, no contra una lista propia. */
+  /** Checks the timezone against the runtime's ICU, not against a list of our own. */
   private isValidTimezone(tz: string): boolean {
     try {
       new Intl.DateTimeFormat('en-US', { timeZone: tz });

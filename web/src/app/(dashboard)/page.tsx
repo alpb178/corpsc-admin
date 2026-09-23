@@ -11,7 +11,7 @@ import type { Overview, ProjectSummary } from '@/lib/types';
 export default async function OverviewPage({
   searchParams,
 }: {
-  searchParams: Promise<{ rango?: string }>;
+  searchParams: Promise<{ range?: string; rango?: string }>;
 }) {
   const preset = presetFrom(await searchParams);
   const range = resolveRange(preset);
@@ -48,8 +48,8 @@ export default async function OverviewPage({
         />
       ) : (
         <>
-          {/* Seis KPI de primer nivel: los que responden a "cómo va el grupo".
-              Baldosas, no gráficos: son números sueltos. */}
+          {/* Six top-level KPIs: the ones that answer "how is the group doing".
+              Tiles, not charts: they're standalone numbers. */}
           <section aria-label="Indicadores del grupo" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <StatTile label="Visitas" value={totals.visits} delta={comparison?.deltas.visits} hero />
             <StatTile label="Páginas vistas" value={totals.page_views} delta={comparison?.deltas.page_views} />
@@ -81,7 +81,7 @@ export default async function OverviewPage({
   );
 }
 
-/** Propios frente a clientes: distingue "cómo va el producto" de "cómo va el servicio". */
+/** Own versus client sites: separates "how is the product doing" from "how is the service doing". */
 function Split({ own, client }: { own: number; client: number }) {
   const total = own + client;
   if (total === 0) return null;
@@ -96,8 +96,8 @@ function Split({ own, client }: { own: number; client: number }) {
         </p>
       </div>
 
-      {/* Dos segmentos con un hueco de 2 px entre ellos, para que se lean como
-          dos partes y no como una barra continua. */}
+      {/* Two segments with a 2 px gap between them, so they read as two parts
+          rather than one continuous bar. */}
       <div className="mt-3 flex h-[10px] gap-[2px] overflow-hidden rounded-[4px]">
         <div
           className="rounded-l-[4px] bg-[var(--series-1)]"
@@ -149,7 +149,7 @@ function ProjectsTable({ projects }: { projects: ProjectSummary[] }) {
             {sorted.map((p) => (
               <tr key={p.slug} className="border-b border-line last:border-0 hover:bg-elevated">
                 <th scope="row" className="px-4 py-2.5 text-left font-normal">
-                  <Link href={`/proyectos/${p.slug}`} className="font-medium text-fg hover:text-accent">
+                  <Link href={`/projects/${p.slug}`} className="font-medium text-fg hover:text-accent">
                     {p.name}
                   </Link>
                   <span className="ml-2 text-[11px] text-fg-faint">

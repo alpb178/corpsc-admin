@@ -1,10 +1,10 @@
 import { defineConfig } from 'vitest/config';
 import swc from 'unplugin-swc';
 
-// NestJS 12 se publica como ESM puro. Jest necesita Node ≥24.9 para poder
-// require()arlo, así que los tests corren con Vitest, que es ESM nativo.
-// El plugin de SWC es lo que conserva los decoradores y los metadatos de tipo
-// que necesita la inyección de dependencias de Nest.
+// NestJS 12 ships as pure ESM. Jest needs Node ≥24.9 to be able to
+// require() it, so the tests run on Vitest, which is native ESM.
+// The SWC plugin is what keeps the decorators and the type metadata that
+// Nest's dependency injection needs.
 export default defineConfig({
   test: {
     globals: true,

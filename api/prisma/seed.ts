@@ -1,16 +1,16 @@
 /**
- * Seed del hub: el sitio corporativo, los cuatro productos y las métricas.
+ * Hub seed: the corporate site, the four products and the metrics.
  *
- * El registro canónico de proyectos vive en
- * corpsc-portfolio/src/content/projects.ts; este archivo es su espejo. Si allí
- * se añade un sitio, hay que añadirlo aquí — comparten el `slug`.
+ * The canonical project registry lives in
+ * corpsc-portfolio/src/content/projects.ts; this file is its mirror. If a site
+ * is added there, it has to be added here — they share the `slug`.
  *
- * Solo están los cinco sitios del ecosistema. El resto del catálogo del
- * portfolio (HumanCore, los sitios de cliente…) no pertenece a él y se
- * retiró del hub el 2026-09-22.
+ * Only the five ecosystem sites are here. The rest of the portfolio catalog
+ * (HumanCore, the client sites…) doesn't belong to it and was removed from
+ * the hub on 2026-09-22.
  *
- * Es idempotente: `upsert` por slug/key, así que se puede volver a ejecutar
- * sin duplicar ni pisar los ajustes que alguien haya cambiado desde el panel.
+ * It's idempotent: `upsert` by slug/key, so it can be run again without
+ * duplicating anything or overwriting settings someone changed from the panel.
  */
 import 'dotenv/config';
 import { PrismaClient, ProjectKind, MetricUnit, Aggregation, Role } from '@prisma/client';
@@ -29,13 +29,13 @@ interface ProjectSeed {
 }
 
 const PROJECTS: ProjectSeed[] = [
-  // El sitio corporativo. No es uno de los productos del catálogo: es
-  // el escaparate que los enseña, y por eso su métrica útil no son los pedidos
-  // sino a qué sitio del grupo se lleva el clic. No tiene base de datos donde
-  // agregar, así que manda eventos (docs/envio-de-metricas/eventos.md).
+  // The corporate site. It isn't one of the catalog's products: it's the
+  // showcase that presents them, which is why its useful metric isn't orders
+  // but which group site gets the click. It has no database to aggregate in,
+  // so it sends events (docs/envio-de-metricas/eventos.md).
   { slug: 'corpsc',       name: 'CORPSC',       domain: 'www.corpsc.com',        kind: ProjectKind.OWN },
 
-  // Productos propios de CORPSC
+  // CORPSC's own products
   { slug: 'take',         name: 'Take',         domain: 'take.corpsc.com',       kind: ProjectKind.OWN },
   { slug: 'invoices',     name: 'Invoices',     domain: 'invoices.corpsc.com',   kind: ProjectKind.OWN },
   { slug: 'iris-natural', name: 'Iris Natural', domain: 'irisnatural.corpsc.com', kind: ProjectKind.OWN },
@@ -52,30 +52,31 @@ interface MetricSeed {
   sortOrder: number;
 }
 
-// Catálogo de lo que los proyectos envían.
+// Catalog of what the projects send.
 //
-// Solo medidas ADITIVAS. Las que llevan `derivedFrom` no se guardan nunca: se
-// calculan al leer, porque una tasa o una media no se pueden sumar entre días
-// sin falsear el número.
+// Only ADDITIVE measures. Those with `derivedFrom` are never stored: they're
+// computed at read time, because a rate or an average can't be summed across
+// days without falsifying the number.
 //
-// Un proyecto puede enviar métricas que no estén aquí: se registran solas,
-// desactivadas, hasta que alguien decida cómo se llaman.
+// A project may send metrics that aren't listed here: they register
+// themselves, deactivated, until someone decides what they're called.
 const METRICS: MetricSeed[] = [
-  // ── Tráfico, del propio registro de cada sitio ──
+  // ── Traffic, from each site's own logging ──
   //
-  // No hay "visitantes únicos": sumar los únicos de cada día cuenta varias
-  // veces a quien vuelve, y desde datos diarios no se puede saber cuántas
-  // personas distintas hubo en un mes. Enseñar un número inflado sería peor
-  // que no enseñarlo. `visits` sí es sumable: quien vuelve tres días hizo
-  // tres visitas.
+  // There are no "unique visitors": summing each day's uniques counts a
+  // returning visitor several times, and daily data can't tell how many
+  // different people there were in a month. Showing an inflated number would
+  // be worse than not showing it. `visits` IS summable: someone who comes
+  // back on three days made three visits.
   { key: 'visits',        label: 'Visitas',          labelEn: 'Visits',      unit: MetricUnit.COUNT, sortOrder: 10 },
   { key: 'page_views',    label: 'Páginas vistas',   labelEn: 'Page views',  unit: MetricUnit.COUNT, sortOrder: 20 },
   { key: 'sessions',      label: 'Sesiones',         labelEn: 'Sessions',    unit: MetricUnit.COUNT, sortOrder: 30 },
 
-  // ── Negocio ──
+  // ── Business ──
   { key: 'product_views', label: 'Productos vistos', labelEn: 'Product views', unit: MetricUnit.COUNT, sortOrder: 60 },
   { key: 'add_to_cart',   label: 'Añadidos al carrito', labelEn: 'Add to cart', unit: MetricUnit.COUNT, sortOrder: 70 },
   { key: 'ad_views',      label: 'Anuncios vistos',  labelEn: 'Ad views',    unit: MetricUnit.COUNT,    sortOrder: 80 },
+  { key: 'clicks',        label: 'Clics',            labelEn: 'Clicks',      unit: MetricUnit.COUNT, sortOrder: 85 },
   { key: 'site_clicks',   label: 'Clics a otros sitios', labelEn: 'Site clicks', unit: MetricUnit.COUNT, sortOrder: 90 },
 
   { key: 'orders',        label: 'Pedidos',          labelEn: 'Orders',      unit: MetricUnit.COUNT,    sortOrder: 110 },
@@ -87,7 +88,7 @@ const METRICS: MetricSeed[] = [
   { key: 'publications',  label: 'Publicaciones',    labelEn: 'Publications',unit: MetricUnit.COUNT,    sortOrder: 160 },
   { key: 'invoices',      label: 'Facturas',         labelEn: 'Invoices',    unit: MetricUnit.COUNT,    sortOrder: 170 },
 
-  // ── Derivadas: NO se persisten ──
+  // ── Derived: NOT persisted ──
   { key: 'pages_per_visit', label: 'Páginas por visita', labelEn: 'Pages per visit', unit: MetricUnit.RATIO,
     aggregation: Aggregation.WEIGHTED_AVG, derivedFrom: { numerator: 'page_views', denominator: 'visits' }, sortOrder: 50 },
   { key: 'conversion_rate', label: 'Tasa de conversión', labelEn: 'Conversion rate', unit: MetricUnit.RATIO,
@@ -100,9 +101,9 @@ async function seedProjects(): Promise<void> {
   for (const [index, p] of PROJECTS.entries()) {
     await prisma.project.upsert({
       where: { slug: p.slug },
-      // Solo se refrescan los datos de identidad. `timezone`, `currency`,
-      // `active` y `sortOrder` se dejan como estén: son ajustes editables
-      // desde el panel y volver a sembrar no debe deshacerlos.
+      // Only identity data is refreshed. `timezone`, `currency`, `active` and
+      // `sortOrder` are left as they are: they're settings editable from the
+      // panel and re-seeding must not undo them.
       update: { name: p.name, domain: p.domain, kind: p.kind },
       create: { ...p, sortOrder: (index + 1) * 10 },
     });
@@ -119,10 +120,10 @@ async function seedMetricDefinitions(): Promise<void> {
       aggregation: m.aggregation ?? Aggregation.SUM,
       derivedFrom: m.derivedFrom ?? undefined,
       sortOrder: m.sortOrder,
-      // Las que están en esta lista son las que el hub conoce, así que se
-      // activan aunque la ingesta las hubiera descubierto antes y registrado
-      // como inactivas. A diferencia de los ajustes de un proyecto, el
-      // catálogo de métricas no lo edita nadie desde el panel.
+      // The ones in this list are the ones the hub knows, so they're activated
+      // even if ingestion discovered them earlier and registered them as
+      // inactive. Unlike a project's settings, nobody edits the metric catalog
+      // from the panel.
       active: true,
     };
     await prisma.metricDefinition.upsert({
@@ -136,9 +137,9 @@ async function seedMetricDefinitions(): Promise<void> {
 }
 
 /**
- * Crea el primer ADMIN solo si no hay ninguno y se han pasado las variables.
- * Nunca hay una contraseña por defecto en el código: un hub con datos de
- * clientes y un admin/admin sembrado es un incidente esperando a ocurrir.
+ * Creates the first ADMIN only if there's none and the variables were passed.
+ * There's never a default password in the code: a hub with client data and a
+ * seeded admin/admin is an incident waiting to happen.
  */
 async function seedAdmin(): Promise<void> {
   const email = process.env.SEED_ADMIN_EMAIL;

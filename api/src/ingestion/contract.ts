@@ -12,14 +12,14 @@ import {
 import { Type } from 'class-transformer';
 
 /**
- * Contrato de `POST /api/ingest/metrics`.
+ * Contract of `POST /api/ingest/metrics`.
  *
- * Lo implementan cuatro equipos en cuatro repos distintos, así que se valida
- * de verdad al recibirlo: mejor devolver un 400 que guardar datos mal formados
- * que nadie detectará hasta que un número raro aparezca en una presentación.
+ * Four teams implement it in four different repos, so it's properly validated
+ * on arrival: better to return a 400 than to store malformed data that nobody
+ * will spot until an odd number shows up in a presentation.
  *
- * `schemaVersion` existe para poder cambiar el contrato más adelante sin que
- * el hub adivine qué está leyendo.
+ * `schemaVersion` exists so the contract can change later without the hub
+ * having to guess what it's reading.
  */
 export const SCHEMA_VERSION = 1;
 
@@ -27,7 +27,7 @@ export type MetricUnitName = 'count' | 'currency' | 'seconds' | 'ratio';
 export type AggregationName = 'sum' | 'last' | 'max';
 
 export class MetricDefinitionDto {
-  /** Identificador estable: minúsculas, números y guiones bajos. */
+  /** Stable identifier: lowercase letters, digits and underscores. */
   @IsString()
   @Matches(/^[a-z][a-z0-9_]{1,63}$/, {
     message: 'key debe ser snake_case, empezar por letra y tener 2-64 caracteres',
@@ -45,7 +45,7 @@ export class MetricDefinitionDto {
   @IsIn(['sum', 'last', 'max'])
   aggregation?: AggregationName;
 
-  /** Obligatorio cuando unit es `currency`: sin esto no se puede agregar. */
+  /** Required when unit is `currency`: without it, it can't be aggregated. */
   @IsOptional()
   @IsString()
   @Length(3, 3)
@@ -57,7 +57,7 @@ export class BreakdownDto {
   @Length(1, 64)
   metric!: string;
 
-  /** Nombre del eje: status, type, plan, currency… */
+  /** Name of the dimension: status, type, plan, currency… */
   @IsString()
   @Matches(/^[a-z][a-z0-9_]{1,31}$/, { message: 'dimension debe ser snake_case de 2-32 caracteres' })
   dimension!: string;
@@ -96,7 +96,7 @@ export class InternalMetricsDto {
   @IsString()
   project!: string;
 
-  /** Zona horaria en la que se han recortado los días. Nunca UTC por defecto. */
+  /** Timezone the days were cut in. Never UTC by default. */
   @IsString()
   timezone!: string;
 
@@ -105,12 +105,12 @@ export class InternalMetricsDto {
   generatedAt?: string;
 
   /**
-   * Periodo que cubre el envío. El hub REEMPLAZA exactamente ese rango: lo que
-   * no venga dentro de él, se borra.
+   * Period the push covers. The hub REPLACES exactly that range: whatever
+   * isn't inside it gets deleted.
    *
-   * Es opcional solo por comodidad —si falta, se deduce de los días
-   * enviados—, pero declararlo es lo correcto: sin él, un día sin actividad no
-   * se puede distinguir de un día que el proyecto olvidó incluir.
+   * It's optional only for convenience —if missing, it's inferred from the
+   * days sent— but declaring it is the right thing to do: without it, a day
+   * with no activity can't be told apart from a day the project forgot to include.
    */
   @IsOptional()
   @ValidateNested()

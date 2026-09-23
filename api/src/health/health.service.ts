@@ -13,7 +13,7 @@ export class HealthService {
     };
   }
 
-  /** Responde 503 si Postgres no contesta, para que un monitor lo marque caído. */
+  /** Responds 503 if Postgres doesn't answer, so a monitor marks it as down. */
   async checkDatabase() {
     try {
       await this.prisma.$queryRaw`SELECT 1`;

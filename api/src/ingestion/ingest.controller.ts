@@ -16,38 +16,38 @@ export class IngestController {
   ) {}
 
   /**
-   * Por aquí entran TODAS las estadísticas del hub.
+   * ALL of the hub's statistics come in through here.
    *
-   * No lleva el JWT del panel: quien llama es el cron de un proyecto, no una
-   * persona. Se identifica con su propia clave, que a la vez dice de qué
-   * proyecto son los datos — así un proyecto no puede escribir en otro.
+   * It doesn't carry the panel's JWT: the caller is a project's cron, not a
+   * person. It identifies itself with its own key, which also says which
+   * project the data belongs to — so one project can't write into another.
    */
   @Post('metrics')
   @UseGuards(ApiKeyGuard)
   @HttpCode(HttpStatus.OK)
-  @ApiHeader({ name: 'X-Api-Key', description: 'Clave del proyecto que envía', required: true })
-  @ApiOperation({ summary: 'Recibe los agregados diarios de un proyecto' })
+  @ApiHeader({ name: 'X-Api-Key', description: 'Key of the pushing project', required: true })
+  @ApiOperation({ summary: 'Receives the daily aggregates of a project' })
   receive(@CurrentProject() project: PushingProject, @Body() payload: InternalMetricsDto) {
     return this.ingest.receive(project, payload, RunTrigger.PUSH);
   }
 
   /**
-   * La puerta de los sitios que no tienen dónde agregar.
+   * The door for sites that have nowhere to aggregate.
    *
-   * El portfolio y los sitios de cliente son páginas en Vercel sin base de
-   * datos: mandan el hecho suelto —una visita, un clic hacia otro sitio del
-   * grupo— y el hub los consolida de madrugada en las mismas métricas diarias
-   * que envía todo el mundo.
+   * The portfolio and the client sites are Vercel pages without a database:
+   * they send the raw fact —a visit, a click towards another site of the
+   * group— and the hub rolls them up overnight into the same daily metrics
+   * everyone else sends.
    *
-   * Un proyecto que ya empuja sus agregados NO debe usar esta puerta para las
-   * mismas métricas: su envío reemplaza la ventana entera y borraría lo
-   * consolidado desde eventos.
+   * A project that already pushes its aggregates must NOT use this door for
+   * the same metrics: its push replaces the whole window and would delete
+   * what was rolled up from events.
    */
   @Post('events')
   @UseGuards(ApiKeyGuard)
   @HttpCode(HttpStatus.ACCEPTED)
-  @ApiHeader({ name: 'X-Api-Key', description: 'Clave del proyecto que envía', required: true })
-  @ApiOperation({ summary: 'Recibe eventos sueltos de un sitio sin backend propio' })
+  @ApiHeader({ name: 'X-Api-Key', description: 'Key of the pushing project', required: true })
+  @ApiOperation({ summary: 'Receives raw events from a site without its own backend' })
   receiveEvents(@CurrentProject() project: PushingProject, @Body() payload: SiteEventsDto) {
     return this.events.receive(project, payload);
   }

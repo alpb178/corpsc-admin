@@ -9,8 +9,8 @@ export class CreateCredentialDto {
 
   @ApiPropertyOptional({
     description:
-      'La clave en claro. Si se omite, el hub genera una segura y la devuelve ' +
-      'UNA sola vez: después queda cifrada y no se puede volver a leer.',
+      'The plaintext key. If omitted, the hub generates a secure one and returns it ' +
+      'only ONCE: after that it is stored encrypted and cannot be read again.',
   })
   @IsOptional()
   @IsString()

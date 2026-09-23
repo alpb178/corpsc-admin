@@ -6,7 +6,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
-// Los literales que acepta `ms` ('7d', '24h'…), más estrecho que string.
+// The literals `ms` accepts ('7d', '24h'…), narrower than string.
 type ExpiresIn = NonNullable<NonNullable<JwtModuleOptions['signOptions']>['expiresIn']>;
 
 @Module({
@@ -15,14 +15,14 @@ type ExpiresIn = NonNullable<NonNullable<JwtModuleOptions['signOptions']>['expir
     JwtModule.registerAsync({
       useFactory: (): JwtModuleOptions => {
         const secret = process.env.JWT_SECRET;
-        // Mejor caerse al arrancar que firmar tokens con `undefined` y
-        // descubrirlo cuando alguien no pueda entrar.
+        // Better to crash on boot than to sign tokens with `undefined` and
+        // find out when someone can't log in.
         if (!secret) throw new Error('Falta JWT_SECRET');
 
         return {
           secret,
-          // La variable de entorno llega como string suelto; el tipo es
-          // más estrecho, de ahí el cast.
+          // The env variable arrives as a plain string; the type is
+          // narrower, hence the cast.
           signOptions: { expiresIn: (process.env.JWT_EXPIRES_IN ?? '7d') as ExpiresIn },
         };
       },
@@ -30,8 +30,8 @@ type ExpiresIn = NonNullable<NonNullable<JwtModuleOptions['signOptions']>['expir
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],
-  // Se reexporta PassportModule: los módulos que usen JwtAuthGuard necesitan
-  // el AuthModuleOptions que aporta, y basta con que importen AuthModule.
+  // PassportModule is re-exported: modules that use JwtAuthGuard need the
+  // AuthModuleOptions it provides, and importing AuthModule is then enough.
   exports: [AuthService, PassportModule],
 })
 export class AuthModule {}

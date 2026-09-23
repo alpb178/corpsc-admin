@@ -16,7 +16,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Inicia sesión y devuelve un JWT' })
+  @ApiOperation({ summary: 'Logs in and returns a JWT' })
   login(@Body() dto: LoginDto) {
     return this.auth.login(dto);
   }
@@ -24,7 +24,7 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Devuelve el usuario de la sesión actual' })
+  @ApiOperation({ summary: 'Returns the current session user' })
   me(@CurrentUser() user: AuthUser) {
     return user;
   }
@@ -33,7 +33,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Lista los usuarios del hub' })
+  @ApiOperation({ summary: 'Lists the hub users' })
   listUsers() {
     return this.auth.listUsers();
   }
@@ -42,7 +42,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Crea un usuario del hub' })
+  @ApiOperation({ summary: 'Creates a hub user' })
   createUser(@Body() dto: CreateUserDto) {
     return this.auth.createUser(dto);
   }

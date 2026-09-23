@@ -1,4 +1,4 @@
-/** Formato de cifras del panel. Todo en es-BO: el equipo está en Bolivia. */
+/** Number formatting for the panel. Everything in es-BO: the team is in Bolivia. */
 
 const LOCALE = 'es-BO';
 
@@ -11,7 +11,12 @@ const signedPercent = new Intl.NumberFormat(LOCALE, {
   maximumFractionDigits: 1,
 });
 
-export type Unit = 'COUNT' | 'SECONDS' | 'RATIO' | 'CURRENCY' | 'POSITION';
+/**
+ * How a figure reads. `RATIO` is a rate shown as a percentage (conversion);
+ * `AVERAGE` is a mean shown as a plain number with one decimal (pages per
+ * visit: 1.8, not 180 %).
+ */
+export type Unit = 'COUNT' | 'SECONDS' | 'RATIO' | 'AVERAGE' | 'CURRENCY' | 'POSITION';
 
 export function formatMetric(value: number | undefined, unit: Unit = 'COUNT'): string {
   if (value === undefined || Number.isNaN(value)) return '—';
@@ -19,6 +24,7 @@ export function formatMetric(value: number | undefined, unit: Unit = 'COUNT'): s
   switch (unit) {
     case 'RATIO':
       return percent.format(value);
+    case 'AVERAGE':
     case 'POSITION':
       return oneDecimal.format(value);
     case 'SECONDS':
@@ -28,7 +34,7 @@ export function formatMetric(value: number | undefined, unit: Unit = 'COUNT'): s
   }
 }
 
-/** Cifra compacta para los ejes: 12.400 → 12,4 k */
+/** Compact figure for the axes: 12.400 → 12,4 k */
 export function compact(value: number): string {
   if (Math.abs(value) >= 1_000_000) return `${oneDecimal.format(value / 1_000_000)} M`;
   if (Math.abs(value) >= 1_000) return `${oneDecimal.format(value / 1_000)} k`;
@@ -42,7 +48,7 @@ export function formatDuration(seconds: number): string {
   return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
 }
 
-/** `null` significa "no se puede calcular", no 0 — y se dice, no se disimula. */
+/** `null` means "can't be computed", not 0 — and we say so rather than hide it. */
 export function formatChange(change: number | null): string {
   return change === null ? 'sin base' : signedPercent.format(change);
 }
@@ -58,16 +64,18 @@ export function formatFullDate(iso: string): string {
   return fullDate.format(new Date(`${iso}T00:00:00Z`));
 }
 
-/** Las etiquetas reservadas de la ingesta y las que Google devuelve en inglés. */
+/** Ingestion's reserved labels and the ones Google returns in English. */
 const RESERVED: Record<string, string> = {
   __other__: 'Resto',
+  __unknown__: 'Desconocido',
+  __direct__: 'Directo',
   __anonymous__: 'Consultas anonimizadas',
   __total__: 'Total',
   '(not set)': 'Sin definir',
   '(none)': 'Ninguno',
 };
 
-/** Categorías de dispositivo habituales. */
+/** Common device categories. */
 const DEVICES: Record<string, string> = {
   mobile: 'Móvil',
   desktop: 'Escritorio',
@@ -75,7 +83,7 @@ const DEVICES: Record<string, string> = {
   smart_tv: 'Smart TV',
 };
 
-/** Grupos de canal habituales. Los que no estén se muestran tal cual. */
+/** Common channel groups. Anything not listed is shown as is. */
 const CHANNELS: Record<string, string> = {
   'Organic Search': 'Búsqueda orgánica',
   'Paid Search': 'Búsqueda de pago',
@@ -102,14 +110,14 @@ export function labelDimension(value: string): string {
   if (value in DEVICES) return DEVICES[value];
   if (value in CHANNELS) return CHANNELS[value];
 
-  // Los proyectos envían el país como código ISO de dos letras. El navegador
-  // ya sabe traducirlo, así que no hay tabla de países que mantener.
+  // Projects send the country as a two-letter ISO code. The browser already
+  // knows how to translate it, so there's no country table to maintain.
   if (/^[A-Z]{2}$/.test(value) && regionNames) {
     try {
       const name = regionNames.of(value);
       if (name && name !== value) return name;
     } catch {
-      // Código inexistente: se muestra tal cual.
+      // Unknown code: shown as is.
     }
   }
 

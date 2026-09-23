@@ -6,7 +6,7 @@ function row(date: string, dimValue: string, value: number, metricKey = 'session
 }
 
 describe('collapseToTopN', () => {
-  it('conserva el top-N y suma el resto en __other__', () => {
+  it('keeps the top-N and sums the rest into __other__', () => {
     const rows = [
       row('2026-03-01', 'BO', 100),
       row('2026-03-01', 'AR', 50),
@@ -20,7 +20,7 @@ describe('collapseToTopN', () => {
     expect(byValue).toEqual({ BO: 100, AR: 50, [OTHER]: 15 });
   });
 
-  it('el desglose sigue sumando el total (que es para lo que existe __other__)', () => {
+  it('the breakdown still adds up to the total (which is what __other__ is for)', () => {
     const rows = Array.from({ length: 50 }, (_, i) => row('2026-03-01', `pais-${i}`, i + 1));
     const total = rows.reduce((n, r) => n + r.value, 0);
 
@@ -29,16 +29,16 @@ describe('collapseToTopN', () => {
     expect(out.reduce((n, r) => n + r.value, 0)).toBe(total);
   });
 
-  it('no crea __other__ si todo cabe en el top', () => {
+  it('does not create __other__ when everything fits in the top', () => {
     const rows = [row('2026-03-01', 'BO', 100), row('2026-03-01', 'AR', 50)];
     const out = collapseToTopN(rows, { dimension: 'country', topN: 10, rankBy: 'sessions' });
 
     expect(out.some((r) => r.dimValue === OTHER)).toBe(false);
   });
 
-  it('decide el top por día, no para el rango entero', () => {
-    // Un país puede liderar un día y no el siguiente; si el top se decidiera
-    // para todo el rango, el día flojo perdería su propio líder.
+  it('decides the top per day, not for the whole range', () => {
+    // A country can lead one day and not the next; if the top were decided
+    // for the whole range, the weak day would lose its own leader.
     const rows = [
       row('2026-03-01', 'BO', 100),
       row('2026-03-01', 'AR', 1),
@@ -52,7 +52,7 @@ describe('collapseToTopN', () => {
     expect(out.filter((r) => r.date === '2026-03-02' && r.dimValue === 'AR')).toHaveLength(1);
   });
 
-  it('arrastra todas las métricas de las filas que van a __other__', () => {
+  it('carries every metric of the rows that go to __other__', () => {
     const rows = [
       row('2026-03-01', 'BO', 100),
       row('2026-03-01', 'CL', 5),
@@ -67,7 +67,7 @@ describe('collapseToTopN', () => {
     expect(other.find((r) => r.metricKey === 'new_users')?.value).toBe(5);
   });
 
-  it('ignora las filas de otras dimensiones', () => {
+  it('ignores rows from other dimensions', () => {
     const rows = [row('2026-03-01', 'BO', 100), { ...row('2026-03-01', 'movil', 7), dimension: 'device' }];
     const out = collapseToTopN(rows, { dimension: 'country', topN: 10, rankBy: 'sessions' });
 
@@ -76,29 +76,29 @@ describe('collapseToTopN', () => {
 });
 
 describe('normalizeUrl', () => {
-  it('quita el host propio y deja la ruta', () => {
+  it('strips the own host and keeps the path', () => {
     expect(normalizeUrl('https://tu-chamba.corpsc.com/ofertas/123', 'tu-chamba.corpsc.com')).toBe(
       '/ofertas/123',
     );
   });
 
-  it('conserva el host si es de otro dominio', () => {
+  it('keeps the host when it belongs to another domain', () => {
     expect(normalizeUrl('https://otro.com/x', 'tu-chamba.corpsc.com')).toBe('otro.com/x');
   });
 
-  it('descarta los parámetros de campaña pero conserva los que cambian la página', () => {
-    // Sin esto, la misma página aparece decenas de veces como filas distintas.
+  it('drops campaign parameters but keeps the ones that change the page', () => {
+    // Without this, the same page shows up dozens of times as different rows.
     expect(normalizeUrl('https://x.com/ofertas?utm_source=fb&utm_campaign=marzo&page=2', 'x.com')).toBe(
       '/ofertas?page=2',
     );
   });
 
-  it('trunca a 512 caracteres para no desbordar la columna', () => {
-    const largo = `https://x.com/${'a'.repeat(900)}`;
-    expect(normalizeUrl(largo, 'x.com').length).toBe(512);
+  it('truncates to 512 characters so the column does not overflow', () => {
+    const long = `https://x.com/${'a'.repeat(900)}`;
+    expect(normalizeUrl(long, 'x.com').length).toBe(512);
   });
 
-  it('deja pasar lo que no es una URL', () => {
+  it('lets through anything that is not a URL', () => {
     expect(normalizeUrl('/ruta/suelta')).toBe('/ruta/suelta');
   });
 });

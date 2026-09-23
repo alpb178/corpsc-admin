@@ -3,9 +3,9 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 /**
- * Desde Prisma 7 la URL de conexión ya no vive en el schema: el CLI la lee de
- * prisma.config.ts y el cliente la recibe aquí, a través del driver adapter de
- * `pg`.
+ * Since Prisma 7 the connection URL no longer lives in the schema: the CLI
+ * reads it from prisma.config.ts and the client receives it here, through the
+ * `pg` driver adapter.
  */
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
