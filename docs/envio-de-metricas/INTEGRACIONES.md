@@ -14,7 +14,7 @@ front del proyecto              hub
                   (ruta de servidor,   X-Api-Key
                    con la clave)       └─ site_event (crudo, 90 días)
                                               │
-                                    cron 03:00 ┴──▶ metric_daily
+                    en vivo (~10 s) + cron 03:00 ┴──▶ metric_daily
 ```
 
 Por qué así y no con un cron en cada backend, que fue la primera versión:
@@ -51,7 +51,7 @@ que deciden con qué nombre se guarda un clic**, no el cintillo de cada repo: un
 | `page_views` | Páginas vistas | por `path` |
 | `site_clicks` | Clics que se van a otro sitio del grupo | por `project` de destino y por `link_type` |
 
-Las tres salen de la consolidación de las 03:00, que es dueña de ellas y de
+Las tres salen de la consolidación —en vivo tras cada envío y a las 03:00—, que es dueña de ellas y de
 ninguna más. Detalle del contrato en [`eventos.md`](./eventos.md).
 
 ## Lo que no se mide

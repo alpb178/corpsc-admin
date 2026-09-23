@@ -80,6 +80,12 @@ de salida puede exponer `credential.ciphertext`.
   nada más. Por eso `FactWriterService` acepta `ownedMetricKeys`: sin acotar el
   borrado de huérfanos, rehacer las visitas se llevaría por delante los pedidos
   del mismo día.
+- **La consolidación es en vivo, no solo de noche.** Cada envío a
+  `/ingest/events` la pide para su proyecto (`scheduleLive`): espera 10 s para
+  agrupar la ráfaga, nunca corre dos veces a la vez para el mismo proyecto y
+  reutiliza un `IngestionRun` por ventana, para no enterrar Envíos con uno por
+  visita. El cron de las 03:00 sigue como red de seguridad. Vive en memoria:
+  con más de una instancia de la API habría que moverla a una cola.
 - **Sin eventos no se escribe nada.** Un sitio callado no es un sitio con cero
   visitas, y escribir ceros haría indistinguible "no entró nadie" de "los
   beacons están rotos".

@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { SiteEventType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { EventRollupService } from './event-rollup.service';
 import { MAX_EVENT_AGE_HOURS, type SiteEventsDto } from './site-events.contract';
 import type { PushingProject } from './api-key.guard';
 
@@ -16,16 +17,20 @@ export interface ReceiveEventsResult {
 /**
  * Recibe los eventos de un sitio sin backend y los guarda crudos.
  *
- * Aquí no se cuenta nada: la consolidación es otra cosa y ocurre de noche
- * (`EventRollupService`). Separarlo es lo que permite recalcular un día si más
- * tarde hay que filtrar un bot o corregir la zona horaria del proyecto; un
- * contador incrementado sobre la marcha no se puede deshacer.
+ * Aquí no se cuenta nada: se pide a `EventRollupService` que consolide en unos
+ * segundos, y el panel lo refleja casi en directo. Contar sobre la marcha sería
+ * más rápido, pero un contador incrementado no se puede deshacer; recalcular
+ * desde lo crudo sí, si más tarde hay que filtrar un bot o corregir la zona
+ * horaria del proyecto.
  */
 @Injectable()
 export class SiteEventsService {
   private readonly logger = new Logger(SiteEventsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly rollup: EventRollupService,
+  ) {}
 
   async receive(project: PushingProject, payload: SiteEventsDto): Promise<ReceiveEventsResult> {
     const now = Date.now();
@@ -50,6 +55,7 @@ export class SiteEventsService {
     });
 
     await this.prisma.siteEvent.createMany({ data });
+    this.rollup.scheduleLive(project);
 
     return { accepted: data.length };
   }
