@@ -17,7 +17,7 @@ export default async function ProjectPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ rango?: string }>;
+  searchParams: Promise<{ range?: string; rango?: string }>;
 }) {
   const { slug } = await params;
   const preset = presetFrom(await searchParams);

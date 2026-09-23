@@ -16,7 +16,8 @@ export function RangePicker({ current }: { current: string }) {
     <nav aria-label="Rango de fechas" className="flex items-center gap-1 rounded-full border border-line bg-card p-0.5">
       {PRESETS.map((preset) => {
         const next = new URLSearchParams(params);
-        next.set('rango', preset.key);
+        next.set('range', preset.key);
+        next.delete('rango');
         const active = preset.key === current;
 
         return (

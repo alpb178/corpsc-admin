@@ -11,7 +11,7 @@ import type { Overview, ProjectSummary } from '@/lib/types';
 export default async function OverviewPage({
   searchParams,
 }: {
-  searchParams: Promise<{ rango?: string }>;
+  searchParams: Promise<{ range?: string; rango?: string }>;
 }) {
   const preset = presetFrom(await searchParams);
   const range = resolveRange(preset);
@@ -149,7 +149,7 @@ function ProjectsTable({ projects }: { projects: ProjectSummary[] }) {
             {sorted.map((p) => (
               <tr key={p.slug} className="border-b border-line last:border-0 hover:bg-elevated">
                 <th scope="row" className="px-4 py-2.5 text-left font-normal">
-                  <Link href={`/proyectos/${p.slug}`} className="font-medium text-fg hover:text-accent">
+                  <Link href={`/projects/${p.slug}`} className="font-medium text-fg hover:text-accent">
                     {p.name}
                   </Link>
                   <span className="ml-2 text-[11px] text-fg-faint">

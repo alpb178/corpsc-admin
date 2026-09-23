@@ -86,7 +86,7 @@ export default async function EnviosPage() {
           ) : (
             freshness.map((f) => (
               <li key={f.slug} className="flex items-center justify-between gap-4 px-4 py-2.5">
-                <Link href={`/proyectos/${f.slug}`} className="text-[13px] font-medium text-fg hover:text-accent">
+                <Link href={`/projects/${f.slug}`} className="text-[13px] font-medium text-fg hover:text-accent">
                   {f.name}
                 </Link>
                 <FreshnessBadge freshness={f.freshness} hoursSince={f.hoursSince} />

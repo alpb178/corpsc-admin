@@ -36,7 +36,8 @@ export function resolveRange(preset: string, now = new Date()): { from: string; 
 }
 
 /** Lee el preset de los searchParams, cayendo al de por defecto si es raro. */
-export function presetFrom(params: { rango?: string } | undefined): string {
-  const value = params?.rango;
+export function presetFrom(params: { range?: string; rango?: string } | undefined): string {
+  // `rango` is the pre-rename name: links shared before it still work.
+  const value = params?.range ?? params?.rango;
   return PRESETS.some((p) => p.key === value) ? value! : DEFAULT_PRESET;
 }

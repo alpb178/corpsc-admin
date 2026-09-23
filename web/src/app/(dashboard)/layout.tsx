@@ -4,14 +4,14 @@ import { logout } from './actions';
 
 const NAV = [
   { href: '/', label: 'Resumen' },
-  { href: '/comparar', label: 'Comparar' },
-  { href: '/envios', label: 'Envíos' },
+  { href: '/compare', label: 'Comparar' },
+  { href: '/submissions', label: 'Envíos' },
 ];
 
 /** Ajustes solo para ADMIN: a quien no puede tocar nada no se le enseña la
  *  puerta. La protección de verdad está en `requireRole` de cada página y de
  *  cada acción; esto es para no ofrecer un enlace que acabaría en el resumen. */
-const NAV_ADMIN = { href: '/ajustes/proyectos', label: 'Ajustes' };
+const NAV_ADMIN = { href: '/settings/projects', label: 'Ajustes' };
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   // La comprobación de sesión vive aquí y en cada acción, no en el proxy.

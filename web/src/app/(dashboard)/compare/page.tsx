@@ -11,7 +11,7 @@ import type { CompareView, Overview } from '@/lib/types';
 export default async function ComparePage({
   searchParams,
 }: {
-  searchParams: Promise<{ rango?: string; sitios?: string }>;
+  searchParams: Promise<{ range?: string; rango?: string; sites?: string; sitios?: string }>;
 }) {
   const params = await searchParams;
   const preset = presetFrom(params);
@@ -33,7 +33,7 @@ export default async function ComparePage({
 
   // Por defecto, los cuatro con más tráfico: una gráfica que arranca con
   // catorce líneas no se lee.
-  const selected = (params.sitios?.split(',').filter(Boolean) ??
+  const selected = ((params.sites ?? params.sitios)?.split(',').filter(Boolean) ??
     withData
       .slice()
       .sort((a, b) => (b.metrics.visits ?? 0) - (a.metrics.visits ?? 0))

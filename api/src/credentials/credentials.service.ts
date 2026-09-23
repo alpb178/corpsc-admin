@@ -45,7 +45,7 @@ export class CredentialsService {
       select: PUBLIC,
     });
 
-    return { ...credential, secret, aviso: 'Guárdala ahora: no se puede volver a consultar.' };
+    return { ...credential, secret, notice: 'Guárdala ahora: no se puede volver a consultar.' };
   }
 
   /** Asigna la clave a un proyecto; a partir de ahí ese proyecto puede enviar. */

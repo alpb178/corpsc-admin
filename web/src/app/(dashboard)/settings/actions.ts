@@ -63,7 +63,7 @@ export async function updateProject(_prev: ActionState, formData: FormData): Pro
     return { error: readableError(error, 'No se pudieron guardar los ajustes.') };
   }
 
-  revalidatePath('/ajustes/proyectos');
+  revalidatePath('/settings/projects');
   return { ok: 'Ajustes guardados.' };
 }
 
@@ -98,7 +98,7 @@ export async function createKey(_prev: KeyState, formData: FormData): Promise<Ke
     };
   }
 
-  revalidatePath('/ajustes/proyectos');
+  revalidatePath('/settings/projects');
   return { secret: { value: credential.secret, project: name } };
 }
 
@@ -115,7 +115,7 @@ export async function assignKey(_prev: ActionState, formData: FormData): Promise
     return { error: readableError(error, 'No se pudo asignar la clave.') };
   }
 
-  revalidatePath('/ajustes/proyectos');
+  revalidatePath('/settings/projects');
   return { ok: 'Clave asignada.' };
 }
 
@@ -131,7 +131,7 @@ export async function revokeKey(_prev: ActionState, formData: FormData): Promise
     return { error: readableError(error, 'No se pudo revocar la clave.') };
   }
 
-  revalidatePath('/ajustes/proyectos');
+  revalidatePath('/settings/projects');
   // Los datos ya enviados no se borran: son el histórico.
   return { ok: 'Clave revocada. Los datos ya enviados se conservan.' };
 }
@@ -153,6 +153,6 @@ export async function createUser(_prev: ActionState, formData: FormData): Promis
     return { error: readableError(error, 'No se pudo crear el usuario.') };
   }
 
-  revalidatePath('/ajustes/usuarios');
+  revalidatePath('/settings/users');
   return { ok: `${name} ya puede entrar al panel.` };
 }

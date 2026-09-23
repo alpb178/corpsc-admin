@@ -26,7 +26,8 @@ export function ProjectPicker({ projects, selected, max }: Props) {
             : [...selected, project.slug];
 
           const search = new URLSearchParams(params);
-          search.set('sitios', next.join(','));
+          search.set('sites', next.join(','));
+          search.delete('sitios');
 
           // Sin hueco libre, los no seleccionados se desactivan en lugar de
           // fallar en silencio al pulsarlos.
