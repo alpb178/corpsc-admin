@@ -8,6 +8,7 @@ import { TrendChart } from '@/components/charts/TrendChart';
 import { ErrorPanel, EmptyState } from '@/components/ErrorPanel';
 import { BusinessKpis } from '@/components/BusinessKpis';
 import { FreshnessBadge } from '@/components/FreshnessBadge';
+import { SiteNavigation } from '@/components/SiteNavigation';
 import type { Freshness, ProjectDetail } from '@/lib/types';
 
 export default async function ProjectPage({
@@ -68,7 +69,7 @@ export default async function ProjectPage({
           <section aria-label="Indicadores del sitio" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <StatTile label="Visitas" value={totals.visits} delta={comparison?.deltas.visits} />
             <StatTile label="Páginas vistas" value={totals.page_views} delta={comparison?.deltas.page_views} />
-            <StatTile label="Productos vistos" value={totals.product_views} delta={comparison?.deltas.product_views} />
+            <StatTile label="Clics" value={totals.clicks} delta={comparison?.deltas.clicks} />
             <StatTile
               label="Páginas por visita"
               value={totals.pages_per_visit}
@@ -83,11 +84,16 @@ export default async function ProjectPage({
             <TrendChart data={chartData} series={[{ key: 'visits', label: 'Visitas', slot: 1 }]} />
           </section>
 
-          <div className="mt-3 grid gap-3 lg:grid-cols-3">
-            <RankBar title="Países" slices={breakdowns.country} metricKey="visits" />
-            <RankBar title="Dispositivos" slices={breakdowns.device} metricKey="visits" limit={5} />
-            <RankBar title="Páginas más vistas" slices={breakdowns.path} metricKey="page_views" />
-          </div>
+          <SiteNavigation pages={breakdowns.path} elements={breakdowns.element ?? []} />
+
+          {/* Solo los proyectos que empujan agregados mandan país y dispositivo;
+              los beacons no, a propósito: no guardan nada de quien navega. */}
+          {breakdowns.country.length > 0 || breakdowns.device.length > 0 ? (
+            <div className="mt-3 grid gap-3 lg:grid-cols-2">
+              <RankBar title="Países" slices={breakdowns.country} metricKey="visits" />
+              <RankBar title="Dispositivos" slices={breakdowns.device} metricKey="visits" limit={5} />
+            </div>
+          ) : null}
 
           <BusinessKpis totals={totals} comparison={comparison} />
 

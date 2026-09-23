@@ -62,7 +62,14 @@ export interface ProjectDetail {
   range: Range;
   totals: MetricTotals;
   series: SeriesPoint[];
-  breakdowns: { country: DimensionSlice[]; device: DimensionSlice[]; path: DimensionSlice[] };
+  breakdowns: {
+    country: DimensionSlice[];
+    device: DimensionSlice[];
+    /** Pages, with both `page_views` and `clicks`. */
+    path: DimensionSlice[];
+    /** Where people clicked: "path | section | label", ranked by `clicks`. */
+    element: DimensionSlice[];
+  };
   comparison?: Comparison;
 }
 
