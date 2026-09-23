@@ -11,7 +11,12 @@ const signedPercent = new Intl.NumberFormat(LOCALE, {
   maximumFractionDigits: 1,
 });
 
-export type Unit = 'COUNT' | 'SECONDS' | 'RATIO' | 'CURRENCY' | 'POSITION';
+/**
+ * How a figure reads. `RATIO` is a rate shown as a percentage (conversion);
+ * `AVERAGE` is a mean shown as a plain number with one decimal (pages per
+ * visit: 1.8, not 180 %).
+ */
+export type Unit = 'COUNT' | 'SECONDS' | 'RATIO' | 'AVERAGE' | 'CURRENCY' | 'POSITION';
 
 export function formatMetric(value: number | undefined, unit: Unit = 'COUNT'): string {
   if (value === undefined || Number.isNaN(value)) return '—';
@@ -19,6 +24,7 @@ export function formatMetric(value: number | undefined, unit: Unit = 'COUNT'): s
   switch (unit) {
     case 'RATIO':
       return percent.format(value);
+    case 'AVERAGE':
     case 'POSITION':
       return oneDecimal.format(value);
     case 'SECONDS':
