@@ -76,8 +76,8 @@ de salida puede exponer `credential.ciphertext`.
   zona estaba mal puesta, y un contador incrementado sobre la marcha no se
   puede deshacer. Se conserva 90 días: lo justo para recalcular, no como
   archivo.
-- **La consolidación es dueña de `visits`, `page_views` y `site_clicks`** y de
-  nada más. Por eso `FactWriterService` acepta `ownedMetricKeys`: sin acotar el
+- **La consolidación es dueña de `visits`, `page_views`, `site_clicks` y
+  `clicks`** y de nada más. Por eso `FactWriterService` acepta `ownedMetricKeys`: sin acotar el
   borrado de huérfanos, rehacer las visitas se llevaría por delante los pedidos
   del mismo día.
 - **La consolidación es en vivo, no solo de noche.** Cada envío a
@@ -89,6 +89,10 @@ de salida puede exponer `credential.ciphertext`.
 - **Sin eventos no se escribe nada.** Un sitio callado no es un sitio con cero
   visitas, y escribir ceros haría indistinguible "no entró nadie" de "los
   beacons están rotos".
+- **De dónde viene una visita se decide con su primer evento del día.** País,
+  canal, fuente, campaña y hora salen de ahí (`visitStarts`), para que cada
+  desglose de `visits` sume el total. El país lo resuelve el hosting del sitio;
+  del origen solo llega el dominio, nunca la URL entera.
 - **La clave nunca baja al navegador.** El sitio manda los beacons a una ruta
   suya y esa ruta llama al hub. Publicar la clave en el cliente sería dejar que
   cualquiera escriba métricas de ese proyecto.

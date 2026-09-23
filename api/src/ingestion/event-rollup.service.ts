@@ -7,13 +7,14 @@ import { addDays, todayIn, toUtcDate, type IsoDate } from './common/dates';
 import { TOTAL, TOTAL_DIMENSION, type MetricRow } from './common/metric-row';
 import { collapseToTopN } from './common/top-n';
 import { MAX_EVENT_AGE_HOURS } from './site-events.contract';
+import { channelOf, sourceOf } from './common/channel';
 
 /**
  * Las métricas que produce la consolidación, y de las que por tanto se hace
  * dueña: al reconsolidar una ventana borra las suyas de esos días y las vuelve
  * a escribir, sin tocar ninguna otra del proyecto.
  */
-export const ROLLUP_METRIC_KEYS = ['visits', 'page_views', 'site_clicks'];
+export const ROLLUP_METRIC_KEYS = ['visits', 'page_views', 'site_clicks', 'clicks'];
 
 /**
  * Se reconsolidan siempre los últimos días, no solo el de ayer.
@@ -43,6 +44,24 @@ const RETENTION_DAYS = 90;
 /** Tope de valores con nombre propio por día y dimensión; el resto va a `__other__`. */
 const TOP_N = 100;
 
+/** Una visita sin país conocido: sin él, el desglose no sumaría el total. */
+export const UNKNOWN = '__unknown__';
+
+/** Separa página, sección y etiqueta en el valor de la dimensión `element`. */
+export const ELEMENT_SEPARATOR = ' | ';
+
+/**
+ * El valor de la dimensión `element`: dónde se hizo el clic, entero.
+ *
+ * Va en una sola dimensión porque `metric_daily` guarda una por fila, y separar
+ * página y elemento en dos perdería qué botón se pulsó en qué página. La barra
+ * se quita de las partes para que el panel pueda volver a partirlo sin dudas.
+ */
+export function elementKey(path: string, section: string, label: string): string {
+  const clean = (part: string) => part.replace(/\|/g, '/').trim();
+  return [clean(path), clean(section), clean(label)].join(ELEMENT_SEPARATOR).slice(0, 512);
+}
+
 interface RollupProject {
   id: string;
   slug: string;
@@ -54,6 +73,24 @@ interface DayTotals {
   visits: bigint;
   page_views: bigint;
   site_clicks: bigint;
+  clicks: bigint;
+}
+
+/** La primera señal de cada visita en el día: de ahí salen país, fuente y hora. */
+interface VisitStart {
+  day: Date;
+  hour: number;
+  country: string | null;
+  referrer: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+}
+
+interface DayHourCount {
+  day: Date;
+  hour: number;
+  total: bigint;
 }
 
 interface DayDimCount {
@@ -286,7 +323,8 @@ export class EventRollupService implements OnModuleDestroy {
       SELECT (occurred_at AT TIME ZONE 'UTC' AT TIME ZONE ${tz})::date AS day,
              count(DISTINCT session_id)                     AS visits,
              count(*) FILTER (WHERE type = 'PAGE_VIEW')     AS page_views,
-             count(*) FILTER (WHERE type = 'SITE_CLICK')    AS site_clicks
+             count(*) FILTER (WHERE type = 'SITE_CLICK')    AS site_clicks,
+             count(*) FILTER (WHERE type IN ('CLICK', 'SITE_CLICK')) AS clicks
         FROM site_event
        WHERE project_id = ${project.id}
          AND occurred_at >= ${guardFrom} AND occurred_at < ${guardTo}
@@ -302,12 +340,17 @@ export class EventRollupService implements OnModuleDestroy {
         this.total(date, 'visits', day.visits),
         this.total(date, 'page_views', day.page_views),
         this.total(date, 'site_clicks', day.site_clicks),
+        this.total(date, 'clicks', day.clicks),
       );
     }
 
     const byTarget = await this.breakdown(project, from, to, 'SITE_CLICK', 'target');
     const byLinkType = await this.breakdown(project, from, to, 'SITE_CLICK', 'link_type');
     const byPath = await this.breakdown(project, from, to, 'PAGE_VIEW', 'path');
+    const clicksByPath = await this.clickBreakdown(project, from, to, 'path');
+    const clicksByElement = await this.clickBreakdown(project, from, to, 'element');
+    const visitStarts = await this.visitStarts(project, from, to);
+    const pageViewsByHour = await this.pageViewsByHour(project, from, to);
 
     rows.push(
       // A qué sitio del grupo se va el clic: la razón de ser del portfolio.
@@ -326,6 +369,29 @@ export class EventRollupService implements OnModuleDestroy {
         topN: TOP_N,
         rankBy: 'page_views',
       }),
+      // En qué páginas se hace clic: comparte dimensión con las páginas vistas,
+      // así el panel lee vistas y clics de una ruta en la misma fila.
+      ...collapseToTopN(this.dimRows(clicksByPath, 'clicks', 'path'), {
+        dimension: 'path',
+        topN: TOP_N,
+        rankBy: 'clicks',
+      }),
+      // Y en qué se hace clic dentro de cada una.
+      ...collapseToTopN(this.dimRows(clicksByElement, 'clicks', 'element'), {
+        dimension: 'element',
+        topN: TOP_N,
+        rankBy: 'clicks',
+      }),
+      ...this.visitRows(visitStarts),
+      // A qué hora se navega, en la zona del proyecto. Son 24 valores: no hace
+      // falta recortar.
+      ...pageViewsByHour.map((row) => ({
+        date: this.isoDay(row.day),
+        metricKey: 'page_views',
+        dimension: 'hour',
+        dimValue: this.hourValue(row.hour),
+        value: Number(row.total),
+      })),
     );
 
     return rows;
@@ -367,6 +433,141 @@ export class EventRollupService implements OnModuleDestroy {
       toUtcDate(from),
       toUtcDate(to),
     );
+  }
+
+  /**
+   * Los clics que dicen dónde se hicieron, por página o por elemento.
+   *
+   * Solo cuenta los que traen sección y etiqueta: un clic a otro sitio de una
+   * versión anterior del beacon no las lleva, y meterlo en un cubo vacío haría
+   * que el desglose sumara menos que el total sin que se viera por qué.
+   */
+  private async clickBreakdown(
+    project: RollupProject,
+    from: IsoDate,
+    to: IsoDate,
+    by: 'path' | 'element',
+  ): Promise<DayDimCount[]> {
+    const tz = project.timezone;
+    const guardFrom = toUtcDate(addDays(from, -1));
+    const guardTo = toUtcDate(addDays(to, 2));
+
+    const rows = await this.prisma.$queryRaw<Array<DayDimCount & { section: string; label: string }>>`
+      SELECT (occurred_at AT TIME ZONE 'UTC' AT TIME ZONE ${tz})::date AS day,
+             path AS dim_value, section, label,
+             count(*) AS total
+        FROM site_event
+       WHERE project_id = ${project.id}
+         AND type IN ('CLICK', 'SITE_CLICK')
+         AND section IS NOT NULL AND label IS NOT NULL
+         AND occurred_at >= ${guardFrom} AND occurred_at < ${guardTo}
+         AND (occurred_at AT TIME ZONE 'UTC' AT TIME ZONE ${tz})::date
+             BETWEEN ${toUtcDate(from)}::date AND ${toUtcDate(to)}::date
+       GROUP BY 1, 2, 3, 4`;
+
+    // Se agrupa aquí y no en SQL para que el recorte de `elementKey` sea el
+    // mismo en todas partes: dos etiquetas que solo difieren tras el recorte
+    // tienen que sumar en la misma fila, no chocar en la clave natural.
+    const counts = new Map<string, DayDimCount>();
+    for (const row of rows) {
+      const value =
+        by === 'path' ? row.dim_value : elementKey(row.dim_value ?? '', row.section, row.label);
+      const key = `${this.isoDay(row.day)}\u0000${value}`;
+      const bucket = counts.get(key);
+      if (bucket) bucket.total += row.total;
+      else counts.set(key, { day: row.day, dim_value: value, total: row.total });
+    }
+    return [...counts.values()];
+  }
+
+  /**
+   * Cada visita, contada una sola vez por día, con lo que traía al empezar.
+   *
+   * La procedencia llega solo en la página por la que se entra, así que se
+   * toma el primer evento de la sesión en el día. Así cada desglose —país,
+   * canal, fuente, hora— suma exactamente las visitas del total.
+   */
+  private visitStarts(project: RollupProject, from: IsoDate, to: IsoDate): Promise<VisitStart[]> {
+    const tz = project.timezone;
+    const guardFrom = toUtcDate(addDays(from, -1));
+    const guardTo = toUtcDate(addDays(to, 2));
+
+    return this.prisma.$queryRaw<VisitStart[]>`
+      SELECT DISTINCT ON (day, session_id)
+             day, hour, country, referrer, utm_source, utm_medium, utm_campaign
+        FROM (
+          SELECT session_id, occurred_at, country, referrer, utm_source, utm_medium, utm_campaign,
+                 (occurred_at AT TIME ZONE 'UTC' AT TIME ZONE ${tz})::date AS day,
+                 extract(hour FROM occurred_at AT TIME ZONE 'UTC' AT TIME ZONE ${tz})::int AS hour
+            FROM site_event
+           WHERE project_id = ${project.id}
+             AND occurred_at >= ${guardFrom} AND occurred_at < ${guardTo}
+        ) AS local
+       WHERE day BETWEEN ${toUtcDate(from)}::date AND ${toUtcDate(to)}::date
+       ORDER BY day, session_id, occurred_at`;
+  }
+
+  private pageViewsByHour(project: RollupProject, from: IsoDate, to: IsoDate): Promise<DayHourCount[]> {
+    const tz = project.timezone;
+    const guardFrom = toUtcDate(addDays(from, -1));
+    const guardTo = toUtcDate(addDays(to, 2));
+
+    return this.prisma.$queryRaw<DayHourCount[]>`
+      SELECT (occurred_at AT TIME ZONE 'UTC' AT TIME ZONE ${tz})::date AS day,
+             extract(hour FROM occurred_at AT TIME ZONE 'UTC' AT TIME ZONE ${tz})::int AS hour,
+             count(*) AS total
+        FROM site_event
+       WHERE project_id = ${project.id}
+         AND type = 'PAGE_VIEW'
+         AND occurred_at >= ${guardFrom} AND occurred_at < ${guardTo}
+         AND (occurred_at AT TIME ZONE 'UTC' AT TIME ZONE ${tz})::date
+             BETWEEN ${toUtcDate(from)}::date AND ${toUtcDate(to)}::date
+       GROUP BY 1, 2`;
+  }
+
+  /** Visitas por país, canal, fuente, campaña y hora, a partir de su inicio. */
+  private visitRows(starts: VisitStart[]): MetricRow[] {
+    const counts = new Map<string, MetricRow>();
+    const add = (date: IsoDate, dimension: string, dimValue: string) => {
+      const key = `${date}\u0000${dimension}\u0000${dimValue}`;
+      const row = counts.get(key);
+      if (row) row.value += 1;
+      else counts.set(key, { date, metricKey: 'visits', dimension, dimValue, value: 1 });
+    };
+
+    for (const start of starts) {
+      const date = this.isoDay(start.day);
+      const origin = {
+        referrer: start.referrer,
+        utmSource: start.utm_source,
+        utmMedium: start.utm_medium,
+      };
+      add(date, 'country', start.country ?? UNKNOWN);
+      add(date, 'channel', channelOf(origin));
+      add(date, 'source', sourceOf(origin).slice(0, 512));
+      add(date, 'hour', this.hourValue(start.hour));
+      // Solo las visitas que venían de una campaña: el resto no tiene una.
+      if (start.utm_campaign) add(date, 'campaign', start.utm_campaign);
+    }
+
+    const rows = [...counts.values()];
+    const top = (dimension: string) =>
+      collapseToTopN(
+        rows.filter((r) => r.dimension === dimension),
+        { dimension, topN: TOP_N, rankBy: 'visits' },
+      );
+    return [
+      ...top('country'),
+      ...top('channel'),
+      ...top('source'),
+      ...top('campaign'),
+      ...rows.filter((r) => r.dimension === 'hour'),
+    ];
+  }
+
+  /** `07` y no `7`: ordenadas como texto, las horas siguen en orden. */
+  private hourValue(hour: number): string {
+    return String(hour).padStart(2, '0');
   }
 
   private dimRows(counts: DayDimCount[], metricKey: string, dimension: string): MetricRow[] {

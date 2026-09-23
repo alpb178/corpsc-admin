@@ -62,7 +62,19 @@ export interface ProjectDetail {
   range: Range;
   totals: MetricTotals;
   series: SeriesPoint[];
-  breakdowns: { country: DimensionSlice[]; device: DimensionSlice[]; path: DimensionSlice[] };
+  breakdowns: {
+    country: DimensionSlice[];
+    device: DimensionSlice[];
+    /** Pages, with both `page_views` and `clicks`. */
+    path: DimensionSlice[];
+    /** Where people clicked: "path | section | label", ranked by `clicks`. */
+    element: DimensionSlice[];
+    channel: DimensionSlice[];
+    source: DimensionSlice[];
+    campaign: DimensionSlice[];
+    /** "00"–"23" in the project's time zone, with `visits` and `page_views`. */
+    hour: DimensionSlice[];
+  };
   comparison?: Comparison;
 }
 

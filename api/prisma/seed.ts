@@ -76,6 +76,7 @@ const METRICS: MetricSeed[] = [
   { key: 'product_views', label: 'Productos vistos', labelEn: 'Product views', unit: MetricUnit.COUNT, sortOrder: 60 },
   { key: 'add_to_cart',   label: 'Añadidos al carrito', labelEn: 'Add to cart', unit: MetricUnit.COUNT, sortOrder: 70 },
   { key: 'ad_views',      label: 'Anuncios vistos',  labelEn: 'Ad views',    unit: MetricUnit.COUNT,    sortOrder: 80 },
+  { key: 'clicks',        label: 'Clics',            labelEn: 'Clicks',      unit: MetricUnit.COUNT, sortOrder: 85 },
   { key: 'site_clicks',   label: 'Clics a otros sitios', labelEn: 'Site clicks', unit: MetricUnit.COUNT, sortOrder: 90 },
 
   { key: 'orders',        label: 'Pedidos',          labelEn: 'Orders',      unit: MetricUnit.COUNT,    sortOrder: 110 },
