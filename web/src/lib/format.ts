@@ -61,6 +61,8 @@ export function formatFullDate(iso: string): string {
 /** Las etiquetas reservadas de la ingesta y las que Google devuelve en inglés. */
 const RESERVED: Record<string, string> = {
   __other__: 'Resto',
+  __unknown__: 'Desconocido',
+  __direct__: 'Directo',
   __anonymous__: 'Consultas anonimizadas',
   __total__: 'Total',
   '(not set)': 'Sin definir',

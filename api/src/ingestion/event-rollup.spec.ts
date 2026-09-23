@@ -37,6 +37,11 @@ interface EventSeed {
   linkType?: string;
   section?: string;
   label?: string;
+  country?: string;
+  referrer?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
 }
 
 async function seedEvents(events: EventSeed[]): Promise<void> {
@@ -50,6 +55,11 @@ async function seedEvents(events: EventSeed[]): Promise<void> {
       linkType: e.linkType ?? null,
       section: e.section ?? null,
       label: e.label ?? null,
+      country: e.country ?? null,
+      referrer: e.referrer ?? null,
+      utmSource: e.utmSource ?? null,
+      utmMedium: e.utmMedium ?? null,
+      utmCampaign: e.utmCampaign ?? null,
       occurredAt: new Date(e.at),
     })),
   });
@@ -217,6 +227,57 @@ describe('clics dentro de la página', () => {
 
   it('quita la barra de las partes para que el valor se pueda volver a partir', () => {
     expect(elementKey('/es', 'nav | top', 'A|B')).toBe('/es | nav / top | A/B');
+  });
+});
+
+describe('de dónde y cuándo llegan las visitas', () => {
+  const PV = SiteEventType.PAGE_VIEW;
+
+  it('toma país, fuente y hora del primer evento de cada visita', async () => {
+    await seedEvents([
+      // 14:00 UTC son las 10:00 en La Paz.
+      { type: PV, sessionId: 'sesion-uno-aaaa', at: '2026-03-01T14:00:00Z', country: 'BO', referrer: 'google.com' },
+      // La segunda página de la misma visita no trae procedencia: no cuenta otra vez.
+      { type: PV, sessionId: 'sesion-uno-aaaa', at: '2026-03-01T14:05:00Z', country: 'BO' },
+      { type: PV, sessionId: 'sesion-dos-bbbb', at: '2026-03-01T22:30:00Z', country: 'AR',
+        utmSource: 'instagram', utmMedium: 'social', utmCampaign: 'otono' },
+      { type: PV, sessionId: 'sesion-tres-ccc', at: '2026-03-01T22:40:00Z' },
+    ]);
+
+    await service.rollupWindow(project, FROM, TO);
+
+    expect(await valueOf('visits')).toBe(3);
+    expect(await valueOf('visits', 'BO')).toBe(1);
+    expect(await valueOf('visits', 'AR')).toBe(1);
+    expect(await valueOf('visits', '__unknown__')).toBe(1);
+    expect(await valueOf('visits', 'Organic Search')).toBe(1);
+    expect(await valueOf('visits', 'Organic Social')).toBe(1);
+    expect(await valueOf('visits', 'Direct')).toBe(1);
+    expect(await valueOf('visits', 'google.com')).toBe(1);
+    expect(await valueOf('visits', 'instagram')).toBe(1);
+    expect(await valueOf('visits', '__direct__')).toBe(1);
+    expect(await valueOf('visits', 'otono')).toBe(1);
+    expect(await valueOf('visits', '10')).toBe(1);
+    expect(await valueOf('visits', '18')).toBe(2);
+    expect(await valueOf('page_views', '10')).toBe(2);
+  });
+
+  it('cada desglose de visitas suma el total', async () => {
+    await seedEvents([
+      { type: PV, sessionId: 'sesion-uno-aaaa', at: '2026-03-01T14:00:00Z', country: 'BO', referrer: 'google.com' },
+      { type: PV, sessionId: 'sesion-dos-bbbb', at: '2026-03-01T15:00:00Z' },
+    ]);
+
+    await service.rollupWindow(project, FROM, TO);
+
+    const rows = await stored();
+    const sum = (dimension: string) =>
+      rows
+        .filter((r) => r.metricKey === 'visits' && r.dimension === dimension)
+        .reduce((acc, r) => acc + Number(r.value), 0);
+    for (const dimension of ['country', 'channel', 'source', 'hour']) {
+      expect(sum(dimension), dimension).toBe(2);
+    }
   });
 });
 

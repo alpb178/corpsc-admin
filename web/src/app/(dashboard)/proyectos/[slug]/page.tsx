@@ -9,6 +9,7 @@ import { ErrorPanel, EmptyState } from '@/components/ErrorPanel';
 import { BusinessKpis } from '@/components/BusinessKpis';
 import { FreshnessBadge } from '@/components/FreshnessBadge';
 import { SiteNavigation } from '@/components/SiteNavigation';
+import { HourlyActivity } from '@/components/HourlyActivity';
 import type { Freshness, ProjectDetail } from '@/lib/types';
 
 export default async function ProjectPage({
@@ -86,11 +87,29 @@ export default async function ProjectPage({
 
           <SiteNavigation pages={breakdowns.path} elements={breakdowns.element ?? []} />
 
-          {/* Solo los proyectos que empujan agregados mandan país y dispositivo;
-              los beacons no, a propósito: no guardan nada de quien navega. */}
-          {breakdowns.country.length > 0 || breakdowns.device.length > 0 ? (
-            <div className="mt-3 grid gap-3 lg:grid-cols-2">
-              <RankBar title="Países" slices={breakdowns.country} metricKey="visits" />
+          {/* De dónde y cuándo llegan las visitas. */}
+          <div className="mt-3 grid gap-3 lg:grid-cols-3">
+            <RankBar title="Países" slices={breakdowns.country} metricKey="visits" />
+            <RankBar title="Canales" slices={breakdowns.channel} metricKey="visits" />
+            <RankBar title="Fuentes" slices={breakdowns.source} metricKey="visits" />
+          </div>
+
+          <div className="mt-3 grid gap-3 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <HourlyActivity slices={breakdowns.hour} timezone={project.timezone} />
+            </div>
+            <RankBar
+              title="Campañas"
+              slices={breakdowns.campaign}
+              metricKey="visits"
+              emptyHint="Ninguna visita llegó con utm_campaign en este periodo."
+            />
+          </div>
+
+          {/* Solo los proyectos que empujan agregados mandan el dispositivo:
+              los beacons no leen el agente de usuario, a propósito. */}
+          {breakdowns.device.length > 0 ? (
+            <div className="mt-3 grid gap-3 lg:grid-cols-3">
               <RankBar title="Dispositivos" slices={breakdowns.device} metricKey="visits" limit={5} />
             </div>
           ) : null}

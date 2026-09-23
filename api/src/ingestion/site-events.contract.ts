@@ -10,6 +10,7 @@ import {
   IsOptional,
   IsString,
   Length,
+  Matches,
   ValidateNested,
 } from 'class-validator';
 
@@ -22,8 +23,10 @@ import {
  * consolida cada noche en las mismas métricas que envía todo el mundo.
  *
  * Lo que NO va aquí: nada que identifique a una persona. Ni IP, ni agente de
- * usuario, ni referer. La sesión es un identificador opaco que emite el propio
- * sitio y que solo sirve para no contar cinco páginas como cinco visitas.
+ * usuario, ni la URL de origen entera. El país llega ya resuelto por el hosting
+ * del sitio, y de la procedencia solo el dominio y los parámetros `utm_*`. La
+ * sesión es un identificador opaco que emite el propio sitio y que solo sirve
+ * para no contar cinco páginas como cinco visitas.
  */
 
 /** Por petición. Un sitio que necesite más está mandando mal los eventos. */
@@ -88,6 +91,40 @@ export class SiteEventDto {
   @IsString()
   @Length(1, 120)
   label?: string;
+
+  @ApiPropertyOptional({
+    description: 'País ISO de dos letras, de la cabecera del hosting del sitio. Nunca la IP',
+    example: 'BO',
+  })
+  @IsOptional()
+  @Matches(/^[A-Z]{2}$/)
+  country?: string;
+
+  @ApiPropertyOptional({
+    description: 'Solo en la primera página vista de una carga: dominio de origen, sin ruta',
+    example: 'www.google.com',
+  })
+  @IsOptional()
+  @Matches(/^[a-z0-9.-]{1,255}$/, { message: 'referrer debe ser un dominio, sin ruta ni esquema' })
+  referrer?: string;
+
+  @ApiPropertyOptional({ example: 'instagram' })
+  @IsOptional()
+  @IsString()
+  @Length(1, 100)
+  utmSource?: string;
+
+  @ApiPropertyOptional({ example: 'social' })
+  @IsOptional()
+  @IsString()
+  @Length(1, 100)
+  utmMedium?: string;
+
+  @ApiPropertyOptional({ example: 'lanzamiento-otono' })
+  @IsOptional()
+  @IsString()
+  @Length(1, 100)
+  utmCampaign?: string;
 
   @ApiPropertyOptional({ description: 'Instante del evento en ISO 8601. Por defecto, el de llegada' })
   @IsOptional()

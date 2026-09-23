@@ -89,6 +89,10 @@ de salida puede exponer `credential.ciphertext`.
 - **Sin eventos no se escribe nada.** Un sitio callado no es un sitio con cero
   visitas, y escribir ceros haría indistinguible "no entró nadie" de "los
   beacons están rotos".
+- **De dónde viene una visita se decide con su primer evento del día.** País,
+  canal, fuente, campaña y hora salen de ahí (`visitStarts`), para que cada
+  desglose de `visits` sume el total. El país lo resuelve el hosting del sitio;
+  del origen solo llega el dominio, nunca la URL entera.
 - **La clave nunca baja al navegador.** El sitio manda los beacons a una ruta
   suya y esa ruta llama al hub. Publicar la clave en el cliente sería dejar que
   cualquiera escriba métricas de ese proyecto.

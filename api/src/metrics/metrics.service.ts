@@ -84,7 +84,8 @@ export class MetricsService {
 
     const definitions = await this.definitions();
 
-    const [totals, series, country, device, paths, elements] = await Promise.all([
+    const [totals, series, country, device, paths, elements, channel, source, campaign, hour] =
+      await Promise.all([
       this.sumTotals(range, project.id),
       this.dailySeries(range, project.id),
       this.breakdown(range, project.id, 'country', 'visits'),
@@ -93,6 +94,11 @@ export class MetricsService {
       this.breakdown(range, project.id, 'path', 'page_views', 50),
       // Dónde se hace clic: "ruta | sección | etiqueta", ya ordenado por clics.
       this.breakdown(range, project.id, 'element', 'clicks', 100),
+      this.breakdown(range, project.id, 'channel', 'visits'),
+      this.breakdown(range, project.id, 'source', 'visits'),
+      this.breakdown(range, project.id, 'campaign', 'visits'),
+      // Las 24 horas, con visitas y páginas vistas; el panel las ordena.
+      this.breakdown(range, project.id, 'hour', 'visits', 24),
     ]);
 
     const current = withDerived(totals, definitions);
@@ -111,7 +117,7 @@ export class MetricsService {
       range,
       totals: current,
       series,
-      breakdowns: { country, device, path: paths, element: elements },
+      breakdowns: { country, device, path: paths, element: elements, channel, source, campaign, hour },
     };
 
     if (withComparison) {

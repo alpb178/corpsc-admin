@@ -246,6 +246,16 @@ model SiteEvent {
   /// En los clics: el texto del botón o enlace, o su `data-track-label`.
   label   String? @db.VarChar(120)
 
+  /// País ISO de dos letras. Lo pone el servidor del sitio a partir de la
+  /// cabecera de su hosting: la IP no sale nunca del sitio.
+  country String? @db.VarChar(2)
+  /// Solo en la primera página vista de una carga: el DOMINIO de donde venía
+  /// la visita, nunca la URL entera, que puede llevar datos de quien navega.
+  referrer    String? @db.VarChar(255)
+  utmSource   String? @map("utm_source") @db.VarChar(100)
+  utmMedium   String? @map("utm_medium") @db.VarChar(100)
+  utmCampaign String? @map("utm_campaign") @db.VarChar(100)
+
   /// Instante en UTC. A qué DÍA pertenece se decide al consolidar, en la zona
   /// horaria del proyecto: guardarlo ya recortado impediría corregirlo si la
   /// zona del proyecto estaba mal puesta.

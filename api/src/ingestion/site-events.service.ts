@@ -59,6 +59,12 @@ export class SiteEventsService {
         linkType: event.type === 'site_click' ? (event.linkType ?? null) : null,
         section: isClick ? (event.section ?? null) : null,
         label: isClick ? (event.label ?? null) : null,
+        country: event.country ?? null,
+        // La procedencia solo tiene sentido en la página por la que se entra.
+        referrer: event.type === 'page_view' ? normalizeHost(event.referrer) : null,
+        utmSource: event.type === 'page_view' ? (event.utmSource?.toLowerCase() ?? null) : null,
+        utmMedium: event.type === 'page_view' ? (event.utmMedium?.toLowerCase() ?? null) : null,
+        utmCampaign: event.type === 'page_view' ? (event.utmCampaign ?? null) : null,
         occurredAt: this.stamp(event.at, now, oldestAccepted),
       };
     });
@@ -86,4 +92,10 @@ export class SiteEventsService {
     }
     return new Date(declared);
   }
+}
+
+/** `www.google.com` y `google.com` son la misma fuente. */
+function normalizeHost(host: string | undefined): string | null {
+  if (!host) return null;
+  return host.toLowerCase().replace(/^(www|m|l|lm)\./, '');
 }

@@ -18,7 +18,9 @@ Content-Type: application/json
 {
   "schemaVersion": 1,
   "events": [
-    { "type": "page_view",  "sessionId": "9f2c…", "path": "/es", "at": "2026-09-21T15:04:01.000Z" },
+    { "type": "page_view",  "sessionId": "9f2c…", "path": "/es", "country": "BO",
+      "referrer": "google.com", "utmSource": "instagram", "utmMedium": "social",
+      "utmCampaign": "otono", "at": "2026-09-21T15:04:01.000Z" },
     { "type": "click",      "sessionId": "9f2c…", "path": "/es",
       "section": "hero", "label": "Ver proyectos", "at": "2026-09-21T15:04:10.000Z" },
     { "type": "site_click", "sessionId": "9f2c…", "path": "/es",
@@ -56,8 +58,21 @@ escribe en un campo: solo la etiqueta de botones y enlaces.
 | `linkType`: `web` · `android` · `ios` | Un botón de Google Play no es una visita a la web |
 | `at` opcional, y **acotado a 48 h** | Un beacon puede salir al cerrar la pestaña, no dos días después: fuera de esa ventana manda la hora de llegada, para que nadie reescriba un día ya cerrado |
 
-**Lo que no se manda nunca:** ni IP, ni agente de usuario, ni referer, ni nada
-que identifique a quien navega. El hub no lo guarda porque no lo recibe.
+### País, procedencia y horario
+
+- **`country`**: lo pone la ruta de servidor del sitio a partir de la cabecera
+  `x-vercel-ip-country` de Vercel, en todos los eventos. La IP no sale nunca
+  del sitio.
+- **`referrer`**: solo en la primera página vista de cada carga, y solo el
+  **dominio** (`google.com`), nunca la URL entera, que puede llevar búsquedas o
+  identificadores. Si el origen es el propio sitio, no se manda.
+- **`utmSource`, `utmMedium`, `utmCampaign`**: los `utm_*` de la URL de entrada,
+  en la misma página vista.
+- **El horario no se manda**: sale de `at`, en la zona horaria del proyecto.
+
+**Lo que no se manda nunca:** ni IP, ni agente de usuario, ni la URL de origen
+entera, ni nada que identifique a quien navega. El hub no lo guarda porque no
+lo recibe.
 
 ## Qué sale de ahí
 
@@ -74,6 +89,13 @@ cuatro métricas:
 | `page_views` | eventos `page_view` | por `path` |
 | `site_clicks` | eventos `site_click` | por `project` (destino) y por `link_type` |
 | `clicks` | eventos `click` y `site_click` | por `path` y por `element` (`ruta \| sección \| etiqueta`) |
+
+Además, **`visits`** se desglosa por `country`, `channel` (búsqueda orgánica,
+redes, directo, referencia… con los nombres de canal de GA4), `source`
+(`utmSource` o dominio de origen), `campaign` y `hour` (`00`–`23`), y
+**`page_views`** por `hour`. Cada visita cuenta una vez, con lo que traía su
+primer evento del día, así que cada desglose suma el total: las visitas sin
+país van a `__unknown__` y las directas a `__direct__`.
 
 El día se decide **en la zona horaria del proyecto**, no en UTC: por eso el
 evento se guarda con su instante y no con una fecha ya recortada. Si la zona de
