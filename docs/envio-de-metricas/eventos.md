@@ -6,7 +6,7 @@ son páginas en Vercel **sin base de datos**: no tienen dónde contar ni desde
 dónde agregar.
 
 Para ellos el hub abre una segunda puerta: **mandan el hecho suelto y el hub lo
-consolida de madrugada** en las mismas métricas diarias que envía todo el mundo.
+consolida en unos segundos** en las mismas métricas diarias que envía todo el mundo.
 
 ```
 POST https://hub.corpsc.com/api/ingest/events
@@ -42,8 +42,11 @@ que identifique a quien navega. El hub no lo guarda porque no lo recibe.
 
 ## Qué sale de ahí
 
-La consolidación corre a las **03:00** y rehace **los últimos cuatro días** —un
-evento puede llegar tarde y rehacerlos cuesta lo mismo—. Produce exactamente
+Cada envío pide una consolidación **en vivo** de ese proyecto: a los diez
+segundos se rehacen los tres últimos días —los que puede tocar un evento
+aceptado— y el panel ya lo refleja. Los envíos que llegan en esa espera se
+suman a la misma pasada. Además, a las **03:00** se rehacen **los últimos cuatro
+días** de todos, como red por si alguna en vivo falló. Produce exactamente
 tres métricas:
 
 | Métrica | De dónde sale | Desglose |

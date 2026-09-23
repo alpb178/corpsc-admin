@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { RunStatus, RunTrigger } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -6,6 +6,7 @@ import { FactWriterService, type WriteResult } from './fact-writer.service';
 import { addDays, todayIn, toUtcDate, type IsoDate } from './common/dates';
 import { TOTAL, TOTAL_DIMENSION, type MetricRow } from './common/metric-row';
 import { collapseToTopN } from './common/top-n';
+import { MAX_EVENT_AGE_HOURS } from './site-events.contract';
 
 /**
  * Las métricas que produce la consolidación, y de las que por tanto se hace
@@ -22,6 +23,19 @@ export const ROLLUP_METRIC_KEYS = ['visits', 'page_views', 'site_clicks'];
  * que un día quede mal cuadrado para siempre.
  */
 const ROLLUP_DAYS = 4;
+
+/**
+ * La consolidación en vivo solo rehace los días a los que puede caer un evento
+ * recién llegado: hoy y los que cubre la antigüedad máxima que se acepta.
+ */
+const LIVE_DAYS = Math.ceil(MAX_EVENT_AGE_HOURS / 24) + 1;
+
+/**
+ * Espera tras el primer evento antes de consolidar. Agrupa la ráfaga de una
+ * visita —la página, los clics— en una sola pasada en lugar de una por beacon,
+ * y sigue siendo lo bastante corta para que el panel parezca en directo.
+ */
+const LIVE_DELAY_MS = 10_000;
 
 /** Lo crudo se conserva lo justo para poder recalcular, no como archivo. */
 const RETENTION_DAYS = 90;
@@ -62,8 +76,13 @@ interface DayDimCount {
  * de un proyecto estaba mal puesta, se corrige y se vuelve a consolidar.
  */
 @Injectable()
-export class EventRollupService {
+export class EventRollupService implements OnModuleDestroy {
   private readonly logger = new Logger(EventRollupService.name);
+
+  /** Consolidaciones en vivo pendientes, una por proyecto. */
+  private readonly pending = new Map<string, NodeJS.Timeout>();
+  /** Proyectos que se están consolidando ahora, y si llegó algo mientras. */
+  private readonly running = new Map<string, { dirty: boolean }>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -100,6 +119,56 @@ export class EventRollupService {
   }
 
   /**
+   * Pide consolidar un proyecto porque acaban de llegarle eventos.
+   *
+   * Es lo que hace que el panel refleje las visitas según ocurren. No se
+   * espera al resultado: quien envía no tiene por qué pagar la consolidación,
+   * y si falla, el cron de la noche lo vuelve a intentar sobre lo mismo.
+   *
+   * Nunca hay dos a la vez para el mismo proyecto: lo que llegue durante una
+   * consolidación deja marcada otra para cuando termine.
+   */
+  scheduleLive(project: RollupProject): void {
+    if (this.pending.has(project.id)) return;
+
+    const inFlight = this.running.get(project.id);
+    if (inFlight) {
+      inFlight.dirty = true;
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      this.pending.delete(project.id);
+      void this.runLive(project);
+    }, LIVE_DELAY_MS);
+    // Un temporizador pendiente no debe impedir que el proceso se cierre.
+    timer.unref();
+    this.pending.set(project.id, timer);
+  }
+
+  onModuleDestroy(): void {
+    for (const timer of this.pending.values()) clearTimeout(timer);
+    this.pending.clear();
+  }
+
+  private async runLive(project: RollupProject): Promise<void> {
+    const state = { dirty: false };
+    this.running.set(project.id, state);
+
+    try {
+      const to = todayIn(project.timezone);
+      await this.rollupWindow(project, addDays(to, -(LIVE_DAYS - 1)), to, { live: true });
+    } catch (error) {
+      this.logger.error(
+        `No se pudo consolidar en vivo ${project.slug}: ${error instanceof Error ? error.message : error}`,
+      );
+    } finally {
+      this.running.delete(project.id);
+      if (state.dirty) this.scheduleLive(project);
+    }
+  }
+
+  /**
    * Consolida un proyecto. Devuelve `null` si no había ni un evento.
    *
    * El silencio no se escribe: un sitio sin eventos no es un sitio con cero
@@ -116,20 +185,17 @@ export class EventRollupService {
    * Consolida una ventana concreta. Sirve para rehacer un histórico —una zona
    * horaria mal puesta, un bot descubierto tarde— sin esperar al cron.
    */
-  async rollupWindow(project: RollupProject, from: IsoDate, to: IsoDate): Promise<WriteResult | null> {
+  async rollupWindow(
+    project: RollupProject,
+    from: IsoDate,
+    to: IsoDate,
+    { live = false }: { live?: boolean } = {},
+  ): Promise<WriteResult | null> {
     const rows = await this.aggregate(project, from, to);
     if (rows.length === 0) return null;
 
     const startedAt = Date.now();
-    const run = await this.prisma.ingestionRun.create({
-      data: {
-        projectId: project.id,
-        trigger: RunTrigger.ROLLUP,
-        status: RunStatus.SUCCESS,
-        windowFrom: toUtcDate(from),
-        windowTo: toUtcDate(to),
-      },
-    });
+    const run = await this.runFor(project, from, to, live);
 
     const result = await this.factWriter.write({
       projectId: project.id,
@@ -143,7 +209,7 @@ export class EventRollupService {
     await this.prisma.$transaction([
       this.prisma.ingestionRun.update({
         where: { id: run.id },
-        data: { ...result, durationMs: Date.now() - startedAt },
+        data: { ...result, durationMs: Date.now() - startedAt, receivedAt: new Date() },
       }),
       // Cuenta como señal de vida igual que un envío: si el sitio deja de
       // mandar eventos, Envíos tiene que enterarse.
@@ -154,6 +220,37 @@ export class EventRollupService {
     ]);
 
     return result;
+  }
+
+  /**
+   * El registro de la consolidación.
+   *
+   * La de la noche o la lanzada a mano deja uno nuevo cada vez. La de en vivo
+   * reutiliza el de su ventana: la ventana cambia una vez al día, así que queda
+   * uno por día y proyecto, en lugar de uno por visita enterrando en Envíos los
+   * envíos de los demás.
+   */
+  private async runFor(project: RollupProject, from: IsoDate, to: IsoDate, live: boolean) {
+    const window = {
+      projectId: project.id,
+      trigger: RunTrigger.ROLLUP,
+      windowFrom: toUtcDate(from),
+      windowTo: toUtcDate(to),
+    };
+
+    if (live) {
+      const existing = await this.prisma.ingestionRun.findFirst({
+        where: window,
+        orderBy: { receivedAt: 'desc' },
+        select: { id: true },
+      });
+      if (existing) return existing;
+    }
+
+    return this.prisma.ingestionRun.create({
+      data: { ...window, status: RunStatus.SUCCESS },
+      select: { id: true },
+    });
   }
 
   /** Borra lo crudo que ya no sirve para recalcular nada. */
