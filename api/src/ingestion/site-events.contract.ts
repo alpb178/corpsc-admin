@@ -38,12 +38,13 @@ export const MAX_EVENTS_PER_REQUEST = 50;
  */
 export const MAX_EVENT_AGE_HOURS = 48;
 
-export type SiteEventKind = 'page_view' | 'site_click';
+export const SITE_EVENT_KINDS = ['page_view', 'site_click', 'click'] as const;
+export type SiteEventKind = (typeof SITE_EVENT_KINDS)[number];
 export type LinkType = 'web' | 'android' | 'ios';
 
 export class SiteEventDto {
-  @ApiProperty({ enum: ['page_view', 'site_click'] })
-  @IsIn(['page_view', 'site_click'])
+  @ApiProperty({ enum: SITE_EVENT_KINDS })
+  @IsIn(SITE_EVENT_KINDS)
   type!: SiteEventKind;
 
   @ApiProperty({ description: 'Identificador opaco de la visita, no de la persona' })
@@ -69,6 +70,24 @@ export class SiteEventDto {
   @IsOptional()
   @IsIn(['web', 'android', 'ios'])
   linkType?: LinkType;
+
+  @ApiPropertyOptional({
+    description: 'En los clics: zona de la página donde ocurrió. Obligatorio en click',
+    example: 'hero',
+  })
+  @IsOptional()
+  @IsString()
+  @Length(1, 64)
+  section?: string;
+
+  @ApiPropertyOptional({
+    description: 'En los clics: texto del botón o enlace. Obligatorio en click',
+    example: 'Ver proyectos',
+  })
+  @IsOptional()
+  @IsString()
+  @Length(1, 120)
+  label?: string;
 
   @ApiPropertyOptional({ description: 'Instante del evento en ISO 8601. Por defecto, el de llegada' })
   @IsOptional()

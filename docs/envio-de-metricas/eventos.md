@@ -19,13 +19,31 @@ Content-Type: application/json
   "schemaVersion": 1,
   "events": [
     { "type": "page_view",  "sessionId": "9f2c…", "path": "/es", "at": "2026-09-21T15:04:01.000Z" },
+    { "type": "click",      "sessionId": "9f2c…", "path": "/es",
+      "section": "hero", "label": "Ver proyectos", "at": "2026-09-21T15:04:10.000Z" },
     { "type": "site_click", "sessionId": "9f2c…", "path": "/es",
+      "section": "projects", "label": "Take",
       "target": "take", "linkType": "web", "at": "2026-09-21T15:04:22.000Z" }
   ]
 }
 ```
 
-Respuesta: `202` con `{ "accepted": 2 }`.
+Respuesta: `202` con `{ "accepted": 3 }`.
+
+### De dónde sale `section` y `label`
+
+El beacon de cada sitio escucha los clics en el documento, sobre enlaces y
+botones, y los resuelve así:
+
+- **`section`**: el `data-track-section` más cercano hacia arriba. Si no hay,
+  el `id` de la `<section>` que lo contiene, o el landmark: `header`, `nav`,
+  `footer`, `aside`, `main`.
+- **`label`**: el `data-track-label` del elemento. Si no hay, su `aria-label`,
+  su texto (espacios colapsados, hasta 120 caracteres) o el `alt` de su imagen.
+
+Para que un bloque se lea bien en el panel basta con marcarlo:
+`<section data-track-section="pricing">`. Nunca se manda lo que alguien
+escribe en un campo: solo la etiqueta de botones y enlaces.
 
 ## Reglas
 
@@ -34,6 +52,7 @@ Respuesta: `202` con `{ "accepted": 2 }`.
 | Máximo **50 eventos** por petición | Un sitio que necesite más está mandando mal los eventos |
 | `sessionId` de 8 a 64 caracteres, opaco | Es lo que evita contar cinco páginas como cinco visitas. **No identifica a una persona** |
 | `target` obligatorio en `site_click` | Un clic sin destino no se puede desglosar y solo engorda un cubo anónimo |
+| `section` y `label` obligatorios en `click` (opcionales en `site_click`) | Un clic que no dice dónde se hizo no aporta nada sobre contar páginas |
 | `linkType`: `web` · `android` · `ios` | Un botón de Google Play no es una visita a la web |
 | `at` opcional, y **acotado a 48 h** | Un beacon puede salir al cerrar la pestaña, no dos días después: fuera de esa ventana manda la hora de llegada, para que nadie reescriba un día ya cerrado |
 
@@ -47,13 +66,14 @@ segundos se rehacen los tres últimos días —los que puede tocar un evento
 aceptado— y el panel ya lo refleja. Los envíos que llegan en esa espera se
 suman a la misma pasada. Además, a las **03:00** se rehacen **los últimos cuatro
 días** de todos, como red por si alguna en vivo falló. Produce exactamente
-tres métricas:
+cuatro métricas:
 
 | Métrica | De dónde sale | Desglose |
 |---|---|---|
 | `visits` | sesiones distintas del día | — |
 | `page_views` | eventos `page_view` | por `path` |
 | `site_clicks` | eventos `site_click` | por `project` (destino) y por `link_type` |
+| `clicks` | eventos `click` y `site_click` | por `path` y por `element` (`ruta \| sección \| etiqueta`) |
 
 El día se decide **en la zona horaria del proyecto**, no en UTC: por eso el
 evento se guarda con su instante y no con una fecha ya recortada. Si la zona de

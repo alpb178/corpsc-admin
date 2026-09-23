@@ -8,6 +8,7 @@ import type { PushingProject } from './api-key.guard';
 const TYPES: Record<string, SiteEventType> = {
   page_view: SiteEventType.PAGE_VIEW,
   site_click: SiteEventType.SITE_CLICK,
+  click: SiteEventType.CLICK,
 };
 
 export interface ReceiveEventsResult {
@@ -42,6 +43,12 @@ export class SiteEventsService {
       if (event.type === 'site_click' && !event.target) {
         throw new BadRequestException('Un evento site_click necesita `target`');
       }
+      // Un clic sin sección ni etiqueta no dice dónde se hizo, que es lo único
+      // que aporta sobre contar páginas.
+      if (event.type === 'click' && (!event.section || !event.label)) {
+        throw new BadRequestException('Un evento click necesita `section` y `label`');
+      }
+      const isClick = event.type !== 'page_view';
 
       return {
         projectId: project.id,
@@ -50,6 +57,8 @@ export class SiteEventsService {
         path: event.path,
         target: event.type === 'site_click' ? (event.target ?? null) : null,
         linkType: event.type === 'site_click' ? (event.linkType ?? null) : null,
+        section: isClick ? (event.section ?? null) : null,
+        label: isClick ? (event.label ?? null) : null,
         occurredAt: this.stamp(event.at, now, oldestAccepted),
       };
     });

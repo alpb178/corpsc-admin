@@ -13,7 +13,7 @@ import { MAX_EVENT_AGE_HOURS } from './site-events.contract';
  * dueña: al reconsolidar una ventana borra las suyas de esos días y las vuelve
  * a escribir, sin tocar ninguna otra del proyecto.
  */
-export const ROLLUP_METRIC_KEYS = ['visits', 'page_views', 'site_clicks'];
+export const ROLLUP_METRIC_KEYS = ['visits', 'page_views', 'site_clicks', 'clicks'];
 
 /**
  * Se reconsolidan siempre los últimos días, no solo el de ayer.
@@ -43,6 +43,21 @@ const RETENTION_DAYS = 90;
 /** Tope de valores con nombre propio por día y dimensión; el resto va a `__other__`. */
 const TOP_N = 100;
 
+/** Separa página, sección y etiqueta en el valor de la dimensión `element`. */
+export const ELEMENT_SEPARATOR = ' | ';
+
+/**
+ * El valor de la dimensión `element`: dónde se hizo el clic, entero.
+ *
+ * Va en una sola dimensión porque `metric_daily` guarda una por fila, y separar
+ * página y elemento en dos perdería qué botón se pulsó en qué página. La barra
+ * se quita de las partes para que el panel pueda volver a partirlo sin dudas.
+ */
+export function elementKey(path: string, section: string, label: string): string {
+  const clean = (part: string) => part.replace(/\|/g, '/').trim();
+  return [clean(path), clean(section), clean(label)].join(ELEMENT_SEPARATOR).slice(0, 512);
+}
+
 interface RollupProject {
   id: string;
   slug: string;
@@ -54,6 +69,7 @@ interface DayTotals {
   visits: bigint;
   page_views: bigint;
   site_clicks: bigint;
+  clicks: bigint;
 }
 
 interface DayDimCount {
@@ -286,7 +302,8 @@ export class EventRollupService implements OnModuleDestroy {
       SELECT (occurred_at AT TIME ZONE 'UTC' AT TIME ZONE ${tz})::date AS day,
              count(DISTINCT session_id)                     AS visits,
              count(*) FILTER (WHERE type = 'PAGE_VIEW')     AS page_views,
-             count(*) FILTER (WHERE type = 'SITE_CLICK')    AS site_clicks
+             count(*) FILTER (WHERE type = 'SITE_CLICK')    AS site_clicks,
+             count(*) FILTER (WHERE type IN ('CLICK', 'SITE_CLICK')) AS clicks
         FROM site_event
        WHERE project_id = ${project.id}
          AND occurred_at >= ${guardFrom} AND occurred_at < ${guardTo}
@@ -302,12 +319,15 @@ export class EventRollupService implements OnModuleDestroy {
         this.total(date, 'visits', day.visits),
         this.total(date, 'page_views', day.page_views),
         this.total(date, 'site_clicks', day.site_clicks),
+        this.total(date, 'clicks', day.clicks),
       );
     }
 
     const byTarget = await this.breakdown(project, from, to, 'SITE_CLICK', 'target');
     const byLinkType = await this.breakdown(project, from, to, 'SITE_CLICK', 'link_type');
     const byPath = await this.breakdown(project, from, to, 'PAGE_VIEW', 'path');
+    const clicksByPath = await this.clickBreakdown(project, from, to, 'path');
+    const clicksByElement = await this.clickBreakdown(project, from, to, 'element');
 
     rows.push(
       // A qué sitio del grupo se va el clic: la razón de ser del portfolio.
@@ -325,6 +345,19 @@ export class EventRollupService implements OnModuleDestroy {
         dimension: 'path',
         topN: TOP_N,
         rankBy: 'page_views',
+      }),
+      // En qué páginas se hace clic: comparte dimensión con las páginas vistas,
+      // así el panel lee vistas y clics de una ruta en la misma fila.
+      ...collapseToTopN(this.dimRows(clicksByPath, 'clicks', 'path'), {
+        dimension: 'path',
+        topN: TOP_N,
+        rankBy: 'clicks',
+      }),
+      // Y en qué se hace clic dentro de cada una.
+      ...collapseToTopN(this.dimRows(clicksByElement, 'clicks', 'element'), {
+        dimension: 'element',
+        topN: TOP_N,
+        rankBy: 'clicks',
       }),
     );
 
@@ -367,6 +400,51 @@ export class EventRollupService implements OnModuleDestroy {
       toUtcDate(from),
       toUtcDate(to),
     );
+  }
+
+  /**
+   * Los clics que dicen dónde se hicieron, por página o por elemento.
+   *
+   * Solo cuenta los que traen sección y etiqueta: un clic a otro sitio de una
+   * versión anterior del beacon no las lleva, y meterlo en un cubo vacío haría
+   * que el desglose sumara menos que el total sin que se viera por qué.
+   */
+  private async clickBreakdown(
+    project: RollupProject,
+    from: IsoDate,
+    to: IsoDate,
+    by: 'path' | 'element',
+  ): Promise<DayDimCount[]> {
+    const tz = project.timezone;
+    const guardFrom = toUtcDate(addDays(from, -1));
+    const guardTo = toUtcDate(addDays(to, 2));
+
+    const rows = await this.prisma.$queryRaw<Array<DayDimCount & { section: string; label: string }>>`
+      SELECT (occurred_at AT TIME ZONE 'UTC' AT TIME ZONE ${tz})::date AS day,
+             path AS dim_value, section, label,
+             count(*) AS total
+        FROM site_event
+       WHERE project_id = ${project.id}
+         AND type IN ('CLICK', 'SITE_CLICK')
+         AND section IS NOT NULL AND label IS NOT NULL
+         AND occurred_at >= ${guardFrom} AND occurred_at < ${guardTo}
+         AND (occurred_at AT TIME ZONE 'UTC' AT TIME ZONE ${tz})::date
+             BETWEEN ${toUtcDate(from)}::date AND ${toUtcDate(to)}::date
+       GROUP BY 1, 2, 3, 4`;
+
+    // Se agrupa aquí y no en SQL para que el recorte de `elementKey` sea el
+    // mismo en todas partes: dos etiquetas que solo difieren tras el recorte
+    // tienen que sumar en la misma fila, no chocar en la clave natural.
+    const counts = new Map<string, DayDimCount>();
+    for (const row of rows) {
+      const value =
+        by === 'path' ? row.dim_value : elementKey(row.dim_value ?? '', row.section, row.label);
+      const key = `${this.isoDay(row.day)}\u0000${value}`;
+      const bucket = counts.get(key);
+      if (bucket) bucket.total += row.total;
+      else counts.set(key, { day: row.day, dim_value: value, total: row.total });
+    }
+    return [...counts.values()];
   }
 
   private dimRows(counts: DayDimCount[], metricKey: string, dimension: string): MetricRow[] {

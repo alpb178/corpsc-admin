@@ -241,6 +241,11 @@ model SiteEvent {
   /// Solo en SITE_CLICK: web · android · ios.
   linkType String? @map("link_type") @db.VarChar(16)
 
+  /// En los clics: zona de la página donde ocurrió (header, nav, hero…).
+  section String? @db.VarChar(64)
+  /// En los clics: el texto del botón o enlace, o su `data-track-label`.
+  label   String? @db.VarChar(120)
+
   /// Instante en UTC. A qué DÍA pertenece se decide al consolidar, en la zona
   /// horaria del proyecto: guardarlo ya recortado impediría corregirlo si la
   /// zona del proyecto estaba mal puesta.
@@ -254,7 +259,10 @@ model SiteEvent {
 
 enum SiteEventType {
   PAGE_VIEW
+  /// Clic que sale hacia otro sitio del grupo.
   SITE_CLICK
+  /// Clic en un enlace o botón de la propia página.
+  CLICK
 }
 
 // ─────────────────────── Control de ejecución ───────────────────────
