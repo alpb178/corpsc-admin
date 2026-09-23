@@ -117,6 +117,14 @@ de salida puede exponer `credential.ciphertext`.
 
 ## El panel (`web/`)
 
+- **Las rutas del panel están en inglés** (`/compare`, `/submissions`,
+  `/projects/[slug]`, `/settings/projects`, `/settings/users`) y los
+  parámetros también (`?range=`, `?sites=`). Las antiguas en español
+  (`/comparar`, `/envios`, `/proyectos/…`, `/ajustes/…`) redirigen con un 308
+  desde `redirects()` en `next.config.ts`, que corre antes que `proxy.ts`; y
+  `?rango=` / `?sitios=` se siguen leyendo como alias. No quitar ni lo uno ni lo
+  otro: hay enlaces compartidos y marcadores con las rutas viejas.
+
 - **La seguridad vive en `lib/dal.ts`, no en `proxy.ts`.** La documentación de
   Next 16 es explícita: el proxy es capa de experiencia. Las Server Functions
   se ejecutan como POST contra su propia ruta, así que un cambio de `matcher`
