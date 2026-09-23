@@ -4,7 +4,7 @@ import { ProjectsController } from './projects.controller';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  // Por JwtAuthGuard/RolesGuard en el controlador.
+  // For JwtAuthGuard/RolesGuard in the controller.
   imports: [AuthModule],
   controllers: [ProjectsController],
   providers: [ProjectsService],

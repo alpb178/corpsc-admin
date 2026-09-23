@@ -1,7 +1,7 @@
 import { StatTile } from './StatTile';
 import type { Comparison, MetricTotals } from '@/lib/types';
 
-/** Métricas de negocio que el hub conoce, en el orden en que se muestran. */
+/** Business metrics the hub knows about, in the order they're shown. */
 const BUSINESS = [
   { key: 'orders', label: 'Pedidos', unit: 'COUNT' },
   { key: 'orders_cancelled', label: 'Pedidos cancelados', unit: 'COUNT' },
@@ -14,14 +14,14 @@ const BUSINESS = [
 ] as const;
 
 /**
- * KPIs que vienen del endpoint interno de cada proyecto.
+ * KPIs that come from each project's internal endpoint.
  *
- * Solo se pintan las que ese proyecto envía de verdad: una tienda no publica
- * ofertas de empleo y un portal de empleo no factura. Enseñar "Pedidos 0" en
- * Tu Chamba sería inventarse una métrica que allí no significa nada.
+ * Only the ones that project actually sends are drawn: a shop doesn't post job
+ * offers and a job board doesn't bill. Showing "Pedidos 0" on Tu Chamba would
+ * be inventing a metric that means nothing there.
  *
- * `revenue` se deja fuera a propósito: es dinero y necesita su moneda, así que
- * lo lleva `RevenueTile` aparte.
+ * `revenue` is left out on purpose: it's money and needs its currency, so
+ * `RevenueTile` handles it separately.
  */
 export function BusinessKpis({
   totals,

@@ -9,7 +9,7 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
 
-  // Detrás del proxy de Render, req.ip debe traer la IP real del cliente.
+  // Behind Render's proxy, req.ip must carry the client's real IP.
   app.set('trust proxy', 1);
 
   app.useGlobalPipes(
@@ -20,7 +20,7 @@ async function bootstrap() {
     }),
   );
 
-  // CORS compara solo el origen (esquema + host), sin ruta ni barra final.
+  // CORS compares only the origin (scheme + host), without path or trailing slash.
   const defaultOrigins = ['https://hub.corpsc.com'];
   const envOrigins = (process.env.CORS_ORIGINS ?? '')
     .split(',')
@@ -30,7 +30,7 @@ async function bootstrap() {
 
   app.enableCors({
     origin: (origin, cb) => {
-      // Sin origin son herramientas tipo curl; localhost es desarrollo.
+      // No origin means curl-like tools; localhost is development.
       if (!origin || origins.includes(origin) || /^http:\/\/localhost:\d+$/.test(origin)) {
         cb(null, true);
       } else {
@@ -42,7 +42,7 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('CORPSC Hub API')
-    .setDescription('Analítica y KPIs centralizados de los sitios de CORPSC')
+    .setDescription('Centralized analytics and KPIs for the CORPSC sites')
     .setVersion('0.1')
     .addBearerAuth()
     .build();
@@ -50,7 +50,7 @@ async function bootstrap() {
 
   const port = Number(process.env.PORT ?? 3001);
   await app.listen(port);
-  new Logger('Bootstrap').log(`API en http://localhost:${port}/api — docs en /docs`);
+  new Logger('Bootstrap').log(`API on http://localhost:${port}/api — docs at /docs`);
 }
 
 void bootstrap();

@@ -16,13 +16,13 @@ export interface ReceiveEventsResult {
 }
 
 /**
- * Recibe los eventos de un sitio sin backend y los guarda crudos.
+ * Receives the events of a site without a backend and stores them raw.
  *
- * Aquí no se cuenta nada: se pide a `EventRollupService` que consolide en unos
- * segundos, y el panel lo refleja casi en directo. Contar sobre la marcha sería
- * más rápido, pero un contador incrementado no se puede deshacer; recalcular
- * desde lo crudo sí, si más tarde hay que filtrar un bot o corregir la zona
- * horaria del proyecto.
+ * Nothing is counted here: `EventRollupService` is asked to roll up in a few
+ * seconds, and the panel reflects it almost live. Counting on the fly would be
+ * faster, but an incremented counter can't be undone; recomputing from raw
+ * data can, if later a bot has to be filtered out or the project's timezone
+ * corrected.
  */
 @Injectable()
 export class SiteEventsService {
@@ -38,13 +38,14 @@ export class SiteEventsService {
     const oldestAccepted = now - MAX_EVENT_AGE_HOURS * 3_600_000;
 
     const data = payload.events.map((event) => {
-      // Un clic sin destino no se puede desglosar y acabaría engordando un
-      // cubo anónimo que no dice nada. Mejor rechazarlo y que se note.
+      // A click without a target can't be broken down and would end up
+      // fattening an anonymous bucket that says nothing. Better to reject it
+      // and make it noticeable.
       if (event.type === 'site_click' && !event.target) {
         throw new BadRequestException('Un evento site_click necesita `target`');
       }
-      // Un clic sin sección ni etiqueta no dice dónde se hizo, que es lo único
-      // que aporta sobre contar páginas.
+      // A click without section or label doesn't say where it happened, which
+      // is the only thing it adds over counting pages.
       if (event.type === 'click' && (!event.section || !event.label)) {
         throw new BadRequestException('Un evento click necesita `section` y `label`');
       }
@@ -60,7 +61,7 @@ export class SiteEventsService {
         section: isClick ? (event.section ?? null) : null,
         label: isClick ? (event.label ?? null) : null,
         country: event.country ?? null,
-        // La procedencia solo tiene sentido en la página por la que se entra.
+        // The origin only makes sense on the landing page.
         referrer: event.type === 'page_view' ? normalizeHost(event.referrer) : null,
         utmSource: event.type === 'page_view' ? (event.utmSource?.toLowerCase() ?? null) : null,
         utmMedium: event.type === 'page_view' ? (event.utmMedium?.toLowerCase() ?? null) : null,
@@ -76,12 +77,12 @@ export class SiteEventsService {
   }
 
   /**
-   * El instante del evento, acotado.
+   * The event's instant, bounded.
    *
-   * Se acepta el que declara el sitio porque un beacon puede salir al cerrar
-   * la pestaña, pero solo dentro de una ventana razonable: fuera de ella manda
-   * la hora de llegada. El emisor no debería poder escribir en un día que ya
-   * se dio por cerrado, ni en el futuro.
+   * The one the site declares is accepted because a beacon can go out when the
+   * tab closes, but only within a reasonable window: outside it, the arrival
+   * time wins. The sender shouldn't be able to write into a day already
+   * considered closed, nor into the future.
    */
   private stamp(at: string | undefined, now: number, oldestAccepted: number): Date {
     if (!at) return new Date(now);
@@ -94,7 +95,7 @@ export class SiteEventsService {
   }
 }
 
-/** `www.google.com` y `google.com` son la misma fuente. */
+/** `www.google.com` and `google.com` are the same source. */
 function normalizeHost(host: string | undefined): string | null {
   if (!host) return null;
   return host.toLowerCase().replace(/^(www|m|l|lm)\./, '');

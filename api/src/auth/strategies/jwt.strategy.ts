@@ -23,9 +23,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   /**
-   * El rol se lee de la base en cada petición, no del token: si a alguien se
-   * le baja el rol o se le desactiva, el cambio surte efecto de inmediato en
-   * lugar de esperar a que caduque su JWT.
+   * The role is read from the database on every request, not from the token:
+   * if someone is downgraded or deactivated, the change takes effect
+   * immediately instead of waiting for their JWT to expire.
    */
   async validate(payload: JwtPayload): Promise<AuthUser> {
     const user = await this.prisma.hubUser.findUnique({

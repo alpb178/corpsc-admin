@@ -5,8 +5,8 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { PRESETS } from '@/lib/ranges';
 
 /**
- * Los filtros van en una fila, encima de los gráficos, y son enlaces: así el
- * rango queda en la URL y una vista concreta se puede compartir o guardar.
+ * The filters sit in a row above the charts, and they're links: that way the
+ * range stays in the URL and a specific view can be shared or bookmarked.
  */
 export function RangePicker({ current }: { current: string }) {
   const pathname = usePathname();
@@ -16,7 +16,8 @@ export function RangePicker({ current }: { current: string }) {
     <nav aria-label="Rango de fechas" className="flex items-center gap-1 rounded-full border border-line bg-card p-0.5">
       {PRESETS.map((preset) => {
         const next = new URLSearchParams(params);
-        next.set('rango', preset.key);
+        next.set('range', preset.key);
+        next.delete('rango');
         const active = preset.key === current;
 
         return (

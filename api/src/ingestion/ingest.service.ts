@@ -8,14 +8,14 @@ import { daysBetween, isIsoDate, type IsoDate } from './common/dates';
 import { SCHEMA_VERSION, type InternalMetricsDto, type MetricDefinitionDto } from './contract';
 import type { PushingProject } from './api-key.guard';
 
-/** Ventana máxima por envío. Más que esto y conviene trocearlo. */
+/** Maximum window per push. Anything larger should be split up. */
 const MAX_WINDOW_DAYS = 92;
-/** Tope de valores por dimensión y día: evita que un proyecto inunde el hub. */
+/** Cap on values per dimension and day: keeps a project from flooding the hub. */
 const MAX_DIM_VALUES = 100;
 
 /**
- * Dimensión reservada: cuando un importe se desglosa por ella, cada valor ES
- * un código de moneda y manda sobre la declarada en `definitions`.
+ * Reserved dimension: when an amount is broken down by it, each value IS a
+ * currency code and takes precedence over the one declared in `definitions`.
  */
 const CURRENCY_DIMENSION = 'currency';
 
@@ -65,9 +65,9 @@ export class IngestService {
 
     const { from, to } = this.resolveWindow(payload);
 
-    // Un desajuste horario desplaza las series un día frente a las de otros
-    // sitios y no se nota hasta que alguien compara. No invalida el envío,
-    // pero tiene que quedar registrado.
+    // A timezone mismatch shifts the series by a day against the other sites
+    // and nobody notices until someone compares them. It doesn't invalidate
+    // the push, but it has to be recorded.
     if (payload.timezone !== project.timezone) {
       warnings.push(
         `El envío declara la zona ${payload.timezone} y el proyecto tiene ${project.timezone}`,
@@ -109,8 +109,8 @@ export class IngestService {
             warnings: warnings.length ? warnings : undefined,
           },
         }),
-        // La marca de frescura solo avanza si el envío se aceptó: es lo que
-        // permite detectar que un proyecto lleva días callado.
+        // The freshness mark only moves forward if the push was accepted: that
+        // is what lets us detect that a project has gone quiet for days.
         this.prisma.project.update({
           where: { id: project.id },
           data: { lastPushAt: new Date() },
@@ -141,11 +141,11 @@ export class IngestService {
   }
 
   /**
-   * La ventana que el envío declara, o la que abarcan sus días.
+   * The window the push declares, or the one its days span.
    *
-   * Importa porque el hub REEMPLAZA ese rango: lo que el proyecto no vuelva a
-   * mandar dentro de él se borra. Sin ventana explícita, un envío parcial
-   * podría llevarse por delante datos buenos de los días que no mencionó.
+   * It matters because the hub REPLACES that range: whatever the project
+   * doesn't send again inside it gets deleted. Without an explicit window, a
+   * partial push could wipe out good data for the days it didn't mention.
    */
   private resolveWindow(payload: InternalMetricsDto): { from: IsoDate; to: IsoDate } {
     const declared = payload.range;
@@ -174,19 +174,19 @@ export class IngestService {
   }
 
   /**
-   * Una métrica que el hub no conoce se registra desactivada: se guarda igual
-   * —el dato no se pierde— pero no se muestra hasta que alguien decida cómo
-   * se llama y cómo se formatea.
+   * A metric the hub doesn't know is registered as inactive: it's stored all
+   * the same —the data isn't lost— but it isn't shown until someone decides
+   * what it's called and how it's formatted.
    */
   private async registerUnknownMetrics(definitions: MetricDefinitionDto[]): Promise<void> {
     const known = new Set(
       (await this.prisma.metricDefinition.findMany({ select: { key: true } })).map((d) => d.key),
     );
-    const nuevas = definitions.filter((d) => !known.has(d.key));
-    if (nuevas.length === 0) return;
+    const newDefinitions = definitions.filter((d) => !known.has(d.key));
+    if (newDefinitions.length === 0) return;
 
     await this.prisma.metricDefinition.createMany({
-      data: nuevas.map((d) => ({
+      data: newDefinitions.map((d) => ({
         key: d.key,
         label: d.label,
         unit: UNIT[d.unit],
@@ -197,10 +197,10 @@ export class IngestService {
       skipDuplicates: true,
     });
 
-    this.logger.log(`Métricas nuevas (inactivas hasta revisarlas): ${nuevas.map((d) => d.key).join(', ')}`);
+    this.logger.log(`New metrics (inactive until reviewed): ${newDefinitions.map((d) => d.key).join(', ')}`);
   }
 
-  /** Mapeo mecánico del JSON al modelo de hechos. Sin casos especiales. */
+  /** Mechanical mapping from the JSON to the fact model. No special cases. */
   private toRows(
     payload: InternalMetricsDto,
     from: IsoDate,
@@ -211,24 +211,24 @@ export class IngestService {
       payload.definitions.filter((d) => d.unit === 'currency').map((d) => [d.key, d.currency]),
     );
     const declared = new Set(payload.definitions.map((d) => d.key));
-    const sinDeclarar = new Set<string>();
-    const fuera = new Set<string>();
+    const undeclared = new Set<string>();
+    const outOfWindow = new Set<string>();
 
     const totals: MetricRow[] = [];
     const breakdowns: MetricRow[] = [];
 
     for (const day of payload.days) {
-      // Un día fuera de la ventana declarada se descarta: el reemplazo solo
-      // cubre la ventana, así que quedaría escrito para siempre sin que nadie
-      // lo volviera a tocar.
+      // A day outside the declared window is discarded: the replacement only
+      // covers the window, so it would stay written forever without anyone
+      // ever touching it again.
       if (day.date < from || day.date > to) {
-        fuera.add(day.date);
+        outOfWindow.add(day.date);
         continue;
       }
 
       for (const [metricKey, value] of Object.entries(day.metrics)) {
         if (!Number.isFinite(value)) continue;
-        if (!declared.has(metricKey)) sinDeclarar.add(metricKey);
+        if (!declared.has(metricKey)) undeclared.add(metricKey);
 
         totals.push({
           date: day.date,
@@ -250,10 +250,10 @@ export class IngestService {
             dimension: breakdown.dimension,
             dimValue,
             value,
-            // Un desglose POR moneda lleva la moneda en el propio valor de la
-            // dimensión. Sin esto, un proyecto que factura en dos monedas
-            // —take cobra en USD y en CUP— vería sus importes en pesos
-            // etiquetados como dólares, y nadie lo notaría hasta sumar.
+            // A breakdown BY currency carries the currency in the dimension
+            // value itself. Without this, a project that bills in two
+            // currencies —take charges in USD and CUP— would see its peso
+            // amounts labelled as dollars, and nobody would notice until adding up.
             currency:
               breakdown.dimension === CURRENCY_DIMENSION
                 ? dimValue
@@ -263,44 +263,44 @@ export class IngestService {
       }
     }
 
-    // Se recorta aquí y no se confía en que el proyecto lo haga: un desglose
-    // por ruta o por consulta puede traer miles de valores por día. El resto
-    // se suma en `__other__`, de modo que el desglose siga cuadrando.
-    const recortados: MetricRow[] = [];
+    // Trimmed here rather than trusting the project to do it: a breakdown by
+    // path or by query can bring thousands of values per day. The rest is
+    // summed into `__other__`, so the breakdown still adds up.
+    const trimmed: MetricRow[] = [];
     for (const dimension of new Set(breakdowns.map((r) => r.dimension))) {
-      const delEje = breakdowns.filter((r) => r.dimension === dimension);
-      const rankBy = delEje[0].metricKey;
-      const antes = new Set(delEje.map((r) => `${r.date}|${r.dimValue}`)).size;
+      const ofDimension = breakdowns.filter((r) => r.dimension === dimension);
+      const rankBy = ofDimension[0].metricKey;
+      const before = new Set(ofDimension.map((r) => `${r.date}|${r.dimValue}`)).size;
 
-      const collapsed = collapseToTopN(delEje, { dimension, topN: MAX_DIM_VALUES, rankBy });
-      const despues = new Set(collapsed.map((r) => `${r.date}|${r.dimValue}`)).size;
+      const collapsed = collapseToTopN(ofDimension, { dimension, topN: MAX_DIM_VALUES, rankBy });
+      const after = new Set(collapsed.map((r) => `${r.date}|${r.dimValue}`)).size;
 
-      if (despues < antes) {
+      if (after < before) {
         warnings.push(`El desglose "${dimension}" se recortó al top ${MAX_DIM_VALUES} por día`);
       }
-      recortados.push(...collapsed);
+      trimmed.push(...collapsed);
     }
 
-    // Un importe sin moneda no se puede agregar ni comparar: o se declara en
-    // `definitions`, o viene desglosado por `currency`.
-    const conDesgloseDeMoneda = new Set(
+    // An amount without a currency can't be aggregated or compared: either
+    // it's declared in `definitions`, or it comes broken down by `currency`.
+    const brokenDownByCurrency = new Set(
       breakdowns.filter((r) => r.dimension === CURRENCY_DIMENSION).map((r) => r.metricKey),
     );
     for (const def of payload.definitions) {
       if (def.unit !== 'currency') continue;
-      if (def.currency || conDesgloseDeMoneda.has(def.key)) continue;
+      if (def.currency || brokenDownByCurrency.has(def.key)) continue;
       warnings.push(
         `La métrica de importe "${def.key}" no declara moneda ni viene desglosada por \`currency\``,
       );
     }
 
-    if (sinDeclarar.size > 0) {
-      warnings.push(`Métricas enviadas sin declarar en \`definitions\`: ${[...sinDeclarar].join(', ')}`);
+    if (undeclared.size > 0) {
+      warnings.push(`Métricas enviadas sin declarar en \`definitions\`: ${[...undeclared].join(', ')}`);
     }
-    if (fuera.size > 0) {
-      warnings.push(`Días fuera de la ventana declarada, descartados: ${[...fuera].join(', ')}`);
+    if (outOfWindow.size > 0) {
+      warnings.push(`Días fuera de la ventana declarada, descartados: ${[...outOfWindow].join(', ')}`);
     }
 
-    return [...totals, ...recortados];
+    return [...totals, ...trimmed];
   }
 }

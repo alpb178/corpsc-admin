@@ -10,7 +10,7 @@ interface Props {
   max: number;
 }
 
-/** Selector de sitios. Enlaces, para que la selección viva en la URL. */
+/** Site picker. Links, so the selection lives in the URL. */
 export function ProjectPicker({ projects, selected, max }: Props) {
   const pathname = usePathname();
   const params = useSearchParams();
@@ -26,10 +26,11 @@ export function ProjectPicker({ projects, selected, max }: Props) {
             : [...selected, project.slug];
 
           const search = new URLSearchParams(params);
-          search.set('sitios', next.join(','));
+          search.set('sites', next.join(','));
+          search.delete('sitios');
 
-          // Sin hueco libre, los no seleccionados se desactivan en lugar de
-          // fallar en silencio al pulsarlos.
+          // With no free slot, the unselected ones are disabled instead of
+          // silently failing when clicked.
           const disabled = !active && full;
 
           return (

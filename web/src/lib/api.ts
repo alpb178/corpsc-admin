@@ -10,7 +10,7 @@ export class ApiError extends Error {
   }
 }
 
-/** El cuerpo de error de Nest, que a veces es una lista de fallos de validación. */
+/** Nest's error body, which is sometimes a list of validation failures. */
 async function toApiError(response: Response): Promise<ApiError> {
   const body = (await response.json().catch(() => ({}))) as { message?: string | string[] };
   const message = Array.isArray(body.message) ? body.message.join('. ') : body.message;
@@ -18,10 +18,10 @@ async function toApiError(response: Response): Promise<ApiError> {
 }
 
 /**
- * Llama a la API del hub con el token de la sesión.
+ * Calls the hub API with the session token.
  *
- * Siempre en el servidor: el token vive en una cookie httpOnly que el
- * navegador no puede leer, y así sigue.
+ * Always on the server: the token lives in an httpOnly cookie the browser
+ * can't read, and it stays that way.
  */
 export async function api<T>(path: string, params?: Record<string, string | undefined>): Promise<T> {
   const token = await getToken();
@@ -33,8 +33,8 @@ export async function api<T>(path: string, params?: Record<string, string | unde
 
   const response = await fetch(url, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
-    // Los datos de analítica cambian una vez al día, pero el rango de fechas
-    // lo elige quien mira: cachear aquí daría cifras viejas sin avisar.
+    // Analytics data changes once a day, but the date range is chosen by the
+    // viewer: caching here would serve stale figures without warning.
     cache: 'no-store',
   });
 
@@ -44,12 +44,12 @@ export async function api<T>(path: string, params?: Record<string, string | unde
 }
 
 /**
- * Escribe en la API con el token de la sesión.
+ * Writes to the API with the session token.
  *
- * Solo la llaman Server Actions de Ajustes, y todas comprueban el rol antes de
- * llegar aquí. El guard de la API es la última palabra, pero no la única: sin
- * la comprobación previa, a quien no es administrador se le enseñaría un 403
- * en vez de no ofrecerle el botón.
+ * Only Settings Server Actions call it, and they all check the role before
+ * getting here. The API guard has the last word, but not the only one: without
+ * the earlier check, a non-admin would be shown a 403 instead of simply not
+ * being offered the button.
  */
 export async function apiWrite<T>(
   path: string,

@@ -12,7 +12,7 @@ const ROLE_LABEL: Record<HubUserRow['role'], string> = {
 
 const dateFormat = new Intl.DateTimeFormat('es-BO', { day: 'numeric', month: 'short', year: 'numeric' });
 
-export default async function UsuariosPage() {
+export default async function UsersPage() {
   const current = await requireRole('ADMIN');
 
   let users: HubUserRow[];

@@ -3,9 +3,9 @@ import type { IsoDate } from './dates';
 
 export interface DimensionBucket {
   dimension: string;
-  /** Cuántos valores se conservan con nombre propio. El resto va a `__other__`. */
+  /** How many values keep their own name. The rest goes to `__other__`. */
   topN: number;
-  /** Métrica por la que se ordena para decidir el top. */
+  /** Metric used to rank values when deciding the top. */
   rankBy: string;
 }
 
@@ -13,21 +13,21 @@ interface Cell {
   date: IsoDate;
   dimValue: string;
   metrics: Map<string, number>;
-  /** Por (celda, métrica): un importe pierde sentido sin su moneda. */
+  /** Per (cell, metric): an amount is meaningless without its currency. */
   currencies: Map<string, string | undefined>;
 }
 
 /**
- * Reduce un desglose a su top-N por día, sumando todo lo demás en `__other__`.
+ * Reduces a breakdown to its top-N per day, summing everything else into `__other__`.
  *
- * El bucket `__other__` no es cosmético: sin él, `sum(desglose por país)` no
- * coincide con la fila agregada del mismo día, el dashboard muestra dos cifras
- * distintas para lo mismo y parece un bug del código. Con él, el desglose
- * siempre reconstruye el total.
+ * The `__other__` bucket isn't cosmetic: without it, `sum(breakdown by country)`
+ * doesn't match the aggregate row for the same day, the dashboard shows two
+ * different figures for the same thing and it looks like a bug in the code.
+ * With it, the breakdown always rebuilds the total.
  *
- * El top se decide POR DÍA y no para el rango entero, porque las filas se
- * escriben por día y reprocesar una ventana no debe depender de qué otros días
- * venían en la misma petición.
+ * The top is decided PER DAY and not for the whole range, because rows are
+ * written per day and reprocessing a window must not depend on which other
+ * days came in the same request.
  */
 export function collapseToTopN(rows: MetricRow[], bucket: DimensionBucket): MetricRow[] {
   const byDate = new Map<IsoDate, Map<string, Cell>>();
@@ -75,33 +75,33 @@ export function collapseToTopN(rows: MetricRow[], bucket: DimensionBucket): Metr
 
     if (rest.length > 0) {
       const summed = new Map<string, number>();
-      const monedas = new Map<string, Set<string>>();
+      const currencies = new Map<string, Set<string>>();
 
       for (const cell of rest) {
         for (const [metricKey, value] of cell.metrics) {
           summed.set(metricKey, (summed.get(metricKey) ?? 0) + value);
-          const moneda = cell.currencies.get(metricKey);
-          if (moneda) {
-            const vistas = monedas.get(metricKey) ?? new Set<string>();
-            vistas.add(moneda);
-            monedas.set(metricKey, vistas);
+          const currency = cell.currencies.get(metricKey);
+          if (currency) {
+            const seen = currencies.get(metricKey) ?? new Set<string>();
+            seen.add(currency);
+            currencies.set(metricKey, seen);
           }
         }
       }
 
       for (const [metricKey, value] of summed) {
-        // Si en `__other__` cayeran importes de varias monedas, el bucket sería
-        // una suma sin significado: se queda sin moneda para que nadie lo tome
-        // por buena. En la práctica no pasa —las monedas de un proyecto se
-        // cuentan con los dedos de una mano y nunca salen del top-N.
-        const vistas = monedas.get(metricKey);
+        // If amounts in several currencies fell into `__other__`, the bucket
+        // would be a meaningless sum: it's left without a currency so nobody
+        // takes it at face value. In practice it doesn't happen —a project's
+        // currencies can be counted on one hand and never leave the top-N.
+        const seen = currencies.get(metricKey);
         out.push({
           date: rest[0].date,
           metricKey,
           dimension: bucket.dimension,
           dimValue: OTHER,
           value,
-          currency: vistas?.size === 1 ? [...vistas][0] : undefined,
+          currency: seen?.size === 1 ? [...seen][0] : undefined,
         });
       }
     }
@@ -111,11 +111,11 @@ export function collapseToTopN(rows: MetricRow[], bucket: DimensionBucket): Metr
 }
 
 /**
- * Normaliza una URL antes de usarla como `dimValue`.
+ * Normalizes a URL before using it as a `dimValue`.
  *
- * Sin esto, la misma página con distintos parámetros de campaña genera decenas
- * de filas que son la misma página, y una URL larga puede desbordar los 512
- * caracteres de la columna.
+ * Without this, the same page with different campaign parameters produces
+ * dozens of rows that are the same page, and a long URL can overflow the
+ * column's 512 characters.
  */
 const KEEP_PARAMS = new Set(['page', 'q', 'categoria', 'category']);
 
@@ -124,7 +124,7 @@ export function normalizeUrl(raw: string, ownDomain?: string): string {
   try {
     url = new URL(raw);
   } catch {
-    // Un proyecto puede mandar rutas sueltas en vez de URLs: se dejan igual.
+    // A project may send bare paths instead of URLs: they're left as they are.
     return raw.slice(0, 512);
   }
 
@@ -133,8 +133,8 @@ export function normalizeUrl(raw: string, ownDomain?: string): string {
     if (KEEP_PARAMS.has(key)) params.append(key, value);
   }
 
-  // El host propio se omite: en la ficha de un proyecto es ruido repetido en
-  // todas las filas. El de un dominio ajeno sí se conserva.
+  // The project's own host is dropped: on a project's page it's noise repeated
+  // on every row. A foreign domain's host is kept.
   const host = ownDomain && url.hostname === ownDomain ? '' : url.hostname;
   const query = params.toString();
 

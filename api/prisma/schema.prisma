@@ -1,22 +1,23 @@
-// Esquema del hub de analítica de CORPSC.
+// Schema of the CORPSC analytics hub.
 //
-// Los datos llegan por EMPUJE: cada proyecto del grupo calcula sus agregados
-// diarios y los envía a `POST /api/ingest/metrics`. El hub no sale a buscar
-// nada, así que no hay ventanas, ni watermarks, ni cuotas de terceros.
+// Data arrives by PUSH: each project in the group computes its daily
+// aggregates and sends them to `POST /api/ingest/metrics`. The hub never goes
+// out to fetch anything, so there are no windows, no watermarks and no
+// third-party quotas.
 //
-// Decisión central: la tabla de hechos (`MetricDaily`) es ESTRECHA — una fila
-// por (proyecto, fuente, día, métrica, dimensión, valor de dimensión) — y no
-// ancha, con una columna por métrica. El motivo son las métricas de negocio
-// que llegarán después: pedidos e ingresos en take e Iris, leads y
-// publicaciones en Tu Chamba, facturas por estado en Invoices. En una tabla
-// ancha eso son decenas de columnas casi siempre nulas y un ALTER TABLE cada
-// vez que un proyecto expone una métrica nueva.
+// Central decision: the fact table (`MetricDaily`) is NARROW — one row per
+// (project, source, day, metric, dimension, dimension value) — and not wide,
+// with one column per metric. The reason is the business metrics that will
+// come later: orders and revenue in take and Iris, leads and listings in Tu
+// Chamba, invoices by status in Invoices. In a wide table that's dozens of
+// almost-always-null columns and an ALTER TABLE every time a project exposes
+// a new metric.
 //
-// Regla que acompaña a esa decisión y que NO se puede relajar: solo se
-// persisten medidas ADITIVAS. Nada de ctr, engagement_rate ni avg_position en
-// la base — la media de las medias no es la media, y sumarlas entre días da
-// números falsos. Se guardan clicks, impressions y position_sum, y los
-// ratios se calculan al leer.
+// The rule that comes with that decision and that CANNOT be relaxed: only
+// ADDITIVE measures are persisted. No ctr, engagement_rate or avg_position in
+// the database — the mean of the means is not the mean, and summing them
+// across days gives false numbers. We store clicks, impressions and
+// position_sum, and ratios are computed at read time.
 
 generator client {
   provider = "prisma-client-js"
@@ -26,14 +27,14 @@ datasource db {
   provider = "postgresql"
 }
 
-// ───────────────────────────── Usuarios del hub ─────────────────────────────
+// ───────────────────────────── Hub users ─────────────────────────────
 
-// El panel es interno pero muestra datos de clientes, así que el rol no es un
-// booleano isAdmin como en tu-chamba: hace falta distinguir a quien solo mira.
+// The panel is internal but shows client data, so the role isn't an isAdmin
+// boolean like in tu-chamba: we need to tell apart those who only look.
 enum Role {
-  ADMIN // gestiona fuentes, credenciales y usuarios; lanza backfills
-  ANALYST // ve todo y puede lanzar reingestas de su propio proyecto
-  VIEWER // solo lectura
+  ADMIN // manages sources, credentials and users; launches backfills
+  ANALYST // sees everything and can relaunch ingestion for their own project
+  VIEWER // read-only
 }
 
 model HubUser {
@@ -50,37 +51,37 @@ model HubUser {
   @@map("hub_user")
 }
 
-// ───────────────────────────── Catálogo de sitios ───────────────────────────
+// ───────────────────────────── Site catalog ───────────────────────────
 
 enum ProjectKind {
-  OWN // producto propio de CORPSC
-  CLIENT // sitio de cliente
+  OWN // CORPSC's own product
+  CLIENT // client site
 }
 
-// Espejo de corpsc-portfolio/src/content/projects.ts: el `slug` es la clave
-// compartida entre el portfolio y el hub.
+// Mirror of corpsc-portfolio/src/content/projects.ts: the `slug` is the key
+// shared between the portfolio and the hub.
 model Project {
   id     String      @id @default(uuid())
   slug   String      @unique @db.VarChar(64)
   name   String
-  /// Host sin esquema ni barra final: "tu-chamba.corpsc.com".
+  /// Host without scheme or trailing slash: "tu-chamba.corpsc.com".
   domain String      @unique @db.VarChar(255)
   kind   ProjectKind
 
-  /// Define dónde empieza y acaba un "día" para este proyecto. El envío
-  /// declara la suya y el hub avisa si no coinciden: un desajuste desplaza
-  /// las series un día y no se nota hasta que alguien compara dos sitios.
+  /// Defines where a "day" starts and ends for this project. The submission
+  /// declares its own and the hub warns if they don't match: a mismatch shifts
+  /// the series by a day and nobody notices until someone compares two sites.
   timezone String  @default("America/La_Paz")
-  /// Moneda por defecto de las métricas CURRENCY (ISO 4217).
+  /// Default currency for CURRENCY metrics (ISO 4217).
   currency String? @db.VarChar(3)
 
-  /// Clave con la que este proyecto se identifica al enviar sus métricas.
-  /// Sin ella el proyecto no puede enviar nada.
+  /// Key this project identifies itself with when sending its metrics.
+  /// Without it the project can't send anything.
   credential   Credential? @relation(fields: [credentialId], references: [id], onDelete: SetNull)
   credentialId String?     @map("credential_id")
-  /// Último envío aceptado. Es lo que permite detectar que un proyecto lleva
-  /// días callado, que es el riesgo propio de recibir en vez de ir a buscar:
-  /// si nadie mira, un cron roto pasa desapercibido durante semanas.
+  /// Last accepted submission. It's what lets us detect that a project has
+  /// gone quiet for days, which is the inherent risk of receiving instead of
+  /// fetching: if nobody looks, a broken cron goes unnoticed for weeks.
   lastPushAt   DateTime?   @map("last_push_at")
   active       Boolean     @default(true)
   sortOrder    Int         @default(0) @map("sort_order")
@@ -99,9 +100,9 @@ enum CredentialKind {
   API_KEY
 }
 
-// La clave con la que cada proyecto se identifica al enviar. Se cifra con
-// AES-256-GCM; la clave maestra vive en HUB_ENCRYPTION_KEY, fuera de la base.
-// Ningún DTO de salida expone `ciphertext`.
+// The key each project identifies itself with when sending. Encrypted with
+// AES-256-GCM; the master key lives in HUB_ENCRYPTION_KEY, outside the database.
+// No output DTO exposes `ciphertext`.
 model Credential {
   id    String         @id @default(uuid())
   kind  CredentialKind
@@ -109,10 +110,10 @@ model Credential {
 
   /// base64(iv ‖ authTag ‖ ciphertext)
   ciphertext  String
-  /// Permite rotar la clave maestra sin descifrarlo todo de golpe.
+  /// Lets the master key be rotated without decrypting everything at once.
   keyVersion  Int    @default(1) @map("key_version")
-  /// sha256(plaintext)[0..16): sirve para verificar que una rotación ha
-  /// conservado el valor sin tener que descifrarlo.
+  /// sha256(plaintext)[0..16): used to verify that a rotation kept the value
+  /// without having to decrypt it.
   fingerprint String @db.VarChar(16)
 
   expiresAt DateTime? @map("expires_at")
@@ -124,11 +125,11 @@ model Credential {
   @@map("credential")
 }
 
-// ─────────────────────── Catálogo de métricas ───────────────────────
+// ─────────────────────── Metric catalog ───────────────────────
 //
-// Compañero obligatorio del modelo estrecho: sin él, el dashboard recibe una
-// `metricKey` que es solo texto y no sabe si formatearla como número, como
-// segundos o como dinero, ni si puede sumarla.
+// Mandatory companion of the narrow model: without it, the dashboard receives
+// a `metricKey` that is just text and doesn't know whether to format it as a
+// number, as seconds or as money, or whether it can be summed.
 
 enum MetricUnit {
   COUNT
@@ -152,13 +153,13 @@ model MetricDefinition {
   unit        MetricUnit
   aggregation Aggregation @default(SUM)
 
-  /// Si está presente, la métrica NO se persiste: se calcula al leer.
+  /// If present, the metric is NOT persisted: it's computed at read time.
   /// { "numerator": "orders", "denominator": "visits" }
   derivedFrom Json? @map("derived_from")
 
-  /// Las métricas que aparezcan en un endpoint interno y no estén catalogadas
-  /// entran con active=false: se ingieren igual, pero no se muestran hasta
-  /// que alguien decida cómo se llaman y cómo se formatean.
+  /// Metrics that show up in an internal endpoint and aren't cataloged come
+  /// in with active=false: they're ingested anyway, but not shown until
+  /// someone decides what they're called and how they're formatted.
   active    Boolean  @default(true)
   sortOrder Int      @default(0) @map("sort_order")
   createdAt DateTime @default(now()) @map("created_at")
@@ -167,7 +168,7 @@ model MetricDefinition {
   @@map("metric_definition")
 }
 
-// ─────────────────────── Tabla de hechos ───────────────────────
+// ─────────────────────── Fact table ───────────────────────
 
 model MetricDaily {
   id BigInt @id @default(autoincrement())
@@ -175,52 +176,52 @@ model MetricDaily {
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId String  @map("project_id")
 
-  /// Día calendario en la zona horaria del proyecto, nunca UTC.
+  /// Calendar day in the project's timezone, never UTC.
   date DateTime @db.Date
 
   metricKey String @map("metric_key") @db.VarChar(64)
 
-  /// Vocabulario abierto (String, no enum, para no migrar cada vez que un
-  /// proyecto envía una dimensión nueva):
+  /// Open vocabulary (String, not enum, so we don't migrate every time a
+  /// project sends a new dimension):
   /// total | channel | country | device | path | status | type | plan
   dimension String @db.VarChar(32)
 
-  /// "__total__" cuando dimension = "total"; "__other__" para el resto del
-  /// top-N, de modo que el desglose sume igual que el total.
+  /// "__total__" when dimension = "total"; "__other__" for the rest of the
+  /// top-N, so the breakdown adds up to the same as the total.
   dimValue String @map("dim_value") @db.VarChar(512)
 
   value    Decimal @db.Decimal(20, 4)
-  /// Solo para unit=CURRENCY. Sin esto alguien acabaría sumando CUP con BOB.
+  /// Only for unit=CURRENCY. Without this someone would end up adding CUP to BOB.
   currency String? @db.VarChar(3)
 
-  /// Trazabilidad, no integridad: si se borra el envío que la escribió, la
-  /// fila sobrevive y solo pierde el puntero. Lo que sostiene la limpieza de
-  /// huérfanos es `ingestedAt`.
+  /// Traceability, not integrity: if the submission that wrote it is deleted,
+  /// the row survives and only loses the pointer. What the orphan cleanup
+  /// relies on is `ingestedAt`.
   run        IngestionRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
   runId      String?       @map("run_id")
-  /// Marca del envío que escribió la fila: permite borrar las que este envío
-  /// ya no ha devuelto dentro de su propia ventana.
+  /// Stamp of the submission that wrote the row: lets us delete the ones this
+  /// submission no longer returned within its own window.
   ingestedAt DateTime      @default(now()) @map("ingested_at")
 
-  // Hace el envío idempotente: reenviar un día no duplica nada.
+  // Makes submissions idempotent: resending a day doesn't duplicate anything.
   @@unique([projectId, date, metricKey, dimension, dimValue], name: "metric_daily_natural_key")
-  // Serie temporal de un proyecto con desglose: el índice del dashboard.
+  // A project's time series with breakdown: the dashboard's index.
   @@index([projectId, metricKey, dimension, date])
-  // Reemplazo de la ventana de un envío.
+  // Replacing a submission's window.
   @@index([projectId, date])
   @@index([runId])
   @@map("metric_daily")
 }
 
-/// Evento suelto de un sitio que no tiene backend donde agregar.
+/// Single event from a site that has no backend to aggregate in.
 ///
-/// El portfolio del grupo y los sitios de cliente son páginas en Vercel sin
-/// base de datos: no pueden contar sus visitas y mandar el agregado como hacen
-/// Take o Tu Chamba. Mandan el hecho, y el hub lo consolida al recibirlo.
+/// The group's portfolio and the client sites are Vercel pages without a
+/// database: they can't count their visits and send the aggregate the way Take
+/// or Tu Chamba do. They send the raw fact, and the hub rolls it up on receipt.
 ///
-/// Es la tabla cruda: se conserva 90 días y se borra sola. Guardarla permite
-/// recalcular un día —filtrar un bot que se descubre tarde, corregir una
-/// consulta— cosa que un contador incrementado sobre la marcha no permitiría.
+/// It's the raw table: kept for 90 days and deleted on its own. Keeping it lets
+/// us recompute a day —filter out a bot discovered late, fix a query— which a
+/// counter incremented on the fly would not allow.
 model SiteEvent {
   id BigInt @id @default(autoincrement())
 
@@ -229,53 +230,53 @@ model SiteEvent {
 
   type SiteEventType
 
-  /// Sesión anónima que emite el propio sitio, para no contar cinco páginas
-  /// como cinco visitas. No identifica a una persona ni dura más que la visita.
+  /// Anonymous session issued by the site itself, so five pages aren't counted
+  /// as five visits. It doesn't identify a person or outlive the visit.
   sessionId String @map("session_id") @db.VarChar(64)
 
-  /// Ruta donde ocurrió. Sin dominio y sin parámetros de campaña.
+  /// Path where it happened. No domain and no campaign parameters.
   path String @db.VarChar(512)
 
-  /// Solo en SITE_CLICK: slug del proyecto del grupo al que va el clic.
+  /// Only on SITE_CLICK: slug of the group project the click goes to.
   target String? @db.VarChar(64)
-  /// Solo en SITE_CLICK: web · android · ios.
+  /// Only on SITE_CLICK: web · android · ios.
   linkType String? @map("link_type") @db.VarChar(16)
 
-  /// En los clics: zona de la página donde ocurrió (header, nav, hero…).
+  /// On clicks: area of the page where it happened (header, nav, hero…).
   section String? @db.VarChar(64)
-  /// En los clics: el texto del botón o enlace, o su `data-track-label`.
+  /// On clicks: the button or link text, or its `data-track-label`.
   label   String? @db.VarChar(120)
 
-  /// País ISO de dos letras. Lo pone el servidor del sitio a partir de la
-  /// cabecera de su hosting: la IP no sale nunca del sitio.
+  /// Two-letter ISO country. Set by the site's server from its hosting's
+  /// header: the IP never leaves the site.
   country String? @db.VarChar(2)
-  /// Solo en la primera página vista de una carga: el DOMINIO de donde venía
-  /// la visita, nunca la URL entera, que puede llevar datos de quien navega.
+  /// Only on the first page view of a load: the DOMAIN the visit came from,
+  /// never the full URL, which may carry data about the visitor.
   referrer    String? @db.VarChar(255)
   utmSource   String? @map("utm_source") @db.VarChar(100)
   utmMedium   String? @map("utm_medium") @db.VarChar(100)
   utmCampaign String? @map("utm_campaign") @db.VarChar(100)
 
-  /// Instante en UTC. A qué DÍA pertenece se decide al consolidar, en la zona
-  /// horaria del proyecto: guardarlo ya recortado impediría corregirlo si la
-  /// zona del proyecto estaba mal puesta.
+  /// Instant in UTC. Which DAY it belongs to is decided at rollup, in the
+  /// project's timezone: storing it already truncated would make it impossible
+  /// to fix if the project's timezone was set wrong.
   occurredAt DateTime @map("occurred_at")
   receivedAt DateTime @default(now()) @map("received_at")
 
-  // La consulta de la consolidación: un proyecto, una ventana de días.
+  // The rollup query: one project, a window of days.
   @@index([projectId, occurredAt])
   @@map("site_event")
 }
 
 enum SiteEventType {
   PAGE_VIEW
-  /// Clic que sale hacia otro sitio del grupo.
+  /// Click that leaves for another site in the group.
   SITE_CLICK
-  /// Clic en un enlace o botón de la propia página.
+  /// Click on a link or button on the page itself.
   CLICK
 }
 
-// ─────────────────────── Control de ejecución ───────────────────────
+// ─────────────────────── Run tracking ───────────────────────
 
 enum RunStatus {
   SUCCESS
@@ -284,17 +285,17 @@ enum RunStatus {
 }
 
 enum RunTrigger {
-  /// Envío programado del proyecto.
+  /// The project's scheduled submission.
   PUSH
-  /// Reenvío lanzado a mano, normalmente para corregir un histórico.
+  /// Resubmission launched by hand, usually to fix historical data.
   BACKFILL
-  /// Consolidación de los eventos de un sitio sin backend propio. No lo manda
-  /// nadie: lo ejecuta el hub al recibir eventos y cada noche.
+  /// Rollup of the events of a site without its own backend. Nobody sends it:
+  /// the hub runs it when it receives events and every night.
   ROLLUP
 }
 
-/// Un envío recibido. Es el registro que permite responder "¿por qué falta
-/// el dato del martes?" sin adivinar.
+/// A received submission. It's the record that lets us answer "why is
+/// Tuesday's data missing?" without guessing.
 model IngestionRun {
   id        String  @id @default(uuid())
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -303,8 +304,8 @@ model IngestionRun {
   trigger RunTrigger
   status  RunStatus
 
-  /// Ventana que declara el envío. El hub reemplaza exactamente ese rango:
-  /// lo que el proyecto no vuelva a mandar dentro de él, se borra.
+  /// Window declared by the submission. The hub replaces exactly that range:
+  /// whatever the project doesn't send again within it is deleted.
   windowFrom DateTime @map("window_from") @db.Date
   windowTo   DateTime @map("window_to") @db.Date
 
@@ -317,8 +318,8 @@ model IngestionRun {
   /// CONTRACT_VIOLATION · EMPTY_RESULT · WINDOW_TOO_LARGE…
   errorCode    String? @map("error_code") @db.VarChar(64)
   errorMessage String? @map("error_message")
-  /// Avisos que no invalidan el envío pero el panel debe mostrar: desfase de
-  /// zona horaria, métricas sin declarar, desgloses recortados.
+  /// Warnings that don't invalidate the submission but the panel must show:
+  /// timezone mismatch, undeclared metrics, truncated breakdowns.
   warnings     Json?
 
   metrics MetricDaily[]

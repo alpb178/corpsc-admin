@@ -3,13 +3,14 @@ import type { NextRequest } from 'next/server';
 import { SESSION_COOKIE } from '@/lib/session';
 
 /**
- * Solo experiencia de usuario: si no hay cookie, al login; si la hay y se pide
- * el login, al panel. Nada más.
+ * User experience only: no cookie, off to the login; a cookie and a request
+ * for the login, off to the panel. Nothing more.
  *
- * La verificación de verdad —que el token sea válido y el usuario siga
- * activo— está en `lib/dal.ts` y se ejecuta en cada página. Aquí solo se mira
- * si la cookie EXISTE, que es barato y no requiere hablar con la API; dar por
- * buena una sesión por tener una cookie sería confiar en el cliente.
+ * The real check —that the token is valid and the user is still active— lives
+ * in `lib/dal.ts` and runs on every page. Here we only look at whether the
+ * cookie EXISTS, which is cheap and doesn't require talking to the API;
+ * accepting a session just because a cookie is there would mean trusting the
+ * client.
  */
 export function proxy(request: NextRequest) {
   const hasCookie = request.cookies.has(SESSION_COOKIE);
@@ -19,7 +20,7 @@ export function proxy(request: NextRequest) {
   if (!hasCookie && !isLogin) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
-    // Para volver a donde se iba después de entrar.
+    // So we can go back to where the user was heading after signing in.
     if (pathname !== '/') url.searchParams.set('next', pathname);
     return NextResponse.redirect(url);
   }
@@ -35,7 +36,7 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // `api/ingest` queda fuera: la usan los sitios, sin sesión, y la reenvía a la
-  // API un rewrite de next.config.ts.
+  // `api/ingest` is left out: the sites use it, without a session, and a
+  // rewrite in next.config.ts forwards it to the API.
   matcher: ['/((?!_next/static|_next/image|favicon.ico|api/ingest|.*\\.svg$).*)'],
 };

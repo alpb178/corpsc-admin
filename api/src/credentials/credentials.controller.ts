@@ -16,25 +16,25 @@ export class CredentialsController {
   constructor(private readonly credentials: CredentialsService) {}
 
   @Get('credentials')
-  @ApiOperation({ summary: 'Lista las claves de envío (nunca el secreto)' })
+  @ApiOperation({ summary: 'Lists the ingest keys (never the secret)' })
   list() {
     return this.credentials.list();
   }
 
   @Post('credentials')
-  @ApiOperation({ summary: 'Crea una clave de envío; el secreto se devuelve una sola vez' })
+  @ApiOperation({ summary: 'Creates an ingest key; the secret is returned only once' })
   create(@Body() dto: CreateCredentialDto) {
     return this.credentials.create(dto);
   }
 
   @Put('projects/:slug/credential/:credentialId')
-  @ApiOperation({ summary: 'Habilita a un proyecto para enviar con esa clave' })
+  @ApiOperation({ summary: 'Enables a project to send with that key' })
   assign(@Param('slug') slug: string, @Param('credentialId') credentialId: string) {
     return this.credentials.assign(slug, credentialId);
   }
 
   @Delete('projects/:slug/credential')
-  @ApiOperation({ summary: 'Revoca el envío; los datos ya recibidos se conservan' })
+  @ApiOperation({ summary: 'Revokes sending; data already received is kept' })
   revoke(@Param('slug') slug: string) {
     return this.credentials.revoke(slug);
   }

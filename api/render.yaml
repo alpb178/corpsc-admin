@@ -1,10 +1,10 @@
-# Blueprint de Render para la API del hub (NestJS + Prisma + PostgreSQL).
-# Importar en: Render → New → Blueprint.
+# Render Blueprint for the hub API (NestJS + Prisma + PostgreSQL).
+# Import at: Render → New → Blueprint.
 #
-# Calcado de tu-chamba/render.yaml, con una diferencia importante:
-# HUB_ENCRYPTION_KEY NO se genera con generateValue. Si Render la regenerase en
-# un redeploy, las credenciales ya guardadas quedarían ilegibles para siempre.
-# Se introduce a mano una sola vez y no se toca.
+# Copied from tu-chamba/render.yaml, with one important difference:
+# HUB_ENCRYPTION_KEY is NOT created with generateValue. If Render regenerated it
+# on a redeploy, the credentials already stored would be unreadable forever.
+# It's entered by hand once and never touched.
 
 databases:
   - name: corpsc-hub-db
@@ -18,8 +18,8 @@ services:
     plan: free
     region: oregon
     rootDir: api
-    # En el plan free de Render no se ejecuta preDeployCommand, así que las
-    # migraciones van en el build. `migrate deploy` es idempotente.
+    # Render's free plan doesn't run preDeployCommand, so migrations go in
+    # the build. `migrate deploy` is idempotent.
     buildCommand: pnpm install && pnpm prisma generate && pnpm build && pnpm prisma migrate deploy
     startCommand: node dist/main
     healthCheckPath: /api/health
@@ -28,23 +28,23 @@ services:
         fromDatabase:
           name: corpsc-hub-db
           property: connectionString
-      # Conexión directa para `prisma migrate deploy` (prisma.config.ts). Con
-      # Supabase: la del session pooler (puerto 5432), nunca la del 6543, que
-      # es modo transacción y deja colgado el build.
+      # Direct connection for `prisma migrate deploy` (prisma.config.ts). With
+      # Supabase: the session pooler one (port 5432), never the 6543 one, which
+      # is transaction mode and leaves the build hanging.
       - key: DIRECT_URL
         sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRES_IN
         value: 7d
-      # Dominio del dashboard. Se rellena a mano en el panel de Render.
+      # Dashboard domain. Filled in by hand in the Render dashboard.
       - key: CORS_ORIGINS
         sync: false
-      # Clave maestra con la que se cifran las claves de envío de los
-      # proyectos. 32 bytes en base64:
+      # Master key used to encrypt the projects' ingest keys. 32 bytes in
+      # base64:
       #   openssl rand -base64 32
-      # NUNCA generateValue: una regeneración dejaría ilegibles las claves ya
-      # cifradas y habría que volver a darlas de alta en los cuatro repos.
+      # NEVER generateValue: a regeneration would make the already-encrypted
+      # keys unreadable and they'd have to be registered again in all four repos.
       - key: HUB_ENCRYPTION_KEY
         sync: false
       - key: NODE_VERSION

@@ -2,9 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 
-/** A partir de aquí un silencio deja de ser normal y pasa a ser un aviso. */
+/** Past this point a silence stops being normal and becomes a warning. */
 const WARN_AFTER_HOURS = 30;
-/** Y a partir de aquí, un problema. */
+/** And past this one, a problem. */
 const STALE_AFTER_HOURS = 72;
 
 export type Freshness = 'OK' | 'LATE' | 'STALE' | 'NEVER';
@@ -18,14 +18,14 @@ export interface ProjectFreshness {
 }
 
 /**
- * Vigila que los proyectos sigan enviando.
+ * Watches that projects keep pushing.
  *
- * Es la contrapartida de recibir en lugar de ir a buscar: cuando el hub
- * tiraba de Google, un fallo dejaba una ingesta en rojo que se veía. Ahora, si
- * el cron de un proyecto se rompe, no pasa nada visible — simplemente dejan de
- * llegar datos, y la gráfica se queda plana sin que nadie sepa por qué.
+ * It's the flip side of receiving instead of fetching: when the hub pulled
+ * from Google, a failure left a visible red ingestion. Now, if a project's
+ * cron breaks, nothing visible happens — data simply stops arriving, and the
+ * chart goes flat without anyone knowing why.
  *
- * Por eso el silencio es una señal de primera clase y no un efecto secundario.
+ * That's why silence is a first-class signal and not a side effect.
  */
 @Injectable()
 export class FreshnessService {
@@ -33,7 +33,7 @@ export class FreshnessService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Clasifica un instante de último envío. Única definición de "al día". */
+  /** Classifies a last-push instant. The single definition of "up to date". */
   classify(lastPushAt: Date | null, now = Date.now()): { freshness: Freshness; hoursSince: number | null } {
     if (!lastPushAt) return { freshness: 'NEVER', hoursSince: null };
 
@@ -54,8 +54,8 @@ export class FreshnessService {
     const now = Date.now();
 
     return projects
-      // Un proyecto sin clave todavía no está conectado: no está callado,
-      // está por configurar. Mezclarlos llenaría el informe de ruido.
+      // A project without a key isn't connected yet: it isn't quiet, it's
+      // pending setup. Mixing them would fill the report with noise.
       .filter((p) => p.credentialId !== null)
       .map((p) => ({
         slug: p.slug,
@@ -65,18 +65,18 @@ export class FreshnessService {
       }));
   }
 
-  /** Una vez al día, a media mañana: la hora a la que ya deberían haber enviado todos. */
+  /** Once a day, mid-morning: the time by which everyone should have pushed. */
   @Cron('0 0 10 * * *', { timeZone: 'America/La_Paz', name: 'freshness-check' })
   async check(): Promise<void> {
-    const callados = (await this.report()).filter(
+    const silent = (await this.report()).filter(
       (p) => p.freshness === 'STALE' || p.freshness === 'NEVER',
     );
 
-    if (callados.length === 0) return;
+    if (silent.length === 0) return;
 
     this.logger.warn(
-      `Sin datos recientes de: ${callados
-        .map((p) => `${p.slug} (${p.hoursSince === null ? 'nunca ha enviado' : `${p.hoursSince} h`})`)
+      `No recent data from: ${silent
+        .map((p) => `${p.slug} (${p.hoursSince === null ? 'never pushed' : `${p.hoursSince} h`})`)
         .join(', ')}`,
     );
   }

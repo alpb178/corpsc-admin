@@ -1,5 +1,5 @@
-# Postgres local para desarrollo. En producción la base la provee Render
-# (ver api/render.yaml), así que este compose no se despliega en ningún sitio.
+# Local Postgres for development. In production Render provides the database
+# (see api/render.yaml), so this compose file isn't deployed anywhere.
 services:
   db:
     image: postgres:18-alpine
@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: hub
       POSTGRES_DB: corpsc_hub
     ports:
-      - "5433:5432"   # 5433 para no chocar con un Postgres local en el 5432
+      - "5433:5432"   # 5433 so it doesn't clash with a local Postgres on 5432
     volumes:
       - hub_pgdata:/var/lib/postgresql/data
     healthcheck:

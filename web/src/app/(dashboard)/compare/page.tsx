@@ -11,7 +11,7 @@ import type { CompareView, Overview } from '@/lib/types';
 export default async function ComparePage({
   searchParams,
 }: {
-  searchParams: Promise<{ rango?: string; sitios?: string }>;
+  searchParams: Promise<{ range?: string; rango?: string; sites?: string; sitios?: string }>;
 }) {
   const params = await searchParams;
   const preset = presetFrom(params);
@@ -31,9 +31,9 @@ export default async function ComparePage({
 
   const withData = overview.projects.filter((p) => (p.metrics.visits ?? 0) > 0);
 
-  // Por defecto, los cuatro con más tráfico: una gráfica que arranca con
-  // catorce líneas no se lee.
-  const selected = (params.sitios?.split(',').filter(Boolean) ??
+  // By default, the four with the most traffic: a chart that starts with
+  // fourteen lines can't be read.
+  const selected = ((params.sites ?? params.sitios)?.split(',').filter(Boolean) ??
     withData
       .slice()
       .sort((a, b) => (b.metrics.visits ?? 0) - (a.metrics.visits ?? 0))
@@ -85,8 +85,8 @@ async function CompareChart({
     );
   }
 
-  // El color se asigna por sitio, no por su posición en el array: si se quita
-  // uno de la selección, los demás NO cambian de color.
+  // Colour is assigned per site, not by its position in the array: if one is
+  // removed from the selection, the others do NOT change colour.
   const slots = assignSlots(slugs, canonicalOrder);
 
   const series: TrendSeries[] = data.series.map((s) => ({
@@ -111,8 +111,8 @@ async function CompareChart({
         <TrendChart data={rows} series={series} height={320} />
       </section>
 
-      {/* Vista de tabla: la identidad de cada sitio no debe depender de
-          distinguir colores en la gráfica. */}
+      {/* Table view: each site's identity must not depend on telling colours
+          apart in the chart. */}
       <section className="mt-3 overflow-x-auto rounded-[6px] border border-line bg-card">
         <table className="w-full text-[13px]">
           <caption className="sr-only">Sesiones totales por sitio en el periodo</caption>

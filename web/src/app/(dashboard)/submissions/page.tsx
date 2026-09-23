@@ -27,13 +27,13 @@ const STATUS: Record<Run['status'], { label: string; tone: string }> = {
 };
 
 /**
- * Quién ha enviado y cuándo.
+ * Who has sent and when.
  *
- * Esta página existe porque el hub recibe en lugar de ir a buscar: si el cron
- * de un proyecto se rompe, no falla nada visible — simplemente dejan de llegar
- * datos y la gráfica se queda plana. Aquí el silencio se ve.
+ * This page exists because the hub receives instead of going out to fetch: if
+ * a project's cron breaks, nothing visible fails — data simply stops arriving
+ * and the chart goes flat. Here the silence shows.
  */
-export default async function EnviosPage() {
+export default async function SubmissionsPage() {
   let freshness: ProjectFreshness[];
   let runs: Run[];
 
@@ -51,7 +51,7 @@ export default async function EnviosPage() {
     );
   }
 
-  const problemas = freshness.filter((f) => f.freshness === 'STALE' || f.freshness === 'NEVER');
+  const failing = freshness.filter((f) => f.freshness === 'STALE' || f.freshness === 'NEVER');
 
   return (
     <>
@@ -63,13 +63,13 @@ export default async function EnviosPage() {
         </p>
       </div>
 
-      {problemas.length > 0 ? (
+      {failing.length > 0 ? (
         <div role="alert" className="mb-4 rounded-[6px] border border-line bg-card px-4 py-3">
           <p className="text-[13px] font-medium text-fg">
-            {problemas.length === 1 ? 'Un proyecto lleva' : `${problemas.length} proyectos llevan`} sin enviar
+            {failing.length === 1 ? 'Un proyecto lleva' : `${failing.length} proyectos llevan`} sin enviar
           </p>
           <p className="mt-1 text-[12px] text-fg-muted">
-            {problemas.map((p) => p.name).join(', ')}
+            {failing.map((p) => p.name).join(', ')}
           </p>
         </div>
       ) : null}
@@ -86,7 +86,7 @@ export default async function EnviosPage() {
           ) : (
             freshness.map((f) => (
               <li key={f.slug} className="flex items-center justify-between gap-4 px-4 py-2.5">
-                <Link href={`/proyectos/${f.slug}`} className="text-[13px] font-medium text-fg hover:text-accent">
+                <Link href={`/projects/${f.slug}`} className="text-[13px] font-medium text-fg hover:text-accent">
                   {f.name}
                 </Link>
                 <FreshnessBadge freshness={f.freshness} hoursSince={f.hoursSince} />

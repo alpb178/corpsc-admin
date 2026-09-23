@@ -6,26 +6,26 @@ interface Props {
   slices: DimensionSlice[];
   metricKey: string;
   unit?: Unit;
-  /** Métrica secundaria que se muestra a la derecha (por ejemplo, el CTR). */
+  /** Secondary metric shown on the right (for example, the CTR). */
   secondary?: { key: string; unit: Unit; label: string };
   limit?: number;
   emptyHint?: string;
 }
 
 /**
- * Barras horizontales ordenadas: comparar magnitudes.
+ * Sorted horizontal bars: comparing magnitudes.
  *
- * Una sola tinta, no ocho: la pregunta es "cuánto", no "cuál es cuál", y
- * repartir colores aquí gastaría la paleta categórica sin aportar nada.
- * El valor va escrito al final de cada barra, de modo que el dato se lee sin
- * depender del color ni de medir contra un eje.
+ * A single hue, not eight: the question is "how much", not "which is which",
+ * and handing out colours here would spend the categorical palette for
+ * nothing. The value is written at the end of each bar, so the figure reads
+ * without relying on colour or measuring against an axis.
  *
- * En HTML y no en una librería de gráficos porque los nombres largos —una
- * consulta de búsqueda, una URL— se truncan mucho mejor con CSS.
+ * In HTML rather than a charting library because long names —a search query,
+ * a URL— truncate far better with CSS.
  */
 export function RankBar({ title, slices, metricKey, unit = 'COUNT', secondary, limit = 8, emptyHint }: Props) {
-  // `amount` y no `value`: DimensionSlice.value es la etiqueta de la dimensión
-  // (el país, la consulta), y sobrescribirla dejaría las filas sin nombre.
+  // `amount` and not `value`: DimensionSlice.value is the dimension's label
+  // (the country, the query), and overwriting it would leave the rows nameless.
   const rows = slices
     .map((s) => ({ label: s.value, metrics: s.metrics, amount: s.metrics[metricKey] ?? 0 }))
     .filter((r) => r.amount > 0)

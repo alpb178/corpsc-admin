@@ -14,9 +14,9 @@ import { compact, formatDay, formatFullDate, formatMetric, type Unit } from '@/l
 export interface TrendSeries {
   key: string;
   label: string;
-  /** Slot 1..8 de la paleta validada. El orden es la garantía para
-   *  daltonismo, así que se asigna por entidad y nunca por posición en el
-   *  ranking: filtrar series no puede repintar a las que quedan. */
+  /** Slot 1..8 of the validated palette. The order is the colour-blind
+   *  guarantee, so it's assigned per entity and never by position in the
+   *  ranking: filtering series must not repaint the ones that remain. */
   slot: number;
 }
 
@@ -32,8 +32,9 @@ export function TrendChart({ data, series, unit = 'COUNT', height = 260 }: Props
 
   return (
     <div>
-      {/* Con una sola serie no hay leyenda: el título ya la nombra. Con dos o
-          más siempre la hay, para que la identidad no dependa del color. */}
+      {/* With a single series there's no legend: the title already names it.
+          With two or more there always is one, so identity doesn't depend on
+          colour. */}
       {!single ? (
         <ul className="mb-3 flex flex-wrap gap-x-4 gap-y-1.5">
           {series.map((s) => (
@@ -52,7 +53,7 @@ export function TrendChart({ data, series, unit = 'COUNT', height = 260 }: Props
       <div style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: -12 }}>
-            {/* Rejilla y ejes recesivos: son referencia, no contenido. */}
+            {/* Recessive grid and axes: they're reference, not content. */}
             <CartesianGrid stroke="var(--grid)" vertical={false} />
             <XAxis
               dataKey="date"
@@ -83,8 +84,8 @@ export function TrendChart({ data, series, unit = 'COUNT', height = 260 }: Props
                             className="h-2 w-2 shrink-0 rounded-full"
                             style={{ background: entry.color }}
                           />
-                          {/* El texto va con tokens de texto; el color lo lleva
-                              la marca de al lado, no la cifra. */}
+                          {/* Text uses text tokens; the colour is carried by
+                              the swatch next to it, not the figure. */}
                           <span className="text-fg-muted">{entry.name}</span>
                           <span className="tabular ml-auto font-medium text-fg">
                             {formatMetric(Number(entry.value), unit)}
@@ -99,19 +100,19 @@ export function TrendChart({ data, series, unit = 'COUNT', height = 260 }: Props
             {series.map((s) => (
               <Line
                 key={s.key}
-                // Recta y no curva: suavizar inventa valores intermedios que
-                // ningún día tuvo.
+                // Straight, not curved: smoothing invents in-between values
+                // that no day ever had.
                 type="linear"
                 dataKey={s.key}
                 name={s.label}
                 stroke={`var(--series-${s.slot})`}
                 strokeWidth={2}
                 dot={false}
-                // Marcador de 8 px al pasar por encima, con anillo de la
-                // superficie para que se despegue de la línea.
+                // 8 px marker on hover, with a surface-coloured ring so it
+                // stands out from the line.
                 activeDot={{ r: 4, strokeWidth: 2, stroke: 'var(--card)' }}
-                // Los huecos se dibujan como huecos: unir el día 3 con el 7 en
-                // línea recta sugeriría una tendencia que no ocurrió.
+                // Gaps are drawn as gaps: joining day 3 to day 7 with a
+                // straight line would suggest a trend that never happened.
                 connectNulls={false}
               />
             ))}

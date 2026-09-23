@@ -3,5 +3,5 @@ import type { Role } from '@prisma/client';
 
 export const ROLES_KEY = 'roles';
 
-/** Restringe una ruta a los roles indicados. Requiere RolesGuard. */
+/** Restricts a route to the given roles. Requires RolesGuard. */
 export const Roles = (...roles: Role[]) => SetMetadata(ROLES_KEY, roles);

@@ -7,7 +7,7 @@ export function ErrorPanel({ title, message }: { title: string; message: string 
   );
 }
 
-/** Estado vacío honesto: sin datos no se pinta un cero, se explica por qué. */
+/** An honest empty state: with no data we don't draw a zero, we explain why. */
 export function EmptyState({ message, hint }: { message: string; hint?: string }) {
   return (
     <div className="rounded-[6px] border border-dashed border-line bg-card p-8 text-center">

@@ -1,4 +1,4 @@
-// Los decoradores de class-validator y class-transformer leen metadatos de
-// tipo en tiempo de ejecución. En la app la carga @nestjs/core; en los tests
-// que solo tocan DTO hay que importarla a mano.
+// class-validator and class-transformer decorators read type metadata at
+// runtime. In the app @nestjs/core loads it; in tests that only touch DTOs it
+// has to be imported by hand.
 import 'reflect-metadata';

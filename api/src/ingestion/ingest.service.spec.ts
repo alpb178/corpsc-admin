@@ -56,13 +56,13 @@ function makeService(known: string[] = ['visits', 'revenue']) {
   return { service: new IngestService(prisma, factWriter), write, createMany, prisma };
 }
 
-/** Las filas que el servicio ha pasado al escritor. */
+/** The rows the service passed to the writer. */
 function rowsFrom(write: ReturnType<typeof vi.fn>) {
   return write.mock.calls[0][0].rows as Array<Record<string, unknown>>;
 }
 
 describe('IngestService', () => {
-  it('convierte los totales del día en filas', async () => {
+  it('turns the day totals into rows', async () => {
     const { service, write } = makeService();
     await service.receive(PROJECT, payload(), RunTrigger.PUSH);
 
@@ -72,17 +72,17 @@ describe('IngestService', () => {
     expect(visits).toMatchObject({ date: '2026-03-01', dimValue: TOTAL, value: 120 });
   });
 
-  it('convierte los desgloses con su dimensión', async () => {
+  it('turns breakdowns into rows with their dimension', async () => {
     const { service, write } = makeService();
     await service.receive(PROJECT, payload(), RunTrigger.PUSH);
 
-    const porPais = rowsFrom(write).filter((r) => r.dimension === 'country');
-    expect(porPais).toHaveLength(2);
-    expect(porPais.find((r) => r.dimValue === 'BO')?.value).toBe(90);
+    const byCountry = rowsFrom(write).filter((r) => r.dimension === 'country');
+    expect(byCountry).toHaveLength(2);
+    expect(byCountry.find((r) => r.dimValue === 'BO')?.value).toBe(90);
   });
 
-  it('arrastra la moneda declarada a las filas de importes', async () => {
-    // Sin esto alguien acabaría sumando BOB con CUP.
+  it('carries the declared currency over to amount rows', async () => {
+    // Without this someone would end up adding BOB to CUP.
     const { service, write } = makeService();
     await service.receive(PROJECT, payload(), RunTrigger.PUSH);
 
@@ -91,9 +91,9 @@ describe('IngestService', () => {
     expect(rows.find((r) => r.metricKey === 'visits')?.currency).toBeUndefined();
   });
 
-  it('un desglose por `currency` manda sobre la moneda declarada', async () => {
-    // take cobra en USD y en CUP. Sin esto, las filas en pesos quedarían
-    // etiquetadas como dólares y nadie lo notaría hasta sumar importes.
+  it('a breakdown by `currency` takes precedence over the declared currency', async () => {
+    // take charges in USD and CUP. Without this, the peso rows would be
+    // labelled as dollars and nobody would notice until adding up amounts.
     const { service, write } = makeService();
     await service.receive(
       PROJECT,
@@ -117,8 +117,8 @@ describe('IngestService', () => {
     expect(rows.find((r) => r.dimValue === 'CUP')).toMatchObject({ currency: 'CUP', value: 84000 });
   });
 
-  it('avisa de un importe que no declara moneda por ningún lado', async () => {
-    // Un importe sin moneda no se puede agregar ni comparar.
+  it('warns about an amount that declares no currency anywhere', async () => {
+    // An amount without a currency can't be aggregated or compared.
     const { service } = makeService();
     const result = await service.receive(
       PROJECT,
@@ -132,22 +132,22 @@ describe('IngestService', () => {
     expect(result.warnings.some((w) => w.includes('no declara moneda'))).toBe(true);
   });
 
-  it('rechaza una versión de contrato distinta', async () => {
+  it('rejects a different contract version', async () => {
     const { service } = makeService();
     await expect(
       service.receive(PROJECT, payload({ schemaVersion: 2 }), RunTrigger.PUSH),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('reemplaza exactamente la ventana declarada', async () => {
-    // El hub borra lo que no venga dentro del rango, así que el rango manda.
+  it('replaces exactly the declared window', async () => {
+    // The hub deletes whatever isn't inside the range, so the range rules.
     const { service, write } = makeService();
     await service.receive(PROJECT, payload(), RunTrigger.PUSH);
 
     expect(write.mock.calls[0][0]).toMatchObject({ from: '2026-03-01', to: '2026-03-02' });
   });
 
-  it('deduce la ventana de los días si no se declara', async () => {
+  it('infers the window from the days when none is declared', async () => {
     const { service, write } = makeService();
     await service.receive(
       PROJECT,
@@ -164,15 +164,15 @@ describe('IngestService', () => {
     expect(write.mock.calls[0][0]).toMatchObject({ from: '2026-03-03', to: '2026-03-05' });
   });
 
-  it('exige ventana si el envío no trae días', async () => {
-    // Sin rango ni días el hub no sabe qué periodo reemplazar.
+  it('requires a window when the push has no days', async () => {
+    // With neither range nor days the hub doesn't know which period to replace.
     const { service } = makeService();
     await expect(
       service.receive(PROJECT, payload({ range: undefined, days: [] }), RunTrigger.PUSH),
     ).rejects.toThrow(/declarar `range`/);
   });
 
-  it('rechaza una ventana desmesurada', async () => {
+  it('rejects an oversized window', async () => {
     const { service } = makeService();
     await expect(
       service.receive(
@@ -183,9 +183,9 @@ describe('IngestService', () => {
     ).rejects.toThrow(/ventana máxima/);
   });
 
-  it('descarta los días fuera de la ventana declarada', async () => {
-    // El reemplazo solo cubre la ventana: un día de fuera quedaría escrito
-    // para siempre sin que nadie lo volviera a tocar.
+  it('discards days outside the declared window', async () => {
+    // The replacement only covers the window: a day outside it would stay
+    // written forever without anyone ever touching it again.
     const { service, write } = makeService();
     await service.receive(
       PROJECT,
@@ -201,7 +201,7 @@ describe('IngestService', () => {
     expect(rowsFrom(write).every((r) => r.date === '2026-03-01')).toBe(true);
   });
 
-  it('registra las métricas nuevas como inactivas y las guarda igual', async () => {
+  it('registers new metrics as inactive and stores them anyway', async () => {
     const { service, write, createMany } = makeService(['visits']);
     await service.receive(
       PROJECT,
@@ -218,9 +218,9 @@ describe('IngestService', () => {
     expect(rowsFrom(write).find((r) => r.metricKey === 'leads')?.value).toBe(7);
   });
 
-  it('avisa si el envío declara otra zona horaria', async () => {
-    // Un desajuste horario desplaza las series un día y no se nota hasta que
-    // alguien compara dos sitios.
+  it('warns when the push declares a different timezone', async () => {
+    // A timezone mismatch shifts the series by a day and nobody notices until
+    // someone compares two sites.
     const { service } = makeService();
     const result = await service.receive(
       PROJECT,
@@ -232,7 +232,7 @@ describe('IngestService', () => {
     expect(result.warnings.some((w) => w.includes('zona'))).toBe(true);
   });
 
-  it('recorta un desglose desmesurado en vez de tragárselo', async () => {
+  it('trims an oversized breakdown instead of swallowing it whole', async () => {
     const values: Record<string, number> = {};
     for (let i = 0; i < 250; i++) values[`/ruta-${i}`] = 250 - i;
 
@@ -251,14 +251,14 @@ describe('IngestService', () => {
       RunTrigger.PUSH,
     );
 
-    const rutas = rowsFrom(write).filter((r) => r.dimension === 'path');
-    expect(rutas.length).toBeLessThanOrEqual(101); // top-100 más `__other__`
+    const paths = rowsFrom(write).filter((r) => r.dimension === 'path');
+    expect(paths.length).toBeLessThanOrEqual(101); // top-100 plus `__other__`
     expect(result.warnings.some((w) => w.includes('recortó'))).toBe(true);
   });
 
-  it('un envío vacío sobre datos existentes se rechaza, no vacía la ventana', async () => {
-    // El fallo más peligroso del diseño: una consulta rota en el proyecto
-    // devuelve cero filas y el reemplazo se llevaría por delante datos buenos.
+  it('rejects an empty push over existing data instead of emptying the window', async () => {
+    // The most dangerous failure in the design: a broken query in the project
+    // returns zero rows and the replacement would wipe out good data.
     const { service, write } = makeService();
     write.mockRejectedValueOnce(new EmptyResultError('ya había 500 filas'));
 

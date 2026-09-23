@@ -26,7 +26,7 @@ export class MetricsService {
     private readonly freshness: FreshnessService,
   ) {}
 
-  // ─────────────────────────── Vista del grupo ───────────────────────────
+  // ─────────────────────────── Group view ───────────────────────────
 
   async overview(range: Range, withComparison: boolean) {
     this.assertRange(range);
@@ -41,13 +41,13 @@ export class MetricsService {
     const current = withDerived(totals, definitions);
     const projects = await this.decorateProjects(byProject, definitions);
 
-    // Propios frente a clientes: es la pregunta de negocio que distingue
-    // "cómo va el producto" de "cómo va el servicio".
+    // Own versus client: it's the business question that separates "how is
+    // the product doing" from "how is the service doing".
     const split = { own: {} as MetricTotals, client: {} as MetricTotals };
     for (const p of projects) {
       const bucket = p.kind === 'OWN' ? split.own : split.client;
       for (const [key, value] of Object.entries(p.metrics)) {
-        if (definitions.find((d) => d.key === key)?.derivedFrom) continue; // los ratios no se suman
+        if (definitions.find((d) => d.key === key)?.derivedFrom) continue; // ratios aren't summed
         bucket[key] = (bucket[key] ?? 0) + value;
       }
     }
@@ -74,7 +74,7 @@ export class MetricsService {
     return result;
   }
 
-  // ─────────────────────────── Ficha de un sitio ───────────────────────────
+  // ─────────────────────────── Site detail ───────────────────────────
 
   async project(slug: string, range: Range, withComparison: boolean) {
     this.assertRange(range);
@@ -90,14 +90,14 @@ export class MetricsService {
       this.dailySeries(range, project.id),
       this.breakdown(range, project.id, 'country', 'visits'),
       this.breakdown(range, project.id, 'device', 'visits'),
-      // Las páginas llevan también sus clics: comparten la dimensión `path`.
+      // Pages also carry their clicks: they share the `path` dimension.
       this.breakdown(range, project.id, 'path', 'page_views', 50),
-      // Dónde se hace clic: "ruta | sección | etiqueta", ya ordenado por clics.
+      // Where clicks happen: "path | section | label", already sorted by clicks.
       this.breakdown(range, project.id, 'element', 'clicks', 100),
       this.breakdown(range, project.id, 'channel', 'visits'),
       this.breakdown(range, project.id, 'source', 'visits'),
       this.breakdown(range, project.id, 'campaign', 'visits'),
-      // Las 24 horas, con visitas y páginas vistas; el panel las ordena.
+      // All 24 hours, with visits and page views; the panel sorts them.
       this.breakdown(range, project.id, 'hour', 'visits', 24),
     ]);
 
@@ -111,7 +111,7 @@ export class MetricsService {
         kind: project.kind,
         timezone: project.timezone,
         lastPushAt: project.lastPushAt,
-        // Clasificada en el servidor: el reloj del navegador puede estar mal.
+        // Classified on the server: the browser's clock may be wrong.
         ...this.freshness.classify(project.lastPushAt),
       },
       range,
@@ -137,7 +137,7 @@ export class MetricsService {
     return result;
   }
 
-  // ─────────────────────────── Comparador ───────────────────────────
+  // ─────────────────────────── Comparison ───────────────────────────
 
   async compareProjects(slugs: string[], metricKey: string, range: Range) {
     this.assertRange(range);
@@ -185,7 +185,7 @@ export class MetricsService {
   }
 
 
-  // ─────────────────────────── Consultas base ───────────────────────────
+  // ─────────────────────────── Base queries ───────────────────────────
 
   private async sumTotals(range: Range, projectId?: string): Promise<MetricTotals> {
     const rows = await this.prisma.metricDaily.groupBy({
@@ -212,7 +212,7 @@ export class MetricsService {
     });
   }
 
-  /** Serie diaria de un proyecto, o del grupo entero si no se indica. */
+  /** Daily series for a project, or for the whole group if none is given. */
   private async dailySeries(range: Range, projectId?: string) {
     const rows = await this.prisma.metricDaily.groupBy({
       by: ['date', 'metricKey'],
@@ -233,9 +233,9 @@ export class MetricsService {
       byDate.set(date, bucket);
     }
 
-    // Los días sin datos se rellenan con un hueco explícito: una gráfica que
-    // une el día 3 con el día 7 en línea recta sugiere una tendencia que no
-    // ocurrió.
+    // Days without data are filled with an explicit gap: a chart that joins
+    // day 3 to day 7 with a straight line suggests a trend that never
+    // happened.
     const out: Array<{ date: string; metrics: MetricTotals }> = [];
     for (let d = range.from; d <= range.to; d = addDays(d, 1)) {
       out.push({ date: d, metrics: byDate.get(d) ?? {} });
@@ -304,7 +304,7 @@ export class MetricsService {
     }));
   }
 
-  // ─────────────────────────── Salvaguardas ───────────────────────────
+  // ─────────────────────────── Safeguards ───────────────────────────
 
   private assertRange(range: Range): void {
     if (!isIsoDate(range.from) || !isIsoDate(range.to)) {
@@ -316,11 +316,11 @@ export class MetricsService {
   }
 
   /**
-   * Impide sumar dinero en monedas distintas.
+   * Prevents summing money in different currencies.
    *
-   * Take factura en USD y CUP, Iris en BOB, Invoices en EUR/USD. Un
-   * `SUM(revenue)` entre esos proyectos da un número sin significado que
-   * acabaría en una diapositiva. Más vale fallar aquí que producirlo.
+   * Take bills in USD and CUP, Iris in BOB, Invoices in EUR/USD. A
+   * `SUM(revenue)` across those projects gives a meaningless number that
+   * would end up on a slide. Better to fail here than to produce it.
    */
   private assertSingleCurrency(unit: MetricUnit, projects: Array<{ currency: string | null }>): void {
     if (unit !== MetricUnit.CURRENCY) return;
@@ -334,14 +334,14 @@ export class MetricsService {
     }
   }
 
-  /** Periodo anterior de la misma duración, pegado al actual. */
+  /** Previous period of the same length, right before the current one. */
   previousRange(range: Range): Range {
     const span = daysBetween(range.from, range.to) + 1;
     return { from: addDays(range.from, -span), to: addDays(range.from, -1) };
   }
 }
 
-/** Prisma devuelve los Decimal como objeto; el JSON debe llevar números. */
+/** Prisma returns Decimals as objects; the JSON must carry numbers. */
 function num(value: Prisma.Decimal | null): number {
   return value ? Number(value) : 0;
 }

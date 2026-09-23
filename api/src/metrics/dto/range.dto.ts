@@ -12,7 +12,7 @@ export class RangeDto {
   to!: string;
 
   @ApiPropertyOptional({
-    description: 'Añade la comparación con el periodo anterior de la misma duración',
+    description: 'Adds the comparison with the previous period of the same length',
     default: false,
   })
   @IsOptional()
@@ -22,7 +22,7 @@ export class RangeDto {
 }
 
 export class CompareDto extends RangeDto {
-  @ApiProperty({ example: 'take,tu-chamba', description: 'Slugs separados por comas' })
+  @ApiProperty({ example: 'take,tu-chamba', description: 'Comma-separated slugs' })
   @IsString()
   slugs!: string;
 
