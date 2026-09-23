@@ -15,29 +15,29 @@ import {
 } from 'class-validator';
 
 /**
- * Contrato de los sitios que no tienen dónde agregar.
+ * Contract for the sites that have nowhere to aggregate.
  *
- * El portfolio del grupo y los sitios de cliente son páginas en Vercel sin
- * base de datos: no pueden calcular sus agregados diarios como hacen Take o
- * Tu Chamba. En lugar del resumen del día mandan el hecho suelto, y el hub lo
- * consolida cada noche en las mismas métricas que envía todo el mundo.
+ * The group's portfolio and the client sites are Vercel pages without a
+ * database: they can't compute their daily aggregates the way Take or Tu
+ * Chamba do. Instead of the day's summary they send the individual fact, and
+ * the hub rolls it up into the same metrics everyone else sends.
  *
- * Lo que NO va aquí: nada que identifique a una persona. Ni IP, ni agente de
- * usuario, ni la URL de origen entera. El país llega ya resuelto por el hosting
- * del sitio, y de la procedencia solo el dominio y los parámetros `utm_*`. La
- * sesión es un identificador opaco que emite el propio sitio y que solo sirve
- * para no contar cinco páginas como cinco visitas.
+ * What does NOT go here: anything that identifies a person. No IP, no user
+ * agent, no full referring URL. The country arrives already resolved by the
+ * site's hosting, and of the origin only the domain and the `utm_*`
+ * parameters. The session is an opaque identifier issued by the site itself,
+ * used only so five pages aren't counted as five visits.
  */
 
-/** Por petición. Un sitio que necesite más está mandando mal los eventos. */
+/** Per request. A site that needs more is sending its events wrong. */
 export const MAX_EVENTS_PER_REQUEST = 50;
 
 /**
- * Un evento más viejo que esto se recorta a la hora de llegada.
+ * An event older than this is clamped to its arrival time.
  *
- * Un beacon puede retrasarse segundos al cerrar la pestaña, no dos días: una
- * fecha muy anterior es un reloj mal puesto o un reenvío, y aceptarla tal cual
- * reescribiría un día que ya se dio por cerrado.
+ * A beacon can be delayed by seconds when the tab closes, not by two days: a
+ * much earlier date is a misconfigured clock or a resend, and accepting it as
+ * is would rewrite a day already considered closed.
  */
 export const MAX_EVENT_AGE_HOURS = 48;
 
@@ -50,7 +50,7 @@ export class SiteEventDto {
   @IsIn(SITE_EVENT_KINDS)
   type!: SiteEventKind;
 
-  @ApiProperty({ description: 'Identificador opaco de la visita, no de la persona' })
+  @ApiProperty({ description: 'Opaque identifier of the visit, not of the person' })
   @IsString()
   @Length(8, 64)
   sessionId!: string;
@@ -61,7 +61,7 @@ export class SiteEventDto {
   path!: string;
 
   @ApiPropertyOptional({
-    description: 'Solo en site_click: slug del proyecto del grupo al que va el clic',
+    description: 'site_click only: slug of the group project the click goes to',
     example: 'take',
   })
   @IsOptional()
@@ -75,7 +75,7 @@ export class SiteEventDto {
   linkType?: LinkType;
 
   @ApiPropertyOptional({
-    description: 'En los clics: zona de la página donde ocurrió. Obligatorio en click',
+    description: 'On clicks: area of the page where it happened. Required for click',
     example: 'hero',
   })
   @IsOptional()
@@ -84,7 +84,7 @@ export class SiteEventDto {
   section?: string;
 
   @ApiPropertyOptional({
-    description: 'En los clics: texto del botón o enlace. Obligatorio en click',
+    description: 'On clicks: text of the button or link. Required for click',
     example: 'Ver proyectos',
   })
   @IsOptional()
@@ -93,7 +93,7 @@ export class SiteEventDto {
   label?: string;
 
   @ApiPropertyOptional({
-    description: 'País ISO de dos letras, de la cabecera del hosting del sitio. Nunca la IP',
+    description: 'Two-letter ISO country, from the header set by the site hosting. Never the IP',
     example: 'BO',
   })
   @IsOptional()
@@ -101,7 +101,7 @@ export class SiteEventDto {
   country?: string;
 
   @ApiPropertyOptional({
-    description: 'Solo en la primera página vista de una carga: dominio de origen, sin ruta',
+    description: 'Only on the first page view of a load: referring domain, without path',
     example: 'www.google.com',
   })
   @IsOptional()
@@ -126,14 +126,14 @@ export class SiteEventDto {
   @Length(1, 100)
   utmCampaign?: string;
 
-  @ApiPropertyOptional({ description: 'Instante del evento en ISO 8601. Por defecto, el de llegada' })
+  @ApiPropertyOptional({ description: 'Event instant in ISO 8601. Defaults to the arrival time' })
   @IsOptional()
   @IsISO8601()
   at?: string;
 }
 
 export class SiteEventsDto {
-  @ApiProperty({ example: 1, description: 'Siempre 1. Si cambia el contrato, cambia este número' })
+  @ApiProperty({ example: 1, description: 'Always 1. If the contract changes, this number changes' })
   @Equals(1)
   schemaVersion!: number;
 

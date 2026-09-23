@@ -5,7 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CryptoService } from '../common/crypto.service';
 import type { CreateCredentialDto } from './dto/create-credential.dto';
 
-/** Lo que se puede devolver de una credencial. Nunca el ciphertext. */
+/** What can be returned from a credential. Never the ciphertext. */
 const PUBLIC = {
   id: true,
   kind: true,
@@ -29,14 +29,14 @@ export class CredentialsService {
   }
 
   /**
-   * Crea la clave con la que un proyecto enviará sus métricas.
+   * Creates the key a project will send its metrics with.
    *
-   * El valor en claro se devuelve **una sola vez**: en la base queda cifrado y
-   * no hay forma de recuperarlo. Si se pierde, se genera otra — es más seguro
-   * que guardarlo en algún sitio "por si acaso".
+   * The plaintext value is returned **only once**: it's stored encrypted and
+   * there's no way to recover it. If it's lost, a new one is generated — that's
+   * safer than keeping it somewhere "just in case".
    */
   async create(dto: CreateCredentialDto) {
-    // 32 bytes de aleatoriedad: suficiente para que no tenga sentido probar.
+    // 32 bytes of randomness: enough that guessing makes no sense.
     const secret = dto.secret ?? randomBytes(32).toString('base64url');
     const sealed = this.crypto.seal(secret);
 
@@ -48,7 +48,7 @@ export class CredentialsService {
     return { ...credential, secret, notice: 'Guárdala ahora: no se puede volver a consultar.' };
   }
 
-  /** Asigna la clave a un proyecto; a partir de ahí ese proyecto puede enviar. */
+  /** Assigns the key to a project; from then on that project can send. */
   async assign(slug: string, credentialId: string) {
     const [project, credential] = await Promise.all([
       this.prisma.project.findUnique({ where: { slug } }),
@@ -70,7 +70,7 @@ export class CredentialsService {
     if (!project) throw new NotFoundException(`No existe el proyecto "${slug}"`);
 
     await this.prisma.project.update({ where: { slug }, data: { credentialId: null } });
-    // Los datos ya enviados NO se borran: son el histórico.
+    // Data already sent is NOT deleted: it's the history.
     return { revoked: true, note: 'Los datos ya enviados se conservan' };
   }
 }

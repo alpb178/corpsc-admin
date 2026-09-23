@@ -16,18 +16,18 @@ describe('HealthController', () => {
     controller = moduleRef.get(HealthController);
   });
 
-  it('devuelve status ok', () => {
+  it('returns status ok', () => {
     const result = controller.check();
     expect(result.status).toBe('ok');
     expect(typeof result.uptime).toBe('number');
   });
 
-  it('devuelve database up si la query responde', async () => {
+  it('returns database up when the query responds', async () => {
     prismaMock.$queryRaw.mockResolvedValueOnce([{ '?column?': 1 }]);
     await expect(controller.checkDatabase()).resolves.toEqual({ database: 'up' });
   });
 
-  it('responde 503 si la base de datos falla', async () => {
+  it('responds 503 when the database fails', async () => {
     prismaMock.$queryRaw.mockRejectedValueOnce(new Error('connection refused'));
     await expect(controller.checkDatabase()).rejects.toMatchObject({ status: 503 });
   });

@@ -5,11 +5,11 @@ import { ROLES_KEY } from '../decorators/roles.decorator';
 import type { AuthUser } from '../decorators/current-user.decorator';
 
 /**
- * Guard de rol basado en enum, no en un booleano `isAdmin` como en tu-chamba:
- * el hub muestra datos de clientes y hace falta poder dar acceso de solo
- * lectura sin entregar también la gestión de credenciales.
+ * Enum-based role guard, not an `isAdmin` boolean like in tu-chamba: the hub
+ * shows client data and we need to be able to grant read-only access without
+ * also handing over credential management.
  *
- * Va siempre DESPUÉS de JwtAuthGuard: @UseGuards(JwtAuthGuard, RolesGuard).
+ * Always goes AFTER JwtAuthGuard: @UseGuards(JwtAuthGuard, RolesGuard).
  */
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -21,7 +21,7 @@ export class RolesGuard implements CanActivate {
       context.getClass(),
     ]);
 
-    // Sin @Roles la ruta solo exige estar autenticado.
+    // Without @Roles the route only requires being authenticated.
     if (!required || required.length === 0) return true;
 
     const { user } = context.switchToHttp().getRequest<{ user?: AuthUser }>();

@@ -22,8 +22,8 @@ describe('channelOf', () => {
     [origin(null, 'newsletter', 'email'), 'Email'],
     [origin(null, 'partner-site', 'banner'), 'Referral'],
     [origin(null, 'somewhere', 'cpm'), 'Display'],
-    // La campaña manda sobre el dominio: un anuncio de Instagram abierto desde
-    // Google sigue siendo de Instagram.
+    // The campaign takes precedence over the domain: an Instagram ad opened
+    // from Google is still Instagram's.
     [origin('google.com', 'instagram', 'social'), 'Organic Social'],
   ])('%j → %s', (o, expected) => {
     expect(channelOf(o)).toBe(expected);

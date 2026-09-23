@@ -11,8 +11,8 @@ export class UpdateProjectDto {
   @ApiPropertyOptional({ example: 'America/La_Paz' })
   @IsOptional()
   @IsString()
-  // Se valida contra la lista de zonas del runtime en el servicio: aquí solo
-  // se descarta lo que ni siquiera tiene forma de zona horaria.
+  // Validated against the runtime's timezone list in the service: here we only
+  // reject what doesn't even look like a timezone.
   @Matches(/^[A-Za-z]+\/[A-Za-z_+-]+$/, { message: 'timezone debe ser tipo America/La_Paz' })
   timezone?: string;
 

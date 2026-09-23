@@ -1,8 +1,8 @@
 import type { Aggregation, MetricUnit } from '@prisma/client';
 
 /**
- * Definición de métrica tal y como la necesita la capa de lectura.
- * Es el espejo en memoria de la tabla `metric_definition`.
+ * Metric definition as the read layer needs it.
+ * It's the in-memory mirror of the `metric_definition` table.
  */
 export interface MetricMeta {
   key: string;
@@ -15,16 +15,16 @@ export interface MetricMeta {
 export type MetricTotals = Record<string, number>;
 
 /**
- * Añade las métricas derivadas a un conjunto de totales ya sumados.
+ * Adds the derived metrics to a set of already-summed totals.
  *
- * Esta función es la razón de ser de la regla "solo se persisten medidas
- * aditivas". Una tasa de conversión guardada por día no se puede promediar
- * entre días: la media de las tasas diarias NO es la tasa del periodo, porque
- * cada día pesa distinto. Aquí se calcula sobre las sumas, que es la única
- * forma correcta:
+ * This function is the reason for the "only additive measures are persisted"
+ * rule. A conversion rate stored per day can't be averaged across days: the
+ * mean of the daily rates is NOT the period's rate, because each day weighs
+ * differently. Here it's computed over the sums, which is the only correct
+ * way:
  *
- *   conversion_rate = Σ pedidos / Σ visitas
- *   pages_per_visit = Σ páginas / Σ visitas
+ *   conversion_rate = Σ orders / Σ visits
+ *   pages_per_visit = Σ pages / Σ visits
  */
 export function withDerived(totals: MetricTotals, definitions: MetricMeta[]): MetricTotals {
   const out: MetricTotals = { ...totals };
@@ -35,15 +35,15 @@ export function withDerived(totals: MetricTotals, definitions: MetricMeta[]): Me
     const numerator = totals[def.derivedFrom.numerator];
     const denominator = totals[def.derivedFrom.denominator];
 
-    // Sin denominador no hay ratio. Devolver 0 sería mentir: "CTR del 0%" y
-    // "no hubo impresiones" son cosas distintas, y el dashboard debe poder
-    // distinguirlas para no pintar una caída que no existió.
+    // No denominator, no ratio. Returning 0 would be lying: "0% CTR" and
+    // "there were no impressions" are different things, and the dashboard must
+    // be able to tell them apart so it doesn't draw a drop that never existed.
     if (!denominator) continue;
 
-    // Un numerador AUSENTE tampoco es un numerador a cero. Pasa de verdad: un
-    // proyecto envía visitas pero no pedidos porque allí no se vende nada.
-    // Sin esta comprobación el panel mostraría "tasa de conversión 0%", que
-    // sugiere que se intentó vender y no se vendió — y no es eso.
+    // A MISSING numerator isn't a zero numerator either. It really happens: a
+    // project sends visits but no orders because nothing is sold there.
+    // Without this check the panel would show "conversion rate 0%", which
+    // suggests someone tried to sell and didn't — and that's not it.
     if (numerator === undefined) continue;
 
     out[def.key] = numerator / denominator;
@@ -52,20 +52,20 @@ export function withDerived(totals: MetricTotals, definitions: MetricMeta[]): Me
   return out;
 }
 
-/** Variación relativa entre dos periodos. */
+/** Relative change between two periods. */
 export interface Delta {
   current: number;
   previous: number;
-  /** Fracción: 0.12 es +12%. `null` cuando no se puede calcular. */
+  /** Fraction: 0.12 is +12%. `null` when it can't be computed. */
   change: number | null;
 }
 
 /**
- * Compara dos periodos métrica a métrica.
+ * Compares two periods metric by metric.
  *
- * Cuando el periodo anterior es 0 no se devuelve "+∞" ni "+100%": pasar de 0 a
- * 5 no es un porcentaje, es una aparición, y el dashboard debe presentarlo como
- * tal en lugar de con una flecha verde gigante.
+ * When the previous period is 0 it returns neither "+∞" nor "+100%": going
+ * from 0 to 5 isn't a percentage, it's an appearance, and the dashboard must
+ * present it as such instead of with a giant green arrow.
  */
 export function compare(current: MetricTotals, previous: MetricTotals): Record<string, Delta> {
   const keys = new Set([...Object.keys(current), ...Object.keys(previous)]);
@@ -81,11 +81,11 @@ export function compare(current: MetricTotals, previous: MetricTotals): Record<s
 }
 
 /**
- * Métricas en las que "menos es mejor": que bajen es una buena noticia.
+ * Metrics where "less is better": a decrease is good news.
  *
- * Sin esto el panel pintaría en verde una subida de cancelaciones. Cualquier
- * métrica nueva de este tipo —devoluciones, rebotes, incidencias— hay que
- * añadirla aquí o se leerá al revés.
+ * Without this the panel would paint a rise in cancellations green. Any new
+ * metric of this kind —returns, bounces, incidents— must be added here or it
+ * will read backwards.
  */
 const LOWER_IS_BETTER = new Set(['orders_cancelled']);
 

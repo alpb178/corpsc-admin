@@ -7,8 +7,8 @@ describe('CryptoService', () => {
   let service: CryptoService;
 
   beforeAll(() => {
-    // Los casos de descifrado fallido registran un error a propósito; sin esto
-    // la salida de los tests se llena de ruido que parece un fallo real.
+    // The failed-decryption cases log an error on purpose; without this the
+    // test output fills up with noise that looks like a real failure.
     vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
 
     process.env.HUB_ENCRYPTION_KEY = randomBytes(32).toString('base64');
@@ -20,7 +20,7 @@ describe('CryptoService', () => {
     process.env.HUB_ENCRYPTION_KEY = originalKey;
   });
 
-  it('devuelve el secreto original tras cifrar y descifrar', () => {
+  it('returns the original secret after sealing and opening', () => {
     const secret = '-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----END PRIVATE KEY-----\n';
     const sealed = service.seal(secret);
 
@@ -28,30 +28,30 @@ describe('CryptoService', () => {
     expect(service.open(sealed.ciphertext)).toBe(secret);
   });
 
-  it('produce un ciphertext distinto cada vez para el mismo secreto', () => {
-    // El IV es aleatorio; si dos cifrados coincidieran, el esquema filtraría
-    // que dos proyectos comparten credencial.
-    const a = service.seal('mismo-valor');
-    const b = service.seal('mismo-valor');
+  it('produces a different ciphertext each time for the same secret', () => {
+    // The IV is random; if two encryptions matched, the scheme would leak
+    // that two projects share a credential.
+    const a = service.seal('same-value');
+    const b = service.seal('same-value');
 
     expect(a.ciphertext).not.toBe(b.ciphertext);
     expect(a.fingerprint).toBe(b.fingerprint);
   });
 
-  it('rechaza un ciphertext manipulado en lugar de devolver basura', () => {
-    const { ciphertext } = service.seal('valor original');
+  it('rejects a tampered ciphertext instead of returning garbage', () => {
+    const { ciphertext } = service.seal('original value');
     const bytes = Buffer.from(ciphertext, 'base64');
-    bytes[bytes.length - 1] ^= 0xff; // altera un byte del texto cifrado
+    bytes[bytes.length - 1] ^= 0xff; // flip a byte of the ciphertext
 
     expect(() => service.open(bytes.toString('base64'))).toThrow();
   });
 
-  it('rechaza un payload demasiado corto', () => {
-    expect(() => service.open(Buffer.from('corto').toString('base64'))).toThrow();
+  it('rejects a payload that is too short', () => {
+    expect(() => service.open(Buffer.from('short').toString('base64'))).toThrow();
   });
 
-  it('no descifra con otra clave maestra', () => {
-    const { ciphertext } = service.seal('secreto');
+  it('does not decrypt with another master key', () => {
+    const { ciphertext } = service.seal('secret');
 
     process.env.HUB_ENCRYPTION_KEY = randomBytes(32).toString('base64');
     const otherService = new CryptoService();
@@ -59,7 +59,7 @@ describe('CryptoService', () => {
     expect(() => otherService.open(ciphertext)).toThrow();
   });
 
-  it('exige una clave de 32 bytes', () => {
+  it('requires a 32-byte key', () => {
     process.env.HUB_ENCRYPTION_KEY = randomBytes(16).toString('base64');
     expect(() => new CryptoService()).toThrow(/32 bytes/);
 
@@ -73,15 +73,15 @@ describe('CryptoService', () => {
       service = new CryptoService();
     });
 
-    it('acepta claves iguales y rechaza distintas', () => {
+    it('accepts equal keys and rejects different ones', () => {
       expect(service.safeEquals('api-key-abc', 'api-key-abc')).toBe(true);
       expect(service.safeEquals('api-key-abc', 'api-key-xyz')).toBe(false);
     });
 
-    it('no revienta cuando las longitudes difieren', () => {
-      // timingSafeEqual exige buffers del mismo tamaño; por eso se comparan
-      // hashes. Si alguien lo cambiara a comparar los valores, esto falla.
-      expect(service.safeEquals('corta', 'una-clave-mucho-mas-larga')).toBe(false);
+    it('does not blow up when the lengths differ', () => {
+      // timingSafeEqual requires buffers of the same size; that's why hashes
+      // are compared. If someone changed it to compare the values, this fails.
+      expect(service.safeEquals('short', 'a-much-much-longer-key')).toBe(false);
     });
   });
 });

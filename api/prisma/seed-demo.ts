@@ -1,17 +1,17 @@
 /**
- * Datos SINTÉTICOS para desarrollo del panel.
+ * SYNTHETIC data for panel development.
  *
- * No son datos reales de ningún sitio: son cifras inventadas con forma
- * plausible (tendencia suave + ruido) para poder construir y revisar la
- * interfaz sin depender de que los proyectos estén enviando.
+ * This isn't real data from any site: it's made-up figures with a plausible
+ * shape (gentle trend + noise) so the interface can be built and reviewed
+ * without depending on the projects actually sending.
  *
  *   pnpm seed:demo
  *
- * Borra y regenera las métricas de los cuatro proyectos que toca. No ejecutar
- * jamás contra producción: sobrescribiría datos reales.
+ * Deletes and regenerates the metrics of the four projects it touches. Never
+ * run it against production: it would overwrite real data.
  *
- * Los desgloses se generan de modo que SUMEN el total, igual que hace un envío
- * real, para que la comprobación de coherencia del panel sirva de algo.
+ * Breakdowns are generated so they ADD UP to the total, just like a real
+ * submission, so the panel's consistency check is worth something.
  */
 import 'dotenv/config';
 import { PrismaClient, RunStatus, RunTrigger } from '@prisma/client';
@@ -22,13 +22,13 @@ const prisma = new PrismaClient({
 });
 
 const FROM = new Date('2026-08-01');
-const DAYS = 62; // agosto y septiembre, para poder comparar periodos
+const DAYS = 62; // August and September, so periods can be compared
 
 const COUNTRIES = ['BO', 'AR', 'CL', 'PE', 'ES'];
 const DEVICES = ['mobile', 'desktop', 'tablet'];
 const PATHS = ['/', '/ofertas', '/empresas', '/blog'];
 
-/** Qué mide cada proyecto: una tienda no publica ofertas de empleo. */
+/** What each project measures: a shop doesn't post job offers. */
 const PROFILES: Record<string, { business: string[]; currency?: string }> = {
   take: { business: ['orders', 'orders_paid', 'revenue', 'leads'], currency: 'USD' },
   'iris-natural': { business: ['orders', 'orders_paid', 'revenue'], currency: 'BOB' },
@@ -83,11 +83,11 @@ async function main() {
         }
       };
 
-      // Tráfico propio
+      // Own traffic
       push('visits', 'total', '__total__', visits);
       push('page_views', 'total', '__total__', Math.round(visits * 2.6));
 
-      // Desgloses que SUMAN el total
+      // Breakdowns that ADD UP to the total
       let left = visits;
       COUNTRIES.forEach((c, i) => {
         const n = i === COUNTRIES.length - 1 ? left : Math.round(visits * [0.55, 0.18, 0.12, 0.09, 0.06][i]);
@@ -107,7 +107,7 @@ async function main() {
         push('page_views', 'path', c, n);
       });
 
-      // Negocio, según el perfil del proyecto
+      // Business, according to the project's profile
       const orders = Math.round(visits * (0.03 + rnd(seed + 1) * 0.02));
       for (const key of profile.business) {
         switch (key) {
@@ -139,8 +139,8 @@ async function main() {
     }
 
     await prisma.metricDaily.createMany({ data: rows as never });
-    // Los contadores del envío se cuadran a mano: aquí se escribe directo en
-    // la tabla, sin pasar por el receptor que normalmente los rellena.
+    // The run's counters are balanced by hand: here we write straight into the
+    // table, bypassing the receiver that normally fills them in.
     await prisma.ingestionRun.update({
       where: { id: run.id },
       data: { rowsWritten: rows.length },

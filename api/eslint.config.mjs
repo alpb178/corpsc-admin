@@ -10,7 +10,7 @@ export default tseslint.config(
       parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
     },
     rules: {
-      // Los decoradores de Nest hacen inevitables algunos any en firmas de guards.
+      // Nest decorators make some `any`s in guard signatures unavoidable.
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     },

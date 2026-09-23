@@ -24,8 +24,8 @@ export class AuthService {
   async login(dto: LoginDto): Promise<AuthResult> {
     const user = await this.prisma.hubUser.findUnique({ where: { email: dto.email } });
 
-    // Mismo mensaje tanto si el email no existe como si la contraseña falla:
-    // distinguirlos convierte el login en un verificador de emails válidos.
+    // Same message whether the email doesn't exist or the password is wrong:
+    // telling them apart turns the login into a checker of valid emails.
     const invalid = new UnauthorizedException('Credenciales incorrectas');
     if (!user || !user.active) throw invalid;
     if (!(await bcrypt.compare(dto.password, user.passwordHash))) throw invalid;

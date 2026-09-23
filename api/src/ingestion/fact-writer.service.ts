@@ -22,30 +22,29 @@ export interface WriteParams {
   to: IsoDate;
   rows: MetricRow[];
   /**
-   * Métricas de las que este escritor se hace dueño dentro de la ventana.
+   * Metrics this writer takes ownership of within the window.
    *
-   * Sin esto, el borrado de huérfanos limpia la ventana ENTERA, que es lo
-   * correcto para un envío: el proyecto manda todo lo suyo de esos días. La
-   * consolidación de eventos, en cambio, solo produce visitas y clics, y sin
-   * acotar se llevaría por delante las demás métricas del mismo proyecto.
+   * Without this, orphan deletion clears the ENTIRE window, which is right for
+   * a submission: the project sends everything it has for those days. The
+   * event rollup, however, only produces visits and clicks, and without
+   * scoping it would wipe out the project's other metrics.
    */
   ownedMetricKeys?: string[];
 }
 
 /**
- * Escribe los hechos de una ventana y la deja EXACTAMENTE como la envió el
- * proyecto.
+ * Writes the facts of a window and leaves it EXACTLY as the project sent it.
  *
- * Son dos pasos y los dos hacen falta:
+ * There are two steps and both are needed:
  *
- *  1. Upsert por la clave natural, para que reprocesar no duplique.
- *  2. Borrado de huérfanos: las filas de la ventana que este run no ha vuelto a
- *     escribir. Sin este paso, una consulta que ayer estaba en el top-100 y hoy
- *     no, se queda congelada con su valor viejo, y el desglose deja de sumar el
- *     total para siempre.
+ *  1. Upsert by the natural key, so reprocessing doesn't duplicate.
+ *  2. Orphan deletion: the window's rows this run didn't write again. Without
+ *     this step, a query that was in the top-100 yesterday and isn't today
+ *     stays frozen with its old value, and the breakdown stops adding up to
+ *     the total forever.
  *
- * El paso 2 es también el más peligroso del sistema, de ahí la salvaguarda de
- * `rows.length === 0`.
+ * Step 2 is also the most dangerous one in the system, hence the
+ * `rows.length === 0` safeguard.
  */
 @Injectable()
 export class FactWriterService {
@@ -56,12 +55,12 @@ export class FactWriterService {
   async write(params: WriteParams): Promise<WriteResult> {
     const { projectId, runId, from, to, rows, ownedMetricKeys } = params;
 
-    // Salvaguarda contra el colapso silencioso de datos.
+    // Safeguard against silent data collapse.
     //
-    // Una consulta rota en el proyecto, o un despliegue a medias, devuelve un
-    // envío vacío. Si siguiéramos adelante, el borrado de huérfanos se llevaría
-    // por delante datos buenos y el fallo solo se notaría semanas después, al
-    // mirar una gráfica con un agujero. Ante la duda, no se toca nada.
+    // A broken query in the project, or a half-finished deploy, produces an
+    // empty submission. If we went ahead, orphan deletion would wipe out good
+    // data and the failure would only be noticed weeks later, looking at a
+    // chart with a hole in it. When in doubt, nothing is touched.
     if (rows.length === 0) {
       const existing = await this.prisma.metricDaily.count({
         where: {
@@ -78,12 +77,12 @@ export class FactWriterService {
         );
       }
 
-      this.logger.debug(`Sin datos para ${from}…${to} (la ventana también estaba vacía)`);
+      this.logger.debug(`No data for ${from}…${to} (the window was empty too)`);
       return { rowsWritten: 0, rowsDeleted: 0 };
     }
 
-    // Marca de inicio: las filas de la ventana con `ingested_at` anterior son
-    // justo las que este run no ha vuelto a escribir.
+    // Start mark: the window's rows with an earlier `ingested_at` are exactly
+    // the ones this run didn't write again.
     const startedAt = new Date();
 
     return this.prisma.$transaction(async (tx) => {
@@ -116,9 +115,9 @@ export class FactWriterService {
   }
 
   /**
-   * Un único INSERT por lote en lugar de N `upsert()` de Prisma: una noche
-   * completa son ~17.000 filas, y una ida y vuelta por fila haría que la
-   * ingesta durase minutos en lugar de segundos.
+   * A single INSERT per batch instead of N Prisma `upsert()` calls: a full
+   * night is ~17,000 rows, and one round trip per row would make ingestion
+   * take minutes instead of seconds.
    */
   private upsertBatch(
     tx: Prisma.TransactionClient,

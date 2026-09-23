@@ -8,13 +8,13 @@ export class HealthController {
   constructor(private readonly healthService: HealthService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Liveness — lo que consulta Render' })
+  @ApiOperation({ summary: 'Liveness — what Render polls' })
   check() {
     return this.healthService.check();
   }
 
   @Get('db')
-  @ApiOperation({ summary: 'Readiness — comprueba la conexión a Postgres' })
+  @ApiOperation({ summary: 'Readiness — checks the Postgres connection' })
   checkDatabase() {
     return this.healthService.checkDatabase();
   }

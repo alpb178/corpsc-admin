@@ -1,14 +1,14 @@
 import type { IsoDate } from './dates';
 
-/** Valores reservados de `dimValue`. Empiezan y acaban en `__` para que nunca
- *  choquen con un valor real (un país, una ruta, un estado). */
+/** Reserved `dimValue` values. They start and end with `__` so they never
+ *  clash with a real value (a country, a path, a status). */
 export const TOTAL = '__total__';
-/** Suma de todo lo que quedó fuera del top-N. */
+/** Sum of everything left outside the top-N. */
 export const OTHER = '__other__';
 
 export const TOTAL_DIMENSION = 'total';
 
-/** Una medida, un día, una casilla de una dimensión. */
+/** One measure, one day, one cell of a dimension. */
 export interface MetricRow {
   date: IsoDate;
   metricKey: string;
