@@ -179,3 +179,72 @@ describe('consolidación de eventos', () => {
     expect(await prisma.ingestionRun.count({ where: { projectId: project.id } })).toBe(0);
   });
 });
+
+describe('consolidación en vivo', () => {
+  const runs = () => prisma.ingestionRun.findMany({ where: { projectId: project.id } });
+
+  it('reutiliza el registro de su ventana en vez de dejar uno por visita', async () => {
+    await seedEvents([
+      { type: SiteEventType.PAGE_VIEW, sessionId: 'sesion-uno-aaaa', at: '2026-03-01T15:00:00Z' },
+    ]);
+    await service.rollupWindow(project, FROM, TO, { live: true });
+
+    await seedEvents([
+      { type: SiteEventType.PAGE_VIEW, sessionId: 'sesion-dos-bbbb', at: '2026-03-01T16:00:00Z' },
+    ]);
+    await service.rollupWindow(project, FROM, TO, { live: true });
+
+    expect(await runs()).toHaveLength(1);
+    expect(await valueOf('visits')).toBe(2);
+  });
+
+  it('la de la noche sigue dejando su propio registro', async () => {
+    await seedEvents([
+      { type: SiteEventType.PAGE_VIEW, sessionId: 'sesion-uno-aaaa', at: '2026-03-01T15:00:00Z' },
+    ]);
+    await service.rollupWindow(project, FROM, TO, { live: true });
+    await service.rollupWindow(project, FROM, TO);
+
+    expect(await runs()).toHaveLength(2);
+  });
+
+  it('agrupa una ráfaga de envíos en una sola consolidación', async () => {
+    vi.useFakeTimers();
+    const spy = vi.spyOn(service, 'rollupWindow').mockResolvedValue(null);
+    try {
+      service.scheduleLive(project);
+      service.scheduleLive(project);
+      service.scheduleLive(project);
+      expect(spy).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(spy).toHaveBeenCalledTimes(1);
+    } finally {
+      spy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it('lo que llega durante una consolidación deja otra para después', async () => {
+    vi.useFakeTimers();
+    let release!: () => void;
+    const spy = vi
+      .spyOn(service, 'rollupWindow')
+      .mockImplementationOnce(() => new Promise((resolve) => (release = () => resolve(null))))
+      .mockResolvedValue(null);
+    try {
+      service.scheduleLive(project);
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(spy).toHaveBeenCalledTimes(1);
+
+      // Llega un evento mientras la primera sigue en marcha.
+      service.scheduleLive(project);
+      release();
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(spy).toHaveBeenCalledTimes(2);
+    } finally {
+      spy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+});

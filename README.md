@@ -96,7 +96,7 @@ no habla con Google ni con ningún servicio externo.
 **Salvo los sitios que no tienen dónde agregar.** El portfolio del grupo y los
 sitios de cliente son páginas en Vercel sin base de datos: mandan el hecho
 suelto —una visita, un clic hacia otro sitio del grupo— a
-`POST /api/ingest/events`, y el hub los consolida a las 03:00 en las mismas
+`POST /api/ingest/events`, y el hub los consolida en unos segundos en las mismas
 métricas diarias que envía todo el mundo: `visits`, `page_views` y
 `site_clicks` desglosado por proyecto de destino. Lo crudo se guarda 90 días
 para poder recalcular un día, y no incluye ni IP ni agente de usuario.

@@ -216,7 +216,7 @@ model MetricDaily {
 ///
 /// El portfolio del grupo y los sitios de cliente son páginas en Vercel sin
 /// base de datos: no pueden contar sus visitas y mandar el agregado como hacen
-/// Take o Tu Chamba. Mandan el hecho, y el hub lo consolida cada noche.
+/// Take o Tu Chamba. Mandan el hecho, y el hub lo consolida al recibirlo.
 ///
 /// Es la tabla cruda: se conserva 90 días y se borra sola. Guardarla permite
 /// recalcular un día —filtrar un bot que se descubre tarde, corregir una
@@ -271,7 +271,7 @@ enum RunTrigger {
   /// Reenvío lanzado a mano, normalmente para corregir un histórico.
   BACKFILL
   /// Consolidación de los eventos de un sitio sin backend propio. No lo manda
-  /// nadie: lo ejecuta el hub cada noche sobre lo que ha ido recibiendo.
+  /// nadie: lo ejecuta el hub al recibir eventos y cada noche.
   ROLLUP
 }
 
