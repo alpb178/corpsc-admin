@@ -64,6 +64,10 @@ export function TrendChart({ data, series, unit = 'COUNT', height = 260 }: Props
               minTickGap={28}
             />
             <YAxis
+              // Counts have no fractions: without this, a series that only
+              // reaches 1 gets ticks at 0.25, 0.5… that all round to 0 or 1.
+              // Rates and averages do, so they keep decimal ticks.
+              allowDecimals={unit !== 'COUNT'}
               tickFormatter={compact}
               tick={{ fill: 'var(--axis)', fontSize: 11 }}
               axisLine={false}
@@ -107,7 +111,20 @@ export function TrendChart({ data, series, unit = 'COUNT', height = 260 }: Props
                 name={s.label}
                 stroke={`var(--series-${s.slot})`}
                 strokeWidth={2}
-                dot={false}
+                // No dots on a continuous line, but a day with no neighbours
+                // has no segment to draw: without its own dot it disappears.
+                dot={(props: { cx?: number; cy?: number; index?: number }) => {
+                  const { cx, cy, index = 0 } = props;
+                  const isolated =
+                    data[index]?.[s.key] != null &&
+                    data[index - 1]?.[s.key] == null &&
+                    data[index + 1]?.[s.key] == null;
+                  return isolated && cx != null && cy != null ? (
+                    <circle key={`${s.key}-${index}`} cx={cx} cy={cy} r={3} fill={`var(--series-${s.slot})`} />
+                  ) : (
+                    <g key={`${s.key}-${index}`} />
+                  );
+                }}
                 // 8 px marker on hover, with a surface-coloured ring so it
                 // stands out from the line.
                 activeDot={{ r: 4, strokeWidth: 2, stroke: 'var(--card)' }}

@@ -74,7 +74,7 @@ export default async function ProjectPage({
             <StatTile
               label="Páginas por visita"
               value={totals.pages_per_visit}
-              unit="RATIO"
+              unit="AVERAGE"
               delta={comparison?.deltas.pages_per_visit}
             />
           </section>
