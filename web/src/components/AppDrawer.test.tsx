@@ -57,6 +57,13 @@ describe('AppDrawer', () => {
     expect(screen.getByRole('link', { name: /CORPSC\s*Hub/ }).getAttribute('href')).toBe('/?range=7d');
   });
 
+  it('carries the CORPSC mark next to the name, as decoration', () => {
+    renderDrawer();
+    const mark = screen.getByRole('link', { name: /CORPSC\s*Hub/ }).querySelector('img');
+    expect(mark?.getAttribute('src')).toContain('brand%2Fcorpsc-mark.png');
+    expect(mark?.getAttribute('alt')).toBe('');
+  });
+
   it('hides Configuración from someone who only reads', () => {
     renderDrawer({ ...ADMIN, role: 'VIEWER' });
     expect(within(menu()).queryByTitle('Configuración')).toBeNull();

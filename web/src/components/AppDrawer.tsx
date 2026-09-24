@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -174,9 +175,12 @@ export function AppDrawer({ projects, user, children }: Props) {
             <Menu size={20} aria-hidden />
           </button>
 
-          <Link href={withRange('/', range)} className="flex items-baseline gap-2">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent">CORPSC</span>
-            <span className="text-[14px] font-semibold text-fg">Hub</span>
+          <Link href={withRange('/', range)} className="flex items-center gap-2">
+            <Image src="/brand/corpsc-mark.png" alt="" width={28} height={28} priority className="h-7 w-7 rounded-[6px]" />
+            <span className="flex items-baseline gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent">CORPSC</span>
+              <span className="text-[14px] font-semibold text-fg">Hub</span>
+            </span>
           </Link>
 
           <div className="relative ml-auto">
