@@ -47,5 +47,8 @@ services:
       # keys unreadable and they'd have to be registered again in all four repos.
       - key: HUB_ENCRYPTION_KEY
         sync: false
+      # Swagger and localhost CORS stay closed unless this says development.
+      - key: NODE_ENV
+        value: production
       - key: NODE_VERSION
         value: 24.1.0

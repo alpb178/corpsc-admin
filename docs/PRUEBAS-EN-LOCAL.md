@@ -38,7 +38,7 @@ openssl rand -base64 32   # HUB_ENCRYPTION_KEY — exactamente 32 bytes
 pnpm install
 pnpm prisma migrate dev
 SEED_ADMIN_EMAIL=tu@corpsc.com SEED_ADMIN_PASSWORD='una-contraseña-larga' pnpm seed
-pnpm start:dev                # API en :3001, Swagger en /docs
+pnpm start:dev                # API en :3001, Swagger en /docs (con NODE_ENV=development)
 ```
 
 ## 3. Panel
