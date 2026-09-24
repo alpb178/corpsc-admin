@@ -103,30 +103,46 @@ lo recibe.
 ## Qué sale de ahí
 
 Cada envío pide una consolidación **en vivo** de ese proyecto: a los diez
-segundos se rehacen los tres últimos días —los que puede tocar un evento
-aceptado— y el panel ya lo refleja. Los envíos que llegan en esa espera se
-suman a la misma pasada. Además, a las **03:00** se rehacen **los últimos cuatro
-días** de todos, como red por si alguna en vivo falló. Produce exactamente
-cuatro métricas:
-
-> Los campos de la v2 (visitante, dispositivo, región, ciudad, idioma, pantalla
-> y eventos `custom`) ya se guardan, pero la consolidación todavía no los
-> desglosa: llegan en la siguiente fase, con las métricas `new_visitors`,
-> `custom_events` y `conversions`.
+segundos se rehacen **hoy y ayer** y el panel ya lo refleja. Los envíos que
+llegan en esa espera se suman a la misma pasada. Además, a las **03:00** se
+rehacen **los últimos cuatro días** de todos: recoge el raro evento que llega
+con más de un día de retraso y cubre una consolidación en vivo que haya fallado.
+Produce estas métricas:
 
 | Métrica | De dónde sale | Desglose |
 |---|---|---|
-| `visits` | sesiones distintas del día | — |
-| `page_views` | eventos `page_view` | por `path` |
+| `visits` | sesiones distintas del día | ver abajo |
+| `page_views` | eventos `page_view` | por `path` y por `hour` |
 | `site_clicks` | eventos `site_click` | por `project` (destino) y por `link_type` |
 | `clicks` | eventos `click` y `site_click` | por `path` y por `element` (`ruta \| sección \| etiqueta`) |
+| `custom_events` | eventos `custom` | por `event` (su `name`) |
+| `conversions` | eventos `custom` cuyo `name` es un objetivo activo del proyecto (`conversion_goal`) | por `event` |
+| `new_visitors` | visitantes vistos por primera vez ese día | — |
 
-Además, **`visits`** se desglosa por `country`, `channel` (búsqueda orgánica,
-redes, directo, referencia… con los nombres de canal de GA4), `source`
-(`utmSource` o dominio de origen), `campaign` y `hour` (`00`–`23`), y
-**`page_views`** por `hour`. Cada visita cuenta una vez, con lo que traía su
-primer evento del día, así que cada desglose suma el total: las visitas sin
-país van a `__unknown__` y las directas a `__direct__`.
+**`visits`** se desglosa por `country`, `region` (`BO-L`), `city` (`La Paz, BO`),
+`channel` (búsqueda orgánica, redes, directo, referencia… con los nombres de
+canal de GA4), `source` (`utmSource` o dominio de origen), `campaign`, `hour`
+(`00`–`23`), `device`, `browser`, `os`, `language`, `screen`, `landing` (primera
+página vista de la visita), `exit` (última) y `acquisition`
+(`canal | fuente | página de entrada`, p. ej. `Organic Search | google.com | /es/servicios`).
+Cada visita cuenta una vez, con lo que traía su primer evento del día, así que
+cada desglose suma el total: lo que no se sabe va a `__unknown__` (un beacon v1
+no trae dispositivo; una visita de la que solo llegó un clic no tiene página de
+entrada) y las visitas directas, a `__direct__`.
+
+Algunas métricas solo se escriben cuando significan algo en ese sitio:
+
+- **`custom_events`**, si el sitio mandó alguno en la ventana.
+- **`conversions`**, si el proyecto tiene objetivos. Con objetivos, un día sin
+  conversiones es un 0; sin objetivos, no hay nada que contar.
+- **`new_visitors`**, solo en días con visitantes identificados (v2). Un día de
+  beacons v1 no tiene "0 nuevos": no se sabe. El primer día que un sitio manda
+  v2, todos sus visitantes son nuevos, porque no hay historia anterior.
+
+Los **visitantes únicos** de un periodo no se guardan como métrica: sumarlos día
+a día contaría tres veces a quien vuelve tres días. Se cuentan al leer, sobre
+`visitor_daily` —una fila por visitante y día—, que se conserva **800 días**
+para cubrir 12 meses comparados con los 12 anteriores.
 
 El día se decide **en la zona horaria del proyecto**, no en UTC: por eso el
 evento se guarda con su instante y no con una fecha ya recortada. Si la zona de

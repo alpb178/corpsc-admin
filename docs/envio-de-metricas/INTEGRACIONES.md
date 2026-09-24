@@ -51,8 +51,11 @@ que deciden con qué nombre se guarda un clic**, no el cintillo de cada repo: un
 | `page_views` | Páginas vistas | por `path` |
 | `site_clicks` | Clics que se van a otro sitio del grupo | por `project` de destino y por `link_type` |
 | `clicks` | Clics en enlaces y botones, incluidos los que salen | por `path` y por `element` (ruta, sección y etiqueta) |
+| `custom_events` | Eventos que define el sitio (`contact_submit`, `add_to_cart`…) | por `event` |
+| `conversions` | Los eventos que el proyecto marca como objetivo | por `event` |
+| `new_visitors` | Visitantes vistos por primera vez ese día | — |
 
-Las cuatro salen de la consolidación —en vivo tras cada envío y a las 03:00—, que es dueña de ellas y de
+Todas salen de la consolidación —en vivo tras cada envío y a las 03:00—, que es dueña de ellas y de
 ninguna más. Detalle del contrato en [`eventos.md`](./eventos.md).
 
 ## Lo que no se mide
