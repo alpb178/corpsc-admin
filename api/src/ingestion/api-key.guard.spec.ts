@@ -20,6 +20,7 @@ const PREFIX = 'test-api-key-guard';
 const GOOD_KEY = 'good-key-of-the-guard-test-000001';
 const ROTATED_KEY = 'rotated-key-of-the-guard-test-02';
 const OFF_KEY = 'inactive-key-of-the-guard-test-3';
+const LOOKALIKE_KEY = 'lookalike-key-of-the-guard-test-4';
 
 function context(key?: string) {
   const request: { project?: PushingProject; header: (name: string) => string | undefined } = {
@@ -64,6 +65,12 @@ beforeAll(async () => {
   await projectWith('rotated', rotated);
   await projectWith('good', crypto.seal(GOOD_KEY));
   await projectWith('off', crypto.seal(OFF_KEY), false);
+  // A fingerprint is only 16 hex characters: two keys can share one. This row
+  // carries LOOKALIKE_KEY's fingerprint but stores a different key.
+  await projectWith('lookalike', {
+    ...crypto.seal('the-key-this-project-really-has-5'),
+    fingerprint: crypto.fingerprint(LOOKALIKE_KEY),
+  });
 });
 
 afterAll(async () => {
@@ -107,6 +114,10 @@ describe('ApiKeyGuard', () => {
 
     await expect(guard.canActivate(context(ROTATED_KEY).ctx)).rejects.toThrow(UnauthorizedException);
     expect(error).toHaveBeenCalledWith(`The credential of ${PREFIX}-rotated can't be decrypted; generate a new one`);
+  });
+
+  it('still compares the whole key when only the fingerprint matches', async () => {
+    await expect(guard.canActivate(context(LOOKALIKE_KEY).ctx)).rejects.toThrow('Clave no válida');
   });
 
   it.each([
