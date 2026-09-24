@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Put, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { ProjectsService } from './projects.service';
 import { UpdateProjectDto } from './dto/update-project.dto';
+import { UpsertGoalDto } from './dto/upsert-goal.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -32,5 +33,30 @@ export class ProjectsController {
   @ApiOperation({ summary: "Updates a site's settings" })
   update(@Param('slug') slug: string, @Body() dto: UpdateProjectDto) {
     return this.projects.update(slug, dto);
+  }
+
+  @Get(':slug/goals')
+  @ApiOperation({ summary: 'Custom events the site counts as conversions' })
+  goals(@Param('slug') slug: string) {
+    return this.projects.listGoals(slug);
+  }
+
+  @Put(':slug/goals/:eventName')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Marks a custom event as a conversion, or renames or pauses the goal' })
+  upsertGoal(
+    @Param('slug') slug: string,
+    @Param('eventName') eventName: string,
+    @Body() dto: UpsertGoalDto,
+  ) {
+    return this.projects.upsertGoal(slug, eventName, dto);
+  }
+
+  @Delete(':slug/goals/:eventName')
+  @Roles(Role.ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Stops counting that event as a conversion' })
+  deleteGoal(@Param('slug') slug: string, @Param('eventName') eventName: string) {
+    return this.projects.deleteGoal(slug, eventName);
   }
 }

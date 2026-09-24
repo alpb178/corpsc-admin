@@ -4,7 +4,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { FreshnessService } from '../ingestion/freshness.service';
 import { compare, isImprovement, withDerived, type MetricMeta, type MetricTotals } from './derived';
 import { addDays, daysBetween, isIsoDate, toUtcDate, type IsoDate } from '../ingestion/common/dates';
-import { TOTAL_DIMENSION } from '../ingestion/common/metric-row';
+import { OTHER, TOTAL_DIMENSION } from '../ingestion/common/metric-row';
+import { UNKNOWN } from '../ingestion/event-rollup.service';
+import { VisitorsService } from './visitors.service';
 
 export interface Range {
   from: IsoDate;
@@ -24,6 +26,7 @@ export class MetricsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly freshness: FreshnessService,
+    private readonly visitorStats: VisitorsService,
   ) {}
 
   // ─────────────────────────── Group view ───────────────────────────
@@ -32,11 +35,21 @@ export class MetricsService {
     this.assertRange(range);
     const definitions = await this.definitions();
 
-    const [totals, byProject, series] = await Promise.all([
-      this.sumTotals(range),
-      this.sumTotalsByProject(range),
-      this.dailySeries(range),
-    ]);
+    const [totals, byProject, series, seriesByProject, visitors, country, channel, source, device, event, topPages] =
+      await Promise.all([
+        this.sumTotals(range),
+        this.sumTotalsByProject(range),
+        this.dailySeries(range),
+        this.seriesByProject(range, 'visits'),
+        this.visitorStats.stats(range),
+        // Across the group: the same breakdowns every site has, summed.
+        this.breakdown(range, undefined, 'country', 'visits', ALL),
+        this.breakdown(range, undefined, 'channel', 'visits'),
+        this.breakdown(range, undefined, 'source', 'visits', ALL),
+        this.breakdown(range, undefined, 'device', 'visits'),
+        this.breakdown(range, undefined, 'event', 'custom_events'),
+        this.topPages(range),
+      ]);
 
     const current = withDerived(totals, definitions);
     const projects = await this.decorateProjects(byProject, definitions);
@@ -57,12 +70,28 @@ export class MetricsService {
       totals: current,
       split: { own: withDerived(split.own, definitions), client: withDerived(split.client, definitions) },
       series,
+      seriesByProject,
       projects,
+      visitors,
+      counts: {
+        // A site is active in the period if it had at least one visit.
+        activeProjects: projects.filter((p) => (p.metrics.visits ?? 0) > 0).length,
+        countries: named(country).length,
+        sources: named(source).length,
+      },
+      breakdowns: { country: country.slice(0, LIMIT), channel, source: source.slice(0, LIMIT), device, event },
+      topPages,
     };
 
     if (withComparison) {
       const previous = this.previousRange(range);
-      const deltas = compare(current, withDerived(await this.sumTotals(previous), definitions));
+      const deltas = compare(
+        { ...current, unique_visitors: visitors.unique },
+        {
+          ...withDerived(await this.sumTotals(previous), definitions),
+          unique_visitors: (await this.visitorStats.stats(previous)).unique,
+        },
+      );
       result.comparison = {
         range: previous,
         deltas: Object.fromEntries(
@@ -84,10 +113,13 @@ export class MetricsService {
 
     const definitions = await this.definitions();
 
-    const [totals, series, country, device, paths, elements, channel, source, campaign, hour] =
-      await Promise.all([
+    const [
+      totals, series, visitors, country, device, paths, elements, channel, source, campaign, hour,
+      region, city, browser, os, language, screen, landing, exit, acquisition, event,
+    ] = await Promise.all([
       this.sumTotals(range, project.id),
       this.dailySeries(range, project.id),
+      this.visitorStats.stats(range, project.id),
       this.breakdown(range, project.id, 'country', 'visits'),
       this.breakdown(range, project.id, 'device', 'visits'),
       // Pages also carry their clicks: they share the `path` dimension.
@@ -99,6 +131,18 @@ export class MetricsService {
       this.breakdown(range, project.id, 'campaign', 'visits'),
       // All 24 hours, with visits and page views; the panel sorts them.
       this.breakdown(range, project.id, 'hour', 'visits', 24),
+      this.breakdown(range, project.id, 'region', 'visits'),
+      this.breakdown(range, project.id, 'city', 'visits'),
+      this.breakdown(range, project.id, 'browser', 'visits'),
+      this.breakdown(range, project.id, 'os', 'visits'),
+      this.breakdown(range, project.id, 'language', 'visits'),
+      this.breakdown(range, project.id, 'screen', 'visits'),
+      this.breakdown(range, project.id, 'landing', 'visits', 50),
+      this.breakdown(range, project.id, 'exit', 'visits', 50),
+      // "channel | source | landing": how people arrive, and where.
+      this.breakdown(range, project.id, 'acquisition', 'visits', 50),
+      // Custom events with their conversions on the same row.
+      this.breakdown(range, project.id, 'event', 'custom_events', 50),
     ]);
 
     const current = withDerived(totals, definitions);
@@ -117,14 +161,21 @@ export class MetricsService {
       range,
       totals: current,
       series,
-      breakdowns: { country, device, path: paths, element: elements, channel, source, campaign, hour },
+      visitors,
+      breakdowns: {
+        country, device, path: paths, element: elements, channel, source, campaign, hour,
+        region, city, browser, os, language, screen, landing, exit, acquisition, event,
+      },
     };
 
     if (withComparison) {
       const previous = this.previousRange(range);
       const deltas = compare(
-        current,
-        withDerived(await this.sumTotals(previous, project.id), definitions),
+        { ...current, unique_visitors: visitors.unique },
+        {
+          ...withDerived(await this.sumTotals(previous, project.id), definitions),
+          unique_visitors: (await this.visitorStats.stats(previous, project.id)).unique,
+        },
       );
       result.comparison = {
         range: previous,
@@ -135,6 +186,17 @@ export class MetricsService {
     }
 
     return result;
+  }
+
+  // ─────────────────────────── Visitors ───────────────────────────
+
+  async visitors(range: Range, slug?: string) {
+    this.assertRange(range);
+    if (!slug) return this.visitorStats.stats(range);
+
+    const project = await this.prisma.project.findUnique({ where: { slug }, select: { id: true } });
+    if (!project) throw new NotFoundException(`No existe el proyecto "${slug}"`);
+    return this.visitorStats.stats(range, project.id);
   }
 
   // ─────────────────────────── Comparison ───────────────────────────
@@ -243,11 +305,18 @@ export class MetricsService {
     return out;
   }
 
-  private async breakdown(range: Range, projectId: string, dimension: string, rankBy: string, limit = 20) {
+  /** A dimension summed over the range, for one project or, without one, the whole group. */
+  private async breakdown(
+    range: Range,
+    projectId: string | undefined,
+    dimension: string,
+    rankBy: string,
+    limit = LIMIT,
+  ) {
     const rows = await this.prisma.metricDaily.groupBy({
       by: ['dimValue', 'metricKey'],
       where: {
-        projectId,
+        ...(projectId ? { projectId } : {}),
         dimension,
         date: { gte: toUtcDate(range.from), lte: toUtcDate(range.to) },
       },
@@ -266,6 +335,69 @@ export class MetricsService {
     return [...byValue.entries()]
       .map(([value, metrics]) => ({ value, metrics: withDerived(metrics, definitions) }))
       .sort((a, b) => (b.metrics[rankBy] ?? 0) - (a.metrics[rankBy] ?? 0))
+      .slice(0, limit);
+  }
+
+  /**
+   * One metric's daily series per site: traffic by project in one chart.
+   * Days without data are gaps, as in `dailySeries`.
+   */
+  private async seriesByProject(range: Range, metricKey: string) {
+    const [rows, projects] = await Promise.all([
+      this.prisma.metricDaily.groupBy({
+        by: ['projectId', 'date'],
+        where: {
+          metricKey,
+          dimension: TOTAL_DIMENSION,
+          date: { gte: toUtcDate(range.from), lte: toUtcDate(range.to) },
+        },
+        _sum: { value: true },
+      }),
+      this.prisma.project.findMany({ where: { active: true }, orderBy: [{ sortOrder: 'asc' }] }),
+    ]);
+
+    return projects
+      .filter((p) => rows.some((r) => r.projectId === p.id))
+      .map((p) => {
+        const byDate = new Map(
+          rows.filter((r) => r.projectId === p.id).map((r) => [iso(r.date), num(r._sum.value)]),
+        );
+        const points: Array<{ date: string; value: number | null }> = [];
+        for (let d = range.from; d <= range.to; d = addDays(d, 1)) {
+          points.push({ date: d, value: byDate.get(d) ?? null });
+        }
+        return { slug: p.slug, name: p.name, points };
+      });
+  }
+
+  /**
+   * The group's most viewed pages. Each carries its site: `/es` on the
+   * corporate site and `/es` on Take are different pages, and summing them
+   * would say nothing about either.
+   */
+  private async topPages(range: Range, limit = LIMIT) {
+    const [rows, projects] = await Promise.all([
+      this.prisma.metricDaily.groupBy({
+        by: ['projectId', 'dimValue'],
+        where: {
+          metricKey: 'page_views',
+          dimension: 'path',
+          dimValue: { not: OTHER },
+          date: { gte: toUtcDate(range.from), lte: toUtcDate(range.to) },
+        },
+        _sum: { value: true },
+      }),
+      this.prisma.project.findMany({ select: { id: true, slug: true, name: true } }),
+    ]);
+    const byId = new Map(projects.map((p) => [p.id, p]));
+
+    return rows
+      .map((r) => ({
+        project: { slug: byId.get(r.projectId)?.slug ?? '', name: byId.get(r.projectId)?.name ?? '' },
+        path: r.dimValue,
+        pageViews: num(r._sum.value),
+      }))
+      .sort((a, b) => b.pageViews - a.pageViews)
       .slice(0, limit);
   }
 
@@ -339,6 +471,16 @@ export class MetricsService {
     const span = daysBetween(range.from, range.to) + 1;
     return { from: addDays(range.from, -span), to: addDays(range.from, -1) };
   }
+}
+
+/** How many values a breakdown returns by default. */
+const LIMIT = 20;
+/** No limit: for breakdowns that are also counted (how many countries). */
+const ALL = Number.MAX_SAFE_INTEGER;
+
+/** The real values of a breakdown: without the unknown and the rest-of-top buckets. */
+function named<T extends { value: string }>(slices: T[]): T[] {
+  return slices.filter((s) => s.value !== UNKNOWN && s.value !== OTHER);
 }
 
 /** Prisma returns Decimals as objects; the JSON must carry numbers. */
