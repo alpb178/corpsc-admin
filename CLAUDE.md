@@ -76,15 +76,16 @@ de salida puede exponer `credential.ciphertext`.
   zona estaba mal puesta, y un contador incrementado sobre la marcha no se
   puede deshacer. Se conserva 90 días: lo justo para recalcular, no como
   archivo.
-- **La consolidación es dueña de `visits`, `page_views`, `site_clicks` y
-  `clicks`** y de nada más. Por eso `FactWriterService` acepta `ownedMetricKeys`: sin acotar el
+- **La consolidación es dueña de `visits`, `page_views`, `site_clicks`,
+  `clicks`, `custom_events`, `conversions` y `new_visitors`** y de nada más. Por eso `FactWriterService` acepta `ownedMetricKeys`: sin acotar el
   borrado de huérfanos, rehacer las visitas se llevaría por delante los pedidos
   del mismo día.
 - **La consolidación es en vivo, no solo de noche.** Cada envío a
   `/ingest/events` la pide para su proyecto (`scheduleLive`): espera 10 s para
   agrupar la ráfaga, nunca corre dos veces a la vez para el mismo proyecto y
   reutiliza un `IngestionRun` por ventana, para no enterrar Envíos con uno por
-  visita. El cron de las 03:00 sigue como red de seguridad. Vive en memoria:
+  visita. En vivo rehace hoy y ayer; el cron de las 03:00, cuatro días, y
+  recoge el evento que llega con más de un día de retraso. Vive en memoria:
   con más de una instancia de la API habría que moverla a una cola.
 - **Sin eventos no se escribe nada.** Un sitio callado no es un sitio con cero
   visitas, y escribir ceros haría indistinguible "no entró nadie" de "los
@@ -93,6 +94,11 @@ de salida puede exponer `credential.ciphertext`.
   canal, fuente, campaña y hora salen de ahí (`visitStarts`), para que cada
   desglose de `visits` sume el total. El país lo resuelve el hosting del sitio;
   del origen solo llega el dominio, nunca la URL entera.
+- **`visitor_daily` sobrevive a los eventos crudos** (800 días frente a 90):
+  es lo único que sabe si un visitante es nuevo y cuántos distintos hubo en un
+  año. Por eso la consolidación solo reescribe los días que todavía tienen
+  eventos; un día ya podado conserva sus visitantes. Los únicos de un rango se
+  cuentan al leer, nunca se guardan: no son sumables.
 - **Un beacon repetido se guarda una vez.** En la v2 cada evento lleva un
   `eventId` (UUID del navegador) y `site_event` tiene un índice único
   `(project_id, event_id)`; `createMany({ skipDuplicates })` descarta la copia.

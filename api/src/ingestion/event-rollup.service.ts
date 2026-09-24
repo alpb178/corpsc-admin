@@ -6,7 +6,6 @@ import { FactWriterService, type WriteResult } from './fact-writer.service';
 import { addDays, todayIn, toUtcDate, type IsoDate } from './common/dates';
 import { TOTAL, TOTAL_DIMENSION, type MetricRow } from './common/metric-row';
 import { collapseToTopN } from './common/top-n';
-import { MAX_EVENT_AGE_HOURS } from './site-events.contract';
 import { channelOf, sourceOf } from './common/channel';
 
 /**
@@ -14,7 +13,15 @@ import { channelOf, sourceOf } from './common/channel';
  * re-rolls a window it deletes its own for those days and writes them again,
  * without touching any other metric of the project.
  */
-export const ROLLUP_METRIC_KEYS = ['visits', 'page_views', 'site_clicks', 'clicks'];
+export const ROLLUP_METRIC_KEYS = [
+  'visits',
+  'page_views',
+  'site_clicks',
+  'clicks',
+  'custom_events',
+  'conversions',
+  'new_visitors',
+];
 
 /**
  * The last few days are always re-rolled, not just yesterday.
@@ -26,10 +33,16 @@ export const ROLLUP_METRIC_KEYS = ['visits', 'page_views', 'site_clicks', 'click
 const ROLLUP_DAYS = 4;
 
 /**
- * The live rollup only redoes the days a freshly arrived event can land on:
- * today and the ones covered by the maximum accepted event age.
+ * The live rollup redoes today and yesterday, not every day an event could
+ * land on.
+ *
+ * An event may be up to `MAX_EVENT_AGE_HOURS` old, but in practice a beacon is
+ * seconds late: yesterday covers the one sent just after midnight. The rare
+ * older one is picked up by the nightly rollup, which redoes four days. Each
+ * live pass scans every raw event of its window, so one day less is a third
+ * less work on every burst.
  */
-const LIVE_DAYS = Math.ceil(MAX_EVENT_AGE_HOURS / 24) + 1;
+export const LIVE_DAYS = 2;
 
 /**
  * Wait after the first event before rolling up. It groups a visit's burst —the
@@ -41,11 +54,51 @@ const LIVE_DELAY_MS = 10_000;
 /** Raw events are kept just long enough to recompute, not as an archive. */
 const RETENTION_DAYS = 90;
 
+/**
+ * Visitor-days outlive the raw events: they're what answers "how many
+ * different people this year" and "is this visitor new", so they cover a
+ * 12-month range plus the previous one it's compared against.
+ */
+export const VISITOR_RETENTION_DAYS = 800;
+
 /** Cap on named values per day and dimension; the rest goes to `__other__`. */
 const TOP_N = 100;
 
 /** A visit with no known country: without it, the breakdown wouldn't add up to the total. */
 export const UNKNOWN = '__unknown__';
+
+/** Every breakdown of `visits` cut to the top-N, in the order they're written. */
+const VISIT_DIMENSIONS = [
+  'country',
+  'region',
+  'city',
+  'channel',
+  'source',
+  'campaign',
+  'device',
+  'browser',
+  'os',
+  'language',
+  'screen',
+  'landing',
+  'exit',
+  'acquisition',
+];
+
+/**
+ * A region is only meaningful with its country: "L" is La Paz in Bolivia and
+ * Lima in Peru. Written as ISO 3166-2, `BO-L`.
+ */
+export function regionValue(country: string | null, region: string | null): string {
+  if (!region) return UNKNOWN;
+  return country ? `${country}-${region}` : region;
+}
+
+/** Same with cities: there's a Córdoba in Argentina and another in Spain. */
+export function cityValue(country: string | null, city: string | null): string {
+  if (!city) return UNKNOWN;
+  return (country ? `${city}, ${country}` : city).slice(0, 512);
+}
 
 /** Separates page, section and label in the value of the `element` dimension. */
 export const ELEMENT_SEPARATOR = ' | ';
@@ -59,8 +112,26 @@ export const ELEMENT_SEPARATOR = ' | ';
  * back unambiguously.
  */
 export function elementKey(path: string, section: string, label: string): string {
-  const clean = (part: string) => part.replace(/\|/g, '/').trim();
-  return [clean(path), clean(section), clean(label)].join(ELEMENT_SEPARATOR).slice(0, 512);
+  return compositeKey([path, section, label]);
+}
+
+/**
+ * The value of the `acquisition` dimension: how a visit arrived and where it
+ * landed, "Organic Search | google.com | /es/servicios".
+ *
+ * Same reason as `elementKey`: channel, source and landing page in three
+ * separate dimensions would lose which source brought people to which page.
+ */
+export function acquisitionKey(channel: string, source: string, landing: string): string {
+  return compositeKey([channel, source, landing]);
+}
+
+/** Joins parts with the separator, stripping it from each so it splits back cleanly. */
+function compositeKey(parts: string[]): string {
+  return parts
+    .map((part) => part.replace(/\|/g, '/').trim())
+    .join(ELEMENT_SEPARATOR)
+    .slice(0, 512);
 }
 
 interface RollupProject {
@@ -75,17 +146,31 @@ interface DayTotals {
   page_views: bigint;
   site_clicks: bigint;
   clicks: bigint;
+  custom_events: bigint;
+  conversions: bigint;
 }
 
-/** The first signal of each visit in the day: country, source and hour come from it. */
+/**
+ * Each visit of the day as it started: country, source, device and hour come
+ * from its first event; landing and exit from its first and last page view.
+ */
 interface VisitStart {
   day: Date;
   hour: number;
   country: string | null;
+  region: string | null;
+  city: string | null;
+  device: string | null;
+  browser: string | null;
+  os: string | null;
+  language: string | null;
+  screen: string | null;
   referrer: string | null;
   utm_source: string | null;
   utm_medium: string | null;
   utm_campaign: string | null;
+  landing: string | null;
+  exit: string | null;
 }
 
 interface DayHourCount {
@@ -230,6 +315,12 @@ export class EventRollupService implements OnModuleDestroy {
     const rows = await this.aggregate(project, from, to);
     if (rows.length === 0) return null;
 
+    // Visitors go after the aggregate on purpose: only the days that still
+    // have raw events are rewritten, and "new" depends on the days before.
+    const days = rows.filter((r) => r.metricKey === 'visits' && r.dimension === TOTAL_DIMENSION).map((r) => r.date);
+    await this.refreshVisitors(project, days);
+    rows.push(...(await this.newVisitorRows(project, days)));
+
     const startedAt = Date.now();
     const run = await this.runFor(project, from, to, live);
 
@@ -289,7 +380,10 @@ export class EventRollupService implements OnModuleDestroy {
     });
   }
 
-  /** Deletes raw events that are no longer useful for recomputing anything. */
+  /**
+   * Deletes raw events that are no longer useful for recomputing anything,
+   * and visitor-days older than the longest range the panel compares.
+   */
   @Cron('0 30 3 * * *', { timeZone: 'America/La_Paz', name: 'event-retention' })
   async prune(): Promise<void> {
     const cutoff = new Date(Date.now() - RETENTION_DAYS * 86_400_000);
@@ -298,6 +392,14 @@ export class EventRollupService implements OnModuleDestroy {
     });
 
     if (count > 0) this.logger.log(`Deleted ${count} events older than ${RETENTION_DAYS} days`);
+
+    const visitorCutoff = new Date(Date.now() - VISITOR_RETENTION_DAYS * 86_400_000);
+    const visitors = await this.prisma.visitorDaily.deleteMany({
+      where: { date: { lt: visitorCutoff } },
+    });
+    if (visitors.count > 0) {
+      this.logger.log(`Deleted ${visitors.count} visitor-days older than ${VISITOR_RETENTION_DAYS} days`);
+    }
   }
 
   /**
@@ -318,12 +420,16 @@ export class EventRollupService implements OnModuleDestroy {
     const guardFrom = toUtcDate(addDays(from, -1));
     const guardTo = toUtcDate(addDays(to, 2));
 
+    const goals = await this.goalsOf(project);
+
     const totals = await this.prisma.$queryRaw<DayTotals[]>`
       SELECT (occurred_at AT TIME ZONE 'UTC' AT TIME ZONE ${tz})::date AS day,
              count(DISTINCT session_id)                     AS visits,
              count(*) FILTER (WHERE type = 'PAGE_VIEW')     AS page_views,
              count(*) FILTER (WHERE type = 'SITE_CLICK')    AS site_clicks,
-             count(*) FILTER (WHERE type IN ('CLICK', 'SITE_CLICK')) AS clicks
+             count(*) FILTER (WHERE type IN ('CLICK', 'SITE_CLICK')) AS clicks,
+             count(*) FILTER (WHERE type = 'CUSTOM')        AS custom_events,
+             count(*) FILTER (WHERE type = 'CUSTOM' AND name = ANY(${goals}::varchar[])) AS conversions
         FROM site_event
        WHERE project_id = ${project.id}
          AND occurred_at >= ${guardFrom} AND occurred_at < ${guardTo}
@@ -333,6 +439,13 @@ export class EventRollupService implements OnModuleDestroy {
 
     const rows: MetricRow[] = [];
 
+    // A metric is only written when it means something here. A site that
+    // never sends custom events doesn't have "0 custom events", and a project
+    // with no goals doesn't have "0 conversions": the panel would draw a
+    // flat line for something nobody measures.
+    const sendsCustomEvents = totals.some((day) => day.custom_events > 0n);
+    const hasGoals = goals.length > 0;
+
     for (const day of totals) {
       const date = this.isoDay(day.day);
       rows.push(
@@ -341,6 +454,8 @@ export class EventRollupService implements OnModuleDestroy {
         this.total(date, 'site_clicks', day.site_clicks),
         this.total(date, 'clicks', day.clicks),
       );
+      if (sendsCustomEvents) rows.push(this.total(date, 'custom_events', day.custom_events));
+      if (hasGoals) rows.push(this.total(date, 'conversions', day.conversions));
     }
 
     const byTarget = await this.breakdown(project, from, to, 'SITE_CLICK', 'target');
@@ -350,6 +465,7 @@ export class EventRollupService implements OnModuleDestroy {
     const clicksByElement = await this.clickBreakdown(project, from, to, 'element');
     const visitStarts = await this.visitStarts(project, from, to);
     const pageViewsByHour = await this.pageViewsByHour(project, from, to);
+    const byEvent = sendsCustomEvents ? await this.eventBreakdown(project, from, to) : [];
 
     rows.push(
       // Which group site the click goes to: the portfolio's reason for being.
@@ -391,9 +507,120 @@ export class EventRollupService implements OnModuleDestroy {
         dimValue: this.hourValue(row.hour),
         value: Number(row.total),
       })),
+      // Which custom events happen, and which of them are conversions. Both
+      // metrics share the `event` dimension, so a row reads "12 sent, 12 goals".
+      ...collapseToTopN(this.dimRows(byEvent, 'custom_events', 'event'), {
+        dimension: 'event',
+        topN: TOP_N,
+        rankBy: 'custom_events',
+      }),
+      ...(hasGoals
+        ? collapseToTopN(
+            this.dimRows(
+              byEvent.filter((row) => row.dim_value !== null && goals.includes(row.dim_value)),
+              'conversions',
+              'event',
+            ),
+            { dimension: 'event', topN: TOP_N, rankBy: 'conversions' },
+          )
+        : []),
     );
 
     return rows;
+  }
+
+  /** Names of the project's active conversion goals. */
+  private async goalsOf(project: RollupProject): Promise<string[]> {
+    const goals = await this.prisma.conversionGoal.findMany({
+      where: { projectId: project.id, active: true },
+      select: { eventName: true },
+    });
+    return goals.map((g) => g.eventName);
+  }
+
+  private eventBreakdown(project: RollupProject, from: IsoDate, to: IsoDate): Promise<DayDimCount[]> {
+    const tz = project.timezone;
+    const guardFrom = toUtcDate(addDays(from, -1));
+    const guardTo = toUtcDate(addDays(to, 2));
+
+    return this.prisma.$queryRaw<DayDimCount[]>`
+      SELECT (occurred_at AT TIME ZONE 'UTC' AT TIME ZONE ${tz})::date AS day,
+             name AS dim_value,
+             count(*) AS total
+        FROM site_event
+       WHERE project_id = ${project.id}
+         AND type = 'CUSTOM'
+         AND name IS NOT NULL
+         AND occurred_at >= ${guardFrom} AND occurred_at < ${guardTo}
+         AND (occurred_at AT TIME ZONE 'UTC' AT TIME ZONE ${tz})::date
+             BETWEEN ${toUtcDate(from)}::date AND ${toUtcDate(to)}::date
+       GROUP BY 1, 2`;
+  }
+
+  /**
+   * Rewrites the visitor-days of the given days from the raw events.
+   *
+   * Only days that still have events are touched: those are the ones the
+   * aggregate found. A day whose raw events were already pruned keeps its
+   * visitors, which is the whole point of the table outliving `site_event`.
+   * Delete and insert go in one transaction so a read never sees the day empty.
+   */
+  private async refreshVisitors(project: RollupProject, days: IsoDate[]): Promise<void> {
+    if (days.length === 0) return;
+    const tz = project.timezone;
+    const dates = days.map(toUtcDate);
+    const sorted = [...days].sort();
+    const guardFrom = toUtcDate(addDays(sorted[0], -1));
+    const guardTo = toUtcDate(addDays(sorted[sorted.length - 1], 2));
+
+    await this.prisma.$transaction([
+      this.prisma.$executeRaw`
+        DELETE FROM visitor_daily
+         WHERE project_id = ${project.id}
+           AND date = ANY(${dates}::date[])`,
+      this.prisma.$executeRaw`
+        INSERT INTO visitor_daily (project_id, date, visitor_id)
+        SELECT DISTINCT ${project.id}, day, visitor_id
+          FROM (
+            SELECT visitor_id,
+                   (occurred_at AT TIME ZONE 'UTC' AT TIME ZONE ${tz})::date AS day
+              FROM site_event
+             WHERE project_id = ${project.id}
+               AND visitor_id IS NOT NULL
+               AND occurred_at >= ${guardFrom} AND occurred_at < ${guardTo}
+          ) AS local
+         WHERE day = ANY(${dates}::date[])
+        ON CONFLICT DO NOTHING`,
+    ]);
+  }
+
+  /**
+   * Visitors seen for the first time on each day of the window.
+   *
+   * Additive, unlike unique visitors: a visitor is new exactly once. Written
+   * only for days with identified visitors — a day of v1 beacons has none, and
+   * "0 new visitors" would be a guess, not a count. The first day a site
+   * sends v2, every visitor is new: there is no earlier history to know them by.
+   *
+   * Like the visitor-days, only for the days that still have raw events: the
+   * rest of the window is left as the last rollup that could see it wrote it.
+   */
+  private async newVisitorRows(project: RollupProject, days: IsoDate[]): Promise<MetricRow[]> {
+    if (days.length === 0) return [];
+    const counts = await this.prisma.$queryRaw<Array<{ day: Date; fresh: bigint }>>`
+      SELECT v.date AS day,
+             count(*) FILTER (WHERE NOT EXISTS (
+               SELECT 1 FROM visitor_daily p
+                WHERE p.project_id = v.project_id
+                  AND p.visitor_id = v.visitor_id
+                  AND p.date < v.date
+             )) AS fresh
+        FROM visitor_daily v
+       WHERE v.project_id = ${project.id}
+         AND v.date = ANY(${days.map(toUtcDate)}::date[])
+       GROUP BY 1`;
+
+    return counts.map((row) => this.total(this.isoDay(row.day), 'new_visitors', row.fresh));
   }
 
   private breakdown(
@@ -484,8 +711,11 @@ export class EventRollupService implements OnModuleDestroy {
    * Each visit, counted once per day, with what it carried when it started.
    *
    * The origin only arrives on the landing page, so the session's first event
-   * of the day is taken. That way every breakdown —country, channel, source,
-   * hour— adds up to exactly the total visits.
+   * of the day is taken: country, source, device and hour come from it. The
+   * landing and exit pages are its first and last page view of the day. That
+   * way every breakdown adds up to exactly the total visits; a visit with no
+   * page view that day (only a late click) has no landing or exit, and goes
+   * to `__unknown__` in those.
    */
   private visitStarts(project: RollupProject, from: IsoDate, to: IsoDate): Promise<VisitStart[]> {
     const tz = project.timezone;
@@ -493,18 +723,43 @@ export class EventRollupService implements OnModuleDestroy {
     const guardTo = toUtcDate(addDays(to, 2));
 
     return this.prisma.$queryRaw<VisitStart[]>`
-      SELECT DISTINCT ON (day, session_id)
-             day, hour, country, referrer, utm_source, utm_medium, utm_campaign
-        FROM (
-          SELECT session_id, occurred_at, country, referrer, utm_source, utm_medium, utm_campaign,
-                 (occurred_at AT TIME ZONE 'UTC' AT TIME ZONE ${tz})::date AS day,
-                 extract(hour FROM occurred_at AT TIME ZONE 'UTC' AT TIME ZONE ${tz})::int AS hour
-            FROM site_event
-           WHERE project_id = ${project.id}
-             AND occurred_at >= ${guardFrom} AND occurred_at < ${guardTo}
-        ) AS local
-       WHERE day BETWEEN ${toUtcDate(from)}::date AND ${toUtcDate(to)}::date
-       ORDER BY day, session_id, occurred_at`;
+      WITH local AS (
+        SELECT session_id, type, path, occurred_at,
+               country, region, city, device, browser, os, language, screen,
+               referrer, utm_source, utm_medium, utm_campaign,
+               (occurred_at AT TIME ZONE 'UTC' AT TIME ZONE ${tz})::date AS day,
+               extract(hour FROM occurred_at AT TIME ZONE 'UTC' AT TIME ZONE ${tz})::int AS hour
+          FROM site_event
+         WHERE project_id = ${project.id}
+           AND occurred_at >= ${guardFrom} AND occurred_at < ${guardTo}
+      ),
+      in_window AS (
+        SELECT * FROM local
+         WHERE day BETWEEN ${toUtcDate(from)}::date AND ${toUtcDate(to)}::date
+      ),
+      starts AS (
+        SELECT DISTINCT ON (day, session_id) *
+          FROM in_window
+         ORDER BY day, session_id, occurred_at
+      ),
+      landings AS (
+        SELECT DISTINCT ON (day, session_id) day, session_id, path AS landing
+          FROM in_window
+         WHERE type = 'PAGE_VIEW'
+         ORDER BY day, session_id, occurred_at
+      ),
+      exits AS (
+        SELECT DISTINCT ON (day, session_id) day, session_id, path AS exit
+          FROM in_window
+         WHERE type = 'PAGE_VIEW'
+         ORDER BY day, session_id, occurred_at DESC
+      )
+      SELECT s.day, s.hour, s.country, s.region, s.city, s.device, s.browser, s.os,
+             s.language, s.screen, s.referrer, s.utm_source, s.utm_medium, s.utm_campaign,
+             l.landing, e.exit
+        FROM starts s
+        LEFT JOIN landings l USING (day, session_id)
+        LEFT JOIN exits e USING (day, session_id)`;
   }
 
   private pageViewsByHour(project: RollupProject, from: IsoDate, to: IsoDate): Promise<DayHourCount[]> {
@@ -525,7 +780,7 @@ export class EventRollupService implements OnModuleDestroy {
        GROUP BY 1, 2`;
   }
 
-  /** Visits by country, channel, source, campaign and hour, from their start. */
+  /** Visits broken down by everything they carried when they started. */
   private visitRows(starts: VisitStart[]): MetricRow[] {
     const counts = new Map<string, MetricRow>();
     const add = (date: IsoDate, dimension: string, dimValue: string) => {
@@ -542,10 +797,23 @@ export class EventRollupService implements OnModuleDestroy {
         utmSource: start.utm_source,
         utmMedium: start.utm_medium,
       };
+      const channel = channelOf(origin);
+      const source = sourceOf(origin).slice(0, 512);
+
       add(date, 'country', start.country ?? UNKNOWN);
-      add(date, 'channel', channelOf(origin));
-      add(date, 'source', sourceOf(origin).slice(0, 512));
+      add(date, 'region', regionValue(start.country, start.region));
+      add(date, 'city', cityValue(start.country, start.city));
+      add(date, 'channel', channel);
+      add(date, 'source', source);
       add(date, 'hour', this.hourValue(start.hour));
+      add(date, 'device', start.device ?? UNKNOWN);
+      add(date, 'browser', start.browser ?? UNKNOWN);
+      add(date, 'os', start.os ?? UNKNOWN);
+      add(date, 'language', start.language ?? UNKNOWN);
+      add(date, 'screen', start.screen ?? UNKNOWN);
+      add(date, 'landing', start.landing ?? UNKNOWN);
+      add(date, 'exit', start.exit ?? UNKNOWN);
+      add(date, 'acquisition', acquisitionKey(channel, source, start.landing ?? UNKNOWN));
       // Only visits that came from a campaign: the rest don't have one.
       if (start.utm_campaign) add(date, 'campaign', start.utm_campaign);
     }
@@ -557,10 +825,8 @@ export class EventRollupService implements OnModuleDestroy {
         { dimension, topN: TOP_N, rankBy: 'visits' },
       );
     return [
-      ...top('country'),
-      ...top('channel'),
-      ...top('source'),
-      ...top('campaign'),
+      ...VISIT_DIMENSIONS.flatMap(top),
+      // 24 values at most: no need to truncate.
       ...rows.filter((r) => r.dimension === 'hour'),
     ];
   }
