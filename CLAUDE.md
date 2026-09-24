@@ -93,6 +93,15 @@ de salida puede exponer `credential.ciphertext`.
   canal, fuente, campaña y hora salen de ahí (`visitStarts`), para que cada
   desglose de `visits` sume el total. El país lo resuelve el hosting del sitio;
   del origen solo llega el dominio, nunca la URL entera.
+- **Un beacon repetido se guarda una vez.** En la v2 cada evento lleva un
+  `eventId` (UUID del navegador) y `site_event` tiene un índice único
+  `(project_id, event_id)`; `createMany({ skipDuplicates })` descarta la copia.
+  Los eventos v1 no lo traen y tienen NULL, que nunca choca en un índice único.
+- **La ingesta se limita por clave, no por IP**, y el login por cuenta, no por
+  IP (`src/common/throttle.ts`). Los sitios comparten IPs de su hosting, y el
+  panel inicia sesión siempre desde su propio servidor: limitar por IP
+  castigaría a todos a la vez. El contador vive en memoria, como la
+  consolidación en vivo.
 - **La clave nunca baja al navegador.** El sitio manda los beacons a una ruta
   suya y esa ruta llama al hub. Publicar la clave en el cliente sería dejar que
   cualquiera escriba métricas de ese proyecto.

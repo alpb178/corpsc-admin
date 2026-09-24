@@ -1,5 +1,7 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
+import { LOGIN_ATTEMPTS, LOGIN_WINDOW_MS, LoginThrottlerGuard } from '../common/throttle';
 import { Role } from '@prisma/client';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -15,6 +17,8 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Post('login')
+  @UseGuards(LoginThrottlerGuard)
+  @Throttle({ default: { limit: LOGIN_ATTEMPTS, ttl: LOGIN_WINDOW_MS } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Logs in and returns a JWT' })
   login(@Body() dto: LoginDto) {
