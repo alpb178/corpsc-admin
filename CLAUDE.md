@@ -154,6 +154,15 @@ de salida puede exponer `credential.ciphertext`.
   `?rango=` / `?sitios=` se siguen leyendo como alias. No quitar ni lo uno ni lo
   otro: hay enlaces compartidos y marcadores con las rutas viejas.
 
+- **La navegación es un drawer, como el admin de Tu Chamba** (`components/AppDrawer.tsx`):
+  Dashboard, un elemento por proyecto —sale de `GET /projects`, así que un
+  proyecto nuevo aparece solo— y las herramientas. Riel de 64 px que se abre
+  al pasar el ratón; en táctil, ☰ lo fija; en el móvil el riel se oculta y ☰
+  es la entrada. Cada menú recuerda la página en la que se abrió, y navegar lo
+  cierra sin un efecto que haga `setState` (lo prohíbe el lint del React
+  Compiler). Los enlaces conservan `?range=`.
+- **Los tests del panel corren con Vitest y Testing Library** (`pnpm test`).
+  `server-only` se sustituye por un módulo vacío en `vitest.config.mts`.
 - **La seguridad vive en `lib/dal.ts`, no en `proxy.ts`.** La documentación de
   Next 16 es explícita: el proxy es capa de experiencia. Las Server Functions
   se ejecutan como POST contra su propia ruta, así que un cambio de `matcher`

@@ -1,0 +1,26 @@
+import { fileURLToPath } from 'node:url';
+import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // `server-only` throws outside a React Server Component build: in tests
+      // the modules that import it are exercised directly.
+      'server-only': fileURLToPath(new URL('./test/empty.ts', import.meta.url)),
+    },
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    include: ['src/**/*.test.{ts,tsx}'],
+    setupFiles: ['./test/setup.ts'],
+    coverage: {
+      provider: 'v8',
+      include: ['src/lib/**/*.ts', 'src/components/**/*.tsx'],
+      exclude: ['src/**/*.test.*'],
+    },
+  },
+});
