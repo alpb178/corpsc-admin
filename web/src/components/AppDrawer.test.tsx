@@ -41,6 +41,22 @@ describe('AppDrawer', () => {
     expect(screen.getByText('contenido')).toBeTruthy();
   });
 
+  it("shows each site's logo, and initials for one without", () => {
+    render(
+      <AppDrawer projects={[...PROJECTS, { slug: 'nuevo-sitio', name: 'Nuevo Sitio' }]} user={ADMIN}>
+        <p>contenido</p>
+      </AppDrawer>,
+    );
+
+    const logo = within(menu()).getByTitle('CORPSC').querySelector('img');
+    expect(logo?.getAttribute('src')).toContain('project-icons%2Fcorpsc.png');
+    // Decorative: the link's label already names the site.
+    expect(logo?.getAttribute('alt')).toBe('');
+    const fresh = within(menu()).getByTitle('Nuevo Sitio');
+    expect(fresh.querySelector('img')).toBeNull();
+    expect(within(fresh).getByText('NS')).toBeTruthy();
+  });
+
   it('marks the current page', () => {
     nav.pathname = '/projects/tu-chamba';
     renderDrawer();
