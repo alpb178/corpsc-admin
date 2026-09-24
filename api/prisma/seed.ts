@@ -69,6 +69,9 @@ const METRICS: MetricSeed[] = [
   // be worse than not showing it. `visits` IS summable: someone who comes
   // back on three days made three visits.
   { key: 'visits',        label: 'Visitas',          labelEn: 'Visits',      unit: MetricUnit.COUNT, sortOrder: 10 },
+  // Additive, unlike unique visitors: someone is new only once, on one day.
+  // Unique visitors are counted at read time from `visitor_daily`.
+  { key: 'new_visitors',  label: 'Visitantes nuevos', labelEn: 'New visitors', unit: MetricUnit.COUNT, sortOrder: 15 },
   { key: 'page_views',    label: 'Páginas vistas',   labelEn: 'Page views',  unit: MetricUnit.COUNT, sortOrder: 20 },
   { key: 'sessions',      label: 'Sesiones',         labelEn: 'Sessions',    unit: MetricUnit.COUNT, sortOrder: 30 },
 
@@ -78,6 +81,9 @@ const METRICS: MetricSeed[] = [
   { key: 'ad_views',      label: 'Anuncios vistos',  labelEn: 'Ad views',    unit: MetricUnit.COUNT,    sortOrder: 80 },
   { key: 'clicks',        label: 'Clics',            labelEn: 'Clicks',      unit: MetricUnit.COUNT, sortOrder: 85 },
   { key: 'site_clicks',   label: 'Clics a otros sitios', labelEn: 'Site clicks', unit: MetricUnit.COUNT, sortOrder: 90 },
+  { key: 'custom_events', label: 'Eventos personalizados', labelEn: 'Custom events', unit: MetricUnit.COUNT, sortOrder: 95 },
+  // Custom events a project marks as goals in `conversion_goal`.
+  { key: 'conversions',   label: 'Conversiones',     labelEn: 'Conversions', unit: MetricUnit.COUNT, sortOrder: 105 },
 
   { key: 'orders',        label: 'Pedidos',          labelEn: 'Orders',      unit: MetricUnit.COUNT,    sortOrder: 110 },
   { key: 'orders_paid',   label: 'Pedidos cobrados', labelEn: 'Paid orders', unit: MetricUnit.COUNT,    sortOrder: 120 },

@@ -88,9 +88,11 @@ model Project {
   createdAt    DateTime    @default(now()) @map("created_at")
   updatedAt    DateTime    @updatedAt @map("updated_at")
 
-  metrics MetricDaily[]
-  runs    IngestionRun[]
-  events  SiteEvent[]
+  metrics  MetricDaily[]
+  runs     IngestionRun[]
+  events   SiteEvent[]
+  visitors VisitorDaily[]
+  goals    ConversionGoal[]
 
   @@index([active, sortOrder])
   @@map("project")
@@ -263,8 +265,43 @@ model SiteEvent {
   occurredAt DateTime @map("occurred_at")
   receivedAt DateTime @default(now()) @map("received_at")
 
+  // ── Contract v2. Every column is optional: v1 senders keep working while
+  // the five sites migrate one by one. ──
+
+  /// Issued by the browser, so a beacon sent twice —a retry, a remount— is
+  /// stored once. NULL on v1 events: Postgres treats NULLs as distinct, so the
+  /// unique index doesn't reject them.
+  eventId   String? @map("event_id") @db.Uuid
+  /// Random first-party identifier of the browser, issued by the site's
+  /// server. It's what lets unique, new and returning visitors be told apart;
+  /// it doesn't identify a person.
+  visitorId String? @map("visitor_id") @db.VarChar(64)
+
+  /// Only on CUSTOM: the event name (`contact_submit`, `add_to_cart`…) and
+  /// its small, non-personal properties.
+  name  String? @db.VarChar(64)
+  props Json?
+
+  /// Resolved by the site's hosting from the IP, like `country`. The IP never
+  /// leaves the site.
+  region String? @db.VarChar(8)
+  city   String? @db.VarChar(100)
+
+  /// Coarse families parsed from the user agent on the site's server. The
+  /// user agent itself is never sent.
+  device  String? @db.VarChar(16)
+  browser String? @db.VarChar(32)
+  os      String? @db.VarChar(32)
+
+  /// Primary browser language (`es`, `pt`) and screen width bucket.
+  language String? @db.VarChar(8)
+  screen   String? @db.VarChar(16)
+
   // The rollup query: one project, a window of days.
   @@index([projectId, occurredAt])
+  // Real time across the whole group: the last few minutes of every project.
+  @@index([occurredAt])
+  @@unique([projectId, eventId])
   @@map("site_event")
 }
 
@@ -274,6 +311,46 @@ enum SiteEventType {
   SITE_CLICK
   /// Click on a link or button on the page itself.
   CLICK
+  /// Named event the site defines: a form sent, a WhatsApp order…
+  CUSTOM
+}
+
+/// One row per visitor and day in which they were seen.
+///
+/// Unique visitors can't be summed day by day —someone who comes on three days
+/// would count three times— so they're counted at read time, as distinct
+/// visitors over this table. It's far smaller than `site_event` (one row per
+/// visitor-day, not per event) and outlives its 90 days, so a 12-month range
+/// still has an answer. A visitor is new on the first date they appear here.
+model VisitorDaily {
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String   @map("project_id")
+  /// Calendar day in the project's timezone.
+  date      DateTime @db.Date
+  visitorId String   @map("visitor_id") @db.VarChar(64)
+
+  @@id([projectId, date, visitorId])
+  // "When was this visitor first seen?": new versus returning.
+  @@index([projectId, visitorId, date])
+  @@map("visitor_daily")
+}
+
+/// Custom events a project counts as conversions.
+///
+/// It's configuration, not data: the site sends `contact_submit` like any
+/// other event, and whether that's a conversion is decided here, so changing
+/// the goal doesn't require redeploying the site.
+model ConversionGoal {
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String   @map("project_id")
+  eventName String   @map("event_name") @db.VarChar(64)
+  label     String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@id([projectId, eventName])
+  @@map("conversion_goal")
 }
 
 // ─────────────────────── Run tracking ───────────────────────
