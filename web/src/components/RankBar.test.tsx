@@ -41,3 +41,10 @@ describe('RankBar', () => {
     expect(screen.getAllByRole('listitem')).toHaveLength(1);
   });
 });
+
+describe('RankBar labels', () => {
+  it('uses the label function it is given', () => {
+    render(<RankBar title="Idiomas" slices={[{ value: 'es', metrics: { visits: 1 } }]} metricKey="visits" labelOf={(v) => `idioma ${v}`} />);
+    expect(screen.getByText('idioma es')).toBeTruthy();
+  });
+});

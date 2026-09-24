@@ -123,3 +123,44 @@ export function labelDimension(value: string): string {
 
   return value;
 }
+
+const languageNames =
+  typeof Intl.DisplayNames === 'function'
+    ? new Intl.DisplayNames([LOCALE], { type: 'language' })
+    : null;
+
+/** `es` → "español". Reserved values and unknown codes as `labelDimension`. */
+export function labelLanguage(value: string): string {
+  if (value in RESERVED) return RESERVED[value];
+  try {
+    const name = languageNames?.of(value);
+    if (name && name !== value) return name;
+  } catch {
+    // Not a language code: shown as is.
+  }
+  return value;
+}
+
+/** The viewport buckets of the tracker, in words. */
+const SCREENS: Record<string, string> = {
+  xs: 'Móvil (< 576 px)',
+  sm: 'Móvil grande (576–767 px)',
+  md: 'Tableta (768–991 px)',
+  lg: 'Portátil (992–1199 px)',
+  xl: 'Escritorio (1200–1439 px)',
+  xxl: 'Pantalla grande (≥ 1440 px)',
+};
+
+export function labelScreen(value: string): string {
+  return SCREENS[value] ?? labelDimension(value);
+}
+
+/**
+ * "BO-L" → "L · Bolivia". The subdivision code alone is ambiguous ("L" is La
+ * Paz in Bolivia and Lima in Peru), so its country goes with it.
+ */
+export function labelRegion(value: string): string {
+  const match = /^([A-Z]{2})-(.+)$/.exec(value);
+  if (!match) return labelDimension(value);
+  return `${match[2]} · ${labelDimension(match[1])}`;
+}
