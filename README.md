@@ -69,7 +69,22 @@ GET /api/metrics/compare?slugs=a,b&metric=sessions   una métrica, varios sitios
 GET /api/metrics/definitions                         catálogo de métricas
 GET /api/metrics/freshness                           quién ha enviado y cuándo
 GET /api/metrics/runs                                últimos envíos recibidos
+GET /api/metrics/visitors?from=&to=&project=         visitantes únicos, nuevos y recurrentes
+GET /api/metrics/realtime?project=&minutes=5         activos ahora y últimos eventos
+GET /api/projects/:slug/goals                        objetivos de conversión del sitio
+PUT /api/projects/:slug/goals/:eventName             marcar un evento como conversión (admin)
+DELETE /api/projects/:slug/goals/:eventName          dejar de contarlo (admin)
 ```
+
+Los **visitantes únicos** no se suman día a día —quien vuelve tres días
+contaría tres veces—: se cuentan al leer sobre `visitor_daily`. En el grupo, un
+visitante es un par (sitio, visitante): cada sitio emite su propia cookie, así
+que la misma persona en dos sitios cuenta dos veces. `since` dice desde qué día
+hay visitantes identificados (beacons v2).
+
+El **tiempo real** es la única vista que no pasa por `metric_daily`: lee los
+últimos minutos de `site_event` directamente, y el panel lo consulta cada pocos
+segundos.
 
 `compare=true` añade la comparación con el periodo anterior de la misma
 duración, con un campo `improved` por métrica.
