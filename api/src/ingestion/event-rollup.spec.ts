@@ -682,3 +682,32 @@ describe('live window', () => {
     }
   });
 });
+
+describe('nightly rollup', () => {
+  it('rolls up every active project, and one failing leaves the others alone', async () => {
+    const other = { id: 'missing-project', slug: 'test-event-rollup-broken', timezone: TZ };
+    const findMany = vi.spyOn(prisma.project, 'findMany').mockResolvedValueOnce([project, other] as never);
+    const rollup = vi
+      .spyOn(service, 'rollup')
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValueOnce({ rowsWritten: 3, rowsDeleted: 0 });
+    try {
+      await service.rollupAll();
+      expect(rollup.mock.calls.map(([p]) => p.slug)).toEqual([project.slug, other.slug]);
+    } finally {
+      findMany.mockRestore();
+      rollup.mockRestore();
+    }
+  });
+
+  it("rolls up the project's last days", async () => {
+    await seedEvents([
+      { type: SiteEventType.PAGE_VIEW, sessionId: 'session-now-aaa', at: new Date().toISOString() },
+    ]);
+
+    const result = await service.rollup(project);
+
+    expect(result?.rowsWritten).toBeGreaterThan(0);
+    expect(await valueOf('visits')).toBe(1);
+  });
+});
