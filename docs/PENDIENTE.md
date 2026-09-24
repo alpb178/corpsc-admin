@@ -8,19 +8,21 @@ cinco sitios. Esto es lo que falta, en el orden en que conviene hacerlo.
 [#32](https://github.com/alpb178/corpsc-admin/pull/32) se mergeó el
 2026-09-24 con los tres jobs del CI en verde. `develop` está en verde.
 
-## 2. Fase 0 — endurecer la API y el panel (P0)
+## 2. ~~Fase 0 — endurecer la API y el panel~~ — hecho
 
-En curso: [#34](https://github.com/alpb178/corpsc-admin/pull/34) (`fix/production-hardening`).
+Mergeada en [#34](https://github.com/alpb178/corpsc-admin/pull/34). Queda comprobar en
+Render que el servicio tenga `NODE_ENV=production` (o nada): el Blueprint solo
+lo aplica al sincronizar.
 
-- [ ] Swagger (`/docs`) solo fuera de producción — hoy es público
+- [x] Swagger (`/docs`) solo fuera de producción
       (`api/src/main.ts`).
-- [ ] `/health/db` responde `{ database: 'down' }` sin el mensaje de Postgres
+- [x] `/health/db` responde `{ database: 'down' }` sin el mensaje de Postgres
       (`api/src/health/health.service.ts`).
-- [ ] CORS: aceptar `http://localhost:*` solo fuera de producción
+- [x] CORS: aceptar `http://localhost:*` solo fuera de producción
       (`api/src/main.ts`; sacar la lógica a una función con test).
-- [ ] Login del panel: un 429 debe decir "Demasiados intentos, espera unos
+- [x] Login del panel: un 429 debe decir "Demasiados intentos, espera unos
       minutos" y no "Credenciales incorrectas" (`web/src/app/login/actions.ts`).
-- [ ] Tests de cada punto.
+- [x] Tests de cada punto.
 
 ## 3. Fase 6 — cerrar tests y CI
 
