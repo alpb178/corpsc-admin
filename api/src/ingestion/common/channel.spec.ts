@@ -25,6 +25,19 @@ describe('channelOf', () => {
     // The campaign takes precedence over the domain: an Instagram ad opened
     // from Google is still Instagram's.
     [origin('google.com', 'instagram', 'social'), 'Organic Social'],
+    // The sources the panel has to tell apart.
+    [origin('facebook.com'), 'Organic Social'],
+    [origin('tiktok.com'), 'Organic Social'],
+    [origin('linkedin.com'), 'Organic Social'],
+    [origin('lnkd.in'), 'Organic Social'],
+    [origin('web.whatsapp.com'), 'Organic Social'],
+    [origin('wa.me'), 'Organic Social'],
+    [origin('t.me'), 'Organic Social'],
+    [origin('web.telegram.org'), 'Organic Social'],
+    [origin('duckduckgo.com'), 'Organic Search'],
+    [origin(null, 'youtube', 'cpc'), 'Paid Video'],
+    [origin(null, 'partner', 'affiliate'), 'Affiliates'],
+    [origin(null, 'directory', 'organic'), 'Organic Search'],
   ])('%j → %s', (o, expected) => {
     expect(channelOf(o)).toBe(expected);
   });

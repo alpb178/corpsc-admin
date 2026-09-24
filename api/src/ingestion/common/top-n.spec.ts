@@ -102,3 +102,32 @@ describe('normalizeUrl', () => {
     expect(normalizeUrl('/ruta/suelta')).toBe('/ruta/suelta');
   });
 });
+
+describe('the rest-of-top bucket and currencies', () => {
+  const money = (dimValue: string, value: number, currency: string) => ({
+    date: '2026-03-01',
+    metricKey: 'revenue',
+    dimension: 'product',
+    dimValue,
+    value,
+    currency,
+  });
+
+  it('keeps the currency when everything in __other__ shares it', () => {
+    const out = collapseToTopN([money('a', 30, 'BOB'), money('b', 20, 'BOB'), money('c', 10, 'BOB')], {
+      dimension: 'product',
+      topN: 1,
+      rankBy: 'revenue',
+    });
+    expect(out.find((r) => r.dimValue === '__other__')).toMatchObject({ value: 30, currency: 'BOB' });
+  });
+
+  it('leaves it without currency when amounts in several fell into __other__', () => {
+    const out = collapseToTopN([money('a', 30, 'USD'), money('b', 20, 'USD'), money('c', 10, 'CUP')], {
+      dimension: 'product',
+      topN: 1,
+      rankBy: 'revenue',
+    });
+    expect(out.find((r) => r.dimValue === '__other__')?.currency).toBeUndefined();
+  });
+});

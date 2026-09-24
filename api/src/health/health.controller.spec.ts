@@ -27,6 +27,11 @@ describe('HealthController', () => {
     await expect(controller.checkDatabase()).resolves.toEqual({ database: 'up' });
   });
 
+  it('responds 503 whatever the driver throws', async () => {
+    prismaMock.$queryRaw.mockRejectedValueOnce('socket hang up');
+    await expect(controller.checkDatabase()).rejects.toMatchObject({ status: 503 });
+  });
+
   it('responds 503 when the database fails', async () => {
     prismaMock.$queryRaw.mockRejectedValueOnce(new Error('connection refused'));
     await expect(controller.checkDatabase()).rejects.toMatchObject({ status: 503 });

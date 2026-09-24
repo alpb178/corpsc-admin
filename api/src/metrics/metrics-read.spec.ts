@@ -175,6 +175,32 @@ describe('MetricsService.overview', () => {
   });
 });
 
+describe('MetricsService.compareProjects', () => {
+  it('refuses to add money in different currencies', async () => {
+    await prisma.project.update({ where: { id: alpha.id }, data: { currency: 'USD' } });
+    await prisma.project.update({ where: { id: beta.id }, data: { currency: 'BOB' } });
+    await prisma.metricDefinition.upsert({
+      where: { key: 'revenue' },
+      update: {},
+      create: { key: 'revenue', label: 'Ingresos', unit: 'CURRENCY' },
+    });
+    try {
+      await expect(metrics.compareProjects([alpha.slug, beta.slug], 'revenue', RANGE)).rejects.toThrow(
+        /monedas distintas/,
+      );
+      // One currency is fine.
+      await expect(metrics.compareProjects([alpha.slug], 'revenue', RANGE)).resolves.toBeTruthy();
+    } finally {
+      await prisma.project.updateMany({ where: { id: { in: [alpha.id, beta.id] } }, data: { currency: null } });
+    }
+  });
+
+  it('caps how many sites can be compared at once', async () => {
+    const many = Array.from({ length: 15 }, (_, i) => `site-${i}`);
+    await expect(metrics.compareProjects(many, 'visits', RANGE)).rejects.toThrow(/Como mucho/);
+  });
+});
+
 describe('MetricsService.project', () => {
   it('returns the v2 breakdowns and the visitors of the site', async () => {
     await metric(alpha.id, '2031-05-10', 'visits', 4);

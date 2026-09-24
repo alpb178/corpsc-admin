@@ -99,4 +99,10 @@ describe('throttling guards', () => {
     // Everyone logs in from the panel's server: someone else's account is unaffected.
     expect(await attempt('luis@corpsc.com')).toBe(200);
   });
+
+  it('counts a login without an email by address', async () => {
+    const statuses = [];
+    for (let i = 0; i < 3; i++) statuses.push(await post('/auth/login', {}, { password: 'x' }));
+    expect(statuses).toEqual([200, 200, 429]);
+  });
 });
