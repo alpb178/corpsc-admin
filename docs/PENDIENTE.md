@@ -8,24 +8,26 @@ cinco sitios. Esto es lo que falta, en el orden en que conviene hacerlo.
 [#32](https://github.com/alpb178/corpsc-admin/pull/32) se mergeó el
 2026-09-24 con los tres jobs del CI en verde. `develop` está en verde.
 
-## 2. Fase 0 — endurecer la API y el panel (P0)
+## 2. ~~Fase 0 — endurecer la API y el panel~~ — hecho
 
-En curso: [#34](https://github.com/alpb178/corpsc-admin/pull/34) (`fix/production-hardening`).
+Mergeada en [#34](https://github.com/alpb178/corpsc-admin/pull/34). Queda comprobar en
+Render que el servicio tenga `NODE_ENV=production` (o nada): el Blueprint solo
+lo aplica al sincronizar.
 
-- [ ] Swagger (`/docs`) solo fuera de producción — hoy es público
+- [x] Swagger (`/docs`) solo fuera de producción
       (`api/src/main.ts`).
-- [ ] `/health/db` responde `{ database: 'down' }` sin el mensaje de Postgres
+- [x] `/health/db` responde `{ database: 'down' }` sin el mensaje de Postgres
       (`api/src/health/health.service.ts`).
-- [ ] CORS: aceptar `http://localhost:*` solo fuera de producción
+- [x] CORS: aceptar `http://localhost:*` solo fuera de producción
       (`api/src/main.ts`; sacar la lógica a una función con test).
-- [ ] Login del panel: un 429 debe decir "Demasiados intentos, espera unos
+- [x] Login del panel: un 429 debe decir "Demasiados intentos, espera unos
       minutos" y no "Credenciales incorrectas" (`web/src/app/login/actions.ts`).
-- [ ] Tests de cada punto.
+- [x] Tests de cada punto.
 
 ## 3. Fase 6 — cerrar tests y CI
 
-- [ ] Subir el suelo de coverage de la API a 95 en `api/vitest.config.mts`
-      (hoy está en 79 y la cobertura real es 99,75 % líneas / 95,1 % branches).
+- [x] Suelo de coverage de la API a 99/99/95/100
+      ([#35](https://github.com/alpb178/corpsc-admin/pull/35)).
 - [ ] Tests del panel: de 65 % a ≥ 95 %. Sin cubrir: `lib/api.ts`,
       `lib/dal.ts`, `lib/session.ts`, `TrendChart`, `SiteNavigation`,
       `HourlyActivity`, `ProjectPicker`, `RangePicker`, `BusinessKpis`,
@@ -43,18 +45,22 @@ En curso: [#34](https://github.com/alpb178/corpsc-admin/pull/34) (`fix/productio
       que vale para rangos de hasta 90 días.
 - [ ] Rango personalizado (desde / hasta) además de los presets.
 
-## 5. Pasar a producción (orden obligatorio)
+## 5. Pasar a producción
 
-1. [ ] **Hub primero**: `develop` → `main` de corpsc-admin. Un sitio con el
-       tracker v2 apuntando a un hub que solo entiende v1 pierde todos sus
-       eventos (se rechazan con 400).
-2. [ ] `corpsc-web` a producción. Revisar su ficha en el panel un día.
-       **Las visitas bajarán**: se corrige el inflado de sesiones, no es una
-       caída real.
-3. [ ] Tu Chamba, Iris Natural, Take e Invoices.
-4. [ ] Revisión visual del panel con `pnpm dev` en escritorio y móvil
-       (Drawer, Dashboard, ficha, En vivo): no se ha podido renderizar al
-       desarrollarlo.
+1. [x] Los seis repos pasaron `develop` → `main` el 2026-09-24: hub
+       [#40](https://github.com/alpb178/corpsc-admin/pull/40), corpsc #24,
+       Tu Chamba #76, Iris #176, Take #43, Invoices #48. Los sitios se
+       mergearon unos minutos antes que el hub.
+2. [ ] Revisar la ficha de corpsc en el panel un día. **Las visitas bajarán**:
+       se corrige el inflado de sesiones, no es una caída real.
+3. [ ] Revisión visual del panel con `pnpm dev` en escritorio y móvil
+       (Drawer, Dashboard, ficha, En vivo).
+4. [ ] Tu Chamba [#73](https://github.com/alpb178/tu-chamba/pull/73) (etiquetas
+       de páginas vistas en su admin) sigue abierta.
+
+Las releases se abren desde una rama `release/<fecha>` que ya incluye `main`
+(`git merge -s ours origin/main`): los squash de releases anteriores no están
+en la historia de `develop` y una PR directa desde `develop` sale en conflicto.
 
 ## 6. Decisiones que faltan
 
@@ -64,8 +70,8 @@ En curso: [#34](https://github.com/alpb178/corpsc-admin/pull/34) (`fix/productio
       `contact_submit` (corpsc), `listing_publish` y `contact_employer` (Tu
       Chamba), `add_to_cart` y `whatsapp_order` (Iris, Take), `signup`
       (Invoices).
-- [ ] **Hosting (D5)**: confirmar si `corpsc-web`, `tu-chamba/web` e
-      `invoice-gen/frontend` están en Vercel. Si no, región y ciudad no llegan.
+- [x] **Hosting (D5)**: los cinco sitios están en Vercel (confirmado el
+      2026-09-24), así que país, región y ciudad llegan con el tracker v2.
 - [ ] **Consentimiento**: revisar el requisito legal de la cookie `hub_vid`
       (visitante, 1 año) según el mercado de cada sitio.
 
