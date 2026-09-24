@@ -27,7 +27,8 @@ pnpm start:dev
 ```
 
 API en `http://localhost:3001/api`, documentación Swagger en
-`http://localhost:3001/docs`.
+`http://localhost:3001/docs`. Swagger solo se sirve con `NODE_ENV=development`
+(viene así en `.env.example`); en producción `/docs` no existe.
 
 Las dos claves se generan así:
 

@@ -26,6 +26,13 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
     return { error: 'No se pudo contactar con la API. ¿Está levantada?' };
   }
 
+  // The API limits attempts per account. Answering "wrong credentials" here
+  // would send someone with the right password to try again and again,
+  // extending the lockout.
+  if (response.status === 429) {
+    return { error: 'Demasiados intentos. Espera unos minutos y vuelve a probar.' };
+  }
+
   if (!response.ok) {
     // The same message for an unknown email and a wrong password: the API
     // already does it this way, and telling them apart here would turn the
