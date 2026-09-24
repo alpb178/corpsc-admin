@@ -112,6 +112,20 @@ de salida puede exponer `credential.ciphertext`.
   suya y esa ruta llama al hub. Publicar la clave en el cliente sería dejar que
   cualquiera escriba métricas de ese proyecto.
 
+## El tracker (`tracker/`)
+
+- **Una fuente, cinco copias que no pueden divergir.** El código que corre en
+  los sitios se escribe y se prueba aquí (≥ 95 % de coverage, lo exige
+  `vitest.config.ts`) y se lleva a cada repo con `pnpm sync`. Cada copia lleva
+  `MANIFEST.json` e `integrity.test.ts`: editarla a mano rompe el test del sitio.
+  Antes eran cinco copias a mano y ya habían divergido.
+- **La ruta del sitio responde antes de llamar al hub** (`after()` de Next ≥
+  15.1). Esperar al hub —que en Render se duerme— retrasaba la cookie de visita
+  y cada evento de esa espera abría una sesión nueva: visitas infladas. En Next
+  14 no hay `after()` y la espera se acota a 1,5 s.
+- **Las opciones de `<HubAnalytics>` son datos, no funciones**: el componente se
+  monta desde un layout de servidor, y una función no cruza esa frontera.
+
 ## El contrato de envío
 
 - **Se valida al recibirlo**, no se confía. Lo implementan cuatro equipos en
