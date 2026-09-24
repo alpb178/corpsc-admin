@@ -17,6 +17,9 @@ export default defineConfig({
       reportsDirectory: './coverage',
       include: ['src/**/*.ts'],
       exclude: ['src/**/*.spec.ts', 'src/main.ts', 'src/**/*.module.ts'],
+      // The floor, not the goal: raised with every test PR until 95 %. CI
+      // fails if coverage drops below it.
+      thresholds: { lines: 79, statements: 78, branches: 78, functions: 68 },
     },
   },
   plugins: [
