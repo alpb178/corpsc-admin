@@ -35,7 +35,8 @@ Documento canónico: [`FLUJO-TRABAJO-DEVS.md`](./FLUJO-TRABAJO-DEVS.md).
   build), panel (typecheck, lint, tests con coverage, build) y tracker.
 - **Los umbrales de coverage son un suelo que solo sube.** Están en el
   `vitest.config` de cada paquete; un PR que añade tests los sube a lo que
-  alcanza. El objetivo es ≥ 95 % en los tres; el tracker ya lo exige.
+  alcanza. El objetivo es ≥ 95 % en los tres; la API y el tracker ya lo
+  exigen, el panel todavía no.
 
 ## Decisiones de diseño que no hay que deshacer sin querer
 
