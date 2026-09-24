@@ -197,3 +197,27 @@ export interface HubUserRow {
   lastLoginAt: string | null;
   createdAt: string;
 }
+
+/* ── Real time ── Mirror of `api/src/metrics/realtime.service.ts`. */
+
+export interface RecentEvent {
+  at: string;
+  project: { slug: string; name: string };
+  type: 'page_view' | 'click' | 'site_click' | 'custom';
+  path: string;
+  country: string | null;
+  city: string | null;
+  device: string | null;
+  /** Page views only: campaign source or referring domain. */
+  source: string | null;
+  /** Clicks: what was clicked. Custom events: their name. */
+  detail: string | null;
+}
+
+export interface RealtimeSnapshot {
+  minutes: number;
+  activeVisitors: number;
+  byProject: Array<{ slug: string; name: string; activeVisitors: number }>;
+  recent: RecentEvent[];
+  lastEventAt: string | null;
+}
