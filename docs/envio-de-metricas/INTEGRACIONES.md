@@ -82,9 +82,10 @@ igual que ya hace la consolidación con `ownedMetricKeys`.
 2. **Ajustes → Proyectos** en el panel: zona horaria (la del sitio, no la tuya)
    y moneda si factura.
 3. **Generar la clave** ahí mismo. Se enseña una sola vez.
-4. **Copiar la integración** de cualquiera de los cinco repos ya integrados: el
-   `lib/hub-analytics.ts`, el componente y `app/api/hub-track/route.ts`.
-   Montar el componente en el layout raíz.
+4. **Sincronizar el tracker** desde `corpsc-hub/tracker`:
+   `pnpm sync <repo>/src/lib/hub-tracker`. Añadir la ruta
+   `app/api/hub-track/route.ts` (tres líneas) y montar `<HubAnalytics />` en el
+   layout raíz. Detalle en [`tracker/README.md`](../../tracker/README.md).
 5. **Configurar el entorno** del front: `HUB_URL` y `HUB_API_KEY`. Nunca en una
    variable `NEXT_PUBLIC_`: quien tenga la clave puede escribir métricas de ese
    proyecto.
