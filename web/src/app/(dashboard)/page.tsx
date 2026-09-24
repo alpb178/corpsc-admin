@@ -8,7 +8,8 @@ import { StatTile } from '@/components/StatTile';
 import { RankBar } from '@/components/RankBar';
 import { TrendChart } from '@/components/charts/TrendChart';
 import { ErrorPanel, EmptyState } from '@/components/ErrorPanel';
-import type { Overview, ProjectSummary } from '@/lib/types';
+import { RealtimePanel } from '@/components/RealtimePanel';
+import type { Overview, ProjectSummary, RealtimeSnapshot } from '@/lib/types';
 
 export default async function DashboardPage({
   searchParams,
@@ -17,6 +18,9 @@ export default async function DashboardPage({
 }) {
   const preset = presetFrom(await searchParams);
   const range = resolveRange(preset);
+
+  // Real time is a bonus: if it fails, the dashboard still opens.
+  const live = api<RealtimeSnapshot>('/metrics/realtime').catch(() => null);
 
   let data: Overview;
   try {
@@ -31,6 +35,7 @@ export default async function DashboardPage({
   }
 
   const { totals, comparison, visitors, counts, breakdowns } = data;
+  const initialLive = await live;
   const hasData = Object.keys(totals).length > 0;
   const trend = visitsAndVisitors(data);
   const byProject = trafficByProject(
@@ -75,6 +80,10 @@ export default async function DashboardPage({
             <StatTile label="Países" value={counts.countries} />
             <StatTile label="Fuentes" value={counts.sources} />
           </section>
+
+          <div className="mt-3">
+            <RealtimePanel initial={initialLive} />
+          </div>
 
           <section className="mt-3 rounded-[6px] border border-line bg-card p-4">
             <h2 className="mb-3 text-[13px] font-semibold text-fg">

@@ -12,9 +12,10 @@ import { SiteNavigation } from '@/components/SiteNavigation';
 import { HourlyActivity } from '@/components/HourlyActivity';
 import { AcquisitionTable } from '@/components/AcquisitionTable';
 import { EventsTable } from '@/components/EventsTable';
+import { RealtimePanel } from '@/components/RealtimePanel';
 import { visitorsHint, visitsAndVisitors } from '@/lib/dashboard';
 import { formatMetric, labelLanguage, labelRegion, labelScreen } from '@/lib/format';
-import type { Freshness, ProjectDetail } from '@/lib/types';
+import type { Freshness, ProjectDetail, RealtimeSnapshot } from '@/lib/types';
 
 export default async function ProjectPage({
   params,
@@ -26,6 +27,9 @@ export default async function ProjectPage({
   const { slug } = await params;
   const preset = presetFrom(await searchParams);
   const range = resolveRange(preset);
+
+  // Real time is a bonus: if it fails, the page still opens.
+  const live = api<RealtimeSnapshot>('/metrics/realtime', { project: slug }).catch(() => null);
 
   let data: ProjectDetail;
   try {
@@ -41,6 +45,7 @@ export default async function ProjectPage({
   }
 
   const { project, totals, comparison, visitors, breakdowns } = data;
+  const initialLive = await live;
   const hasData = (totals.visits ?? 0) > 0 || (totals.orders ?? 0) > 0;
   const trend = visitsAndVisitors(data);
 
@@ -98,6 +103,10 @@ export default async function ProjectPage({
             </h2>
             <TrendChart data={trend.data} series={trend.series} />
           </section>
+
+          <div className="mt-3">
+            <RealtimePanel initial={initialLive} project={project.slug} />
+          </div>
 
           <SiteNavigation pages={breakdowns.path} elements={breakdowns.element ?? []} />
 

@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   compact,
+  formatAgo,
   formatChange,
   formatDay,
   formatDuration,
   formatFullDate,
   formatMetric,
   labelDimension,
+  labelEventType,
   labelLanguage,
   labelRegion,
   labelScreen,
@@ -84,5 +86,24 @@ describe('labelLanguage, labelScreen, labelRegion', () => {
     expect(labelScreen('__unknown__')).toBe('Desconocido');
     expect(labelRegion('BO-L')).toBe('L · Bolivia');
     expect(labelRegion('__unknown__')).toBe('Desconocido');
+  });
+});
+
+describe('formatAgo and labelEventType', () => {
+  const now = Date.parse('2026-09-24T15:00:00Z');
+  it.each([
+    [5_000, 'hace 5 s'],
+    [150_000, 'hace 2 min'],
+    [3 * 3_600_000, 'hace 3 h'],
+    [50 * 3_600_000, 'hace 2 d'],
+    [-4_000, 'hace 0 s'],
+  ])('%i ms ago reads "%s"', (ago, text) => {
+    expect(formatAgo(new Date(now - ago).toISOString(), now)).toBe(text);
+  });
+
+  it('reads event types in words', () => {
+    expect(labelEventType('page_view')).toBe('Visita a');
+    expect(labelEventType('site_click')).toBe('Salida a otro sitio desde');
+    expect(labelEventType('mystery')).toBe('mystery');
   });
 });
