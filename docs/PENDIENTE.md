@@ -3,35 +3,14 @@
 Estado al 2026-09-24. Lo hecho está en `develop` del hub (PRs #17–#31) y de los
 cinco sitios. Esto es lo que falta, en el orden en que conviene hacerlo.
 
-## 1. Desbloquear la PR #32 (fix del guard de claves)
+## 1. ~~Desbloquear la PR #32~~ — hecho
 
-[#32](https://github.com/alpb178/corpsc-admin/pull/32) — `fix/api-key-guard-unreadable-credential`.
-
-**Por qué importa:** con una sola credencial ilegible (clave maestra rotada, fila
-corrupta) el hub responde 500 a los cinco sitios y todos dejan de enviar sin que
-se vea ningún error. Contra el guard anterior fallan 6 de 7 tests del nuevo
-`api-key.guard.spec.ts`.
-
-**Problema:** GitHub no deja mergearla. Lo que se vio antes de parar:
-
-- En la PR solo aparecen los checks de Vercel; **no corrieron los del CI**
-  (API, Panel, Tracker).
-- GitHub devolvía `mergeable: UNKNOWN`.
-
-Sin verificar todavía. Lo primero que hay que mirar:
-
-- [ ] ¿Pide la protección de `develop` los checks del CI como obligatorios? Si
-      los pide y no han corrido, la PR queda bloqueada. La rama salió de
-      `develop` **antes** de que entrara #30 (el CI): puede bastar con
-      actualizarla (`Update branch` en GitHub, o rebase sobre `develop`) para
-      que el workflow corra.
-- [ ] ¿Hay conflicto con `develop` después de #31? No debería: #31 no toca
-      `api-key.guard.ts`.
-- [ ] Si falta una revisión aprobada, aprobarla.
+[#32](https://github.com/alpb178/corpsc-admin/pull/32) se mergeó el
+2026-09-24 con los tres jobs del CI en verde. `develop` está en verde.
 
 ## 2. Fase 0 — endurecer la API y el panel (P0)
 
-Una PR `fix/production-hardening`:
+En curso: [#34](https://github.com/alpb178/corpsc-admin/pull/34) (`fix/production-hardening`).
 
 - [ ] Swagger (`/docs`) solo fuera de producción — hoy es público
       (`api/src/main.ts`).
