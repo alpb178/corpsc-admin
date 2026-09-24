@@ -331,6 +331,9 @@ export class EventRollupService implements OnModuleDestroy {
       to,
       rows,
       ownedMetricKeys: ROLLUP_METRIC_KEYS,
+      // Only the days that still have raw events: an older one produced no
+      // rows because its events were pruned, not because nobody came.
+      onlyDates: days,
     });
 
     await this.prisma.$transaction([

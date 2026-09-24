@@ -216,6 +216,34 @@ describe('event rollup', () => {
     expect(await valueOf('orders')).toBe(7);
   });
 
+  it('keeps what was rolled up for days whose raw events were already pruned', async () => {
+    // The 1st was rolled up long ago; its raw events are gone.
+    await prisma.metricDaily.create({
+      data: {
+        projectId: project.id,
+        date: toUtcDate(FROM),
+        metricKey: 'visits',
+        dimension: 'total',
+        dimValue: '__total__',
+        value: 42,
+      },
+    });
+    await seedEvents([
+      { type: SiteEventType.PAGE_VIEW, sessionId: 'session-one-aaa', at: '2026-03-02T15:00:00Z' },
+    ]);
+
+    // A manual rollup over a window that reaches back past the retention.
+    await service.rollupWindow(project, FROM, TO);
+
+    const visits = (await stored())
+      .filter((r) => r.metricKey === 'visits' && r.dimension === 'total')
+      .map((r) => [r.date.toISOString().slice(0, 10), Number(r.value)]);
+    expect(visits).toEqual([
+      ['2026-03-01', 42],
+      ['2026-03-02', 1],
+    ]);
+  });
+
   it('writes nothing without events: silence is not a zero', async () => {
     const result = await service.rollupWindow(project, FROM, TO);
 
