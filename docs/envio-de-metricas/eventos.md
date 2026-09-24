@@ -14,23 +14,41 @@ X-Api-Key: <la clave del proyecto>
 Content-Type: application/json
 ```
 
+El ejemplo completo, con los cuatro tipos de evento, está en
+[`ejemplo-eventos.json`](./ejemplo-eventos.json) y tiene un test que lo valida
+contra el contrato real: si se separan, falla el build del hub.
+
 ```jsonc
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "events": [
-    { "type": "page_view",  "sessionId": "9f2c…", "path": "/es", "country": "BO",
+    { "type": "page_view", "eventId": "0b6f1c1e-…", "sessionId": "9f2c…", "visitorId": "4d8e…",
+      "path": "/es/servicios", "country": "BO", "region": "L", "city": "La Paz",
+      "device": "mobile", "browser": "Chrome", "os": "Android", "language": "es", "screen": "sm",
       "referrer": "google.com", "utmSource": "instagram", "utmMedium": "social",
       "utmCampaign": "otono", "at": "2026-09-21T15:04:01.000Z" },
-    { "type": "click",      "sessionId": "9f2c…", "path": "/es",
+    { "type": "click", "eventId": "5a1e…", "sessionId": "9f2c…", "path": "/es/servicios",
       "section": "hero", "label": "Ver proyectos", "at": "2026-09-21T15:04:10.000Z" },
-    { "type": "site_click", "sessionId": "9f2c…", "path": "/es",
+    { "type": "site_click", "eventId": "c7b3…", "sessionId": "9f2c…", "path": "/es/servicios",
       "section": "projects", "label": "Take",
-      "target": "take", "linkType": "web", "at": "2026-09-21T15:04:22.000Z" }
+      "target": "take", "linkType": "web", "at": "2026-09-21T15:04:22.000Z" },
+    { "type": "custom", "eventId": "e2d4…", "sessionId": "9f2c…", "path": "/es/contacto",
+      "name": "contact_submit", "props": { "topic": "presupuesto" }, "at": "2026-09-21T15:06:40.000Z" }
   ]
 }
 ```
 
-Respuesta: `202` con `{ "accepted": 3 }`.
+Respuesta: `202` con `{ "accepted": 4, "duplicates": 0 }`. `duplicates` cuenta
+los eventos cuyo `eventId` ya estaba guardado: un beacon reenviado no se
+guarda dos veces.
+
+### Versiones
+
+- **v1**: `page_view`, `click` y `site_click`, con sesión, país y origen.
+- **v2** añade, todo opcional: `eventId`, `visitorId`, `device`, `browser`, `os`,
+  `region`, `city`, `language`, `screen` y el tipo `custom`. El hub acepta las
+  dos a la vez, así que cada sitio migra cuando le toca.
+
 
 ### De dónde sale `section` y `label`
 
@@ -57,12 +75,20 @@ escribe en un campo: solo la etiqueta de botones y enlaces.
 | `section` y `label` obligatorios en `click` (opcionales en `site_click`) | Un clic que no dice dónde se hizo no aporta nada sobre contar páginas |
 | `linkType`: `web` · `android` · `ios` | Un botón de Google Play no es una visita a la web |
 | `at` opcional, y **acotado a 48 h** | Un beacon puede salir al cerrar la pestaña, no dos días después: fuera de esa ventana manda la hora de llegada, para que nadie reescriba un día ya cerrado |
+| `eventId`: un UUID por evento, generado en el navegador | Un reintento o un componente montado dos veces no cuentan doble: el hub guarda un solo evento por `eventId` y proyecto |
+| `visitorId` de 8 a 64 caracteres, opaco | Lo emite el servidor del sitio en una cookie propia. Distingue un navegador que vuelve de uno nuevo. **No identifica a una persona** |
+| `name` obligatorio en `custom`, en snake_case | Es lo que el panel enseña y lo que se marca como conversión |
+| `props` solo en `custom`: objeto plano, hasta 10 claves en snake_case, valores de texto (≤ 100), número o booleano, ≤ 1 KB | Sirven para segmentar (`plan`, `paso`), no para transportar datos. Nunca lo que alguien escribe en un formulario |
+| `device`: `mobile` · `tablet` · `desktop`; `browser` y `os` como familia (`Chrome`, `Android`) | Los calcula el servidor del sitio a partir del agente de usuario, que **no** se manda |
+| `language`: dos letras (`es`, `pt`); `screen`: `xs` · `sm` · `md` · `lg` · `xl` · `xxl` | El idioma principal y el ancho de la ventana por tramos (< 576, < 768, < 992, < 1200, < 1440, resto): útiles sin convertirse en una huella |
+| **Límite de envíos**: 600 peticiones por minuto y proyecto (`INGEST_RATE_LIMIT_PER_MINUTE`) | Por encima responde `429`. Se cuenta por clave, no por IP: los sitios comparten IPs de su hosting |
 
 ### País, procedencia y horario
 
-- **`country`**: lo pone la ruta de servidor del sitio a partir de la cabecera
-  `x-vercel-ip-country` de Vercel, en todos los eventos. La IP no sale nunca
-  del sitio.
+- **`country`**, **`region`** y **`city`**: los pone la ruta de servidor del
+  sitio a partir de las cabeceras `x-vercel-ip-country`,
+  `x-vercel-ip-country-region` y `x-vercel-ip-city` de Vercel, en todos los
+  eventos. La IP no sale nunca del sitio.
 - **`referrer`**: solo en la primera página vista de cada carga, y solo el
   **dominio** (`google.com`), nunca la URL entera, que puede llevar búsquedas o
   identificadores. Si el origen es el propio sitio, no se manda.
@@ -77,25 +103,46 @@ lo recibe.
 ## Qué sale de ahí
 
 Cada envío pide una consolidación **en vivo** de ese proyecto: a los diez
-segundos se rehacen los tres últimos días —los que puede tocar un evento
-aceptado— y el panel ya lo refleja. Los envíos que llegan en esa espera se
-suman a la misma pasada. Además, a las **03:00** se rehacen **los últimos cuatro
-días** de todos, como red por si alguna en vivo falló. Produce exactamente
-cuatro métricas:
+segundos se rehacen **hoy y ayer** y el panel ya lo refleja. Los envíos que
+llegan en esa espera se suman a la misma pasada. Además, a las **03:00** se
+rehacen **los últimos cuatro días** de todos: recoge el raro evento que llega
+con más de un día de retraso y cubre una consolidación en vivo que haya fallado.
+Produce estas métricas:
 
 | Métrica | De dónde sale | Desglose |
 |---|---|---|
-| `visits` | sesiones distintas del día | — |
-| `page_views` | eventos `page_view` | por `path` |
+| `visits` | sesiones distintas del día | ver abajo |
+| `page_views` | eventos `page_view` | por `path` y por `hour` |
 | `site_clicks` | eventos `site_click` | por `project` (destino) y por `link_type` |
 | `clicks` | eventos `click` y `site_click` | por `path` y por `element` (`ruta \| sección \| etiqueta`) |
+| `custom_events` | eventos `custom` | por `event` (su `name`) |
+| `conversions` | eventos `custom` cuyo `name` es un objetivo activo del proyecto (`conversion_goal`) | por `event` |
+| `new_visitors` | visitantes vistos por primera vez ese día | — |
 
-Además, **`visits`** se desglosa por `country`, `channel` (búsqueda orgánica,
-redes, directo, referencia… con los nombres de canal de GA4), `source`
-(`utmSource` o dominio de origen), `campaign` y `hour` (`00`–`23`), y
-**`page_views`** por `hour`. Cada visita cuenta una vez, con lo que traía su
-primer evento del día, así que cada desglose suma el total: las visitas sin
-país van a `__unknown__` y las directas a `__direct__`.
+**`visits`** se desglosa por `country`, `region` (`BO-L`), `city` (`La Paz, BO`),
+`channel` (búsqueda orgánica, redes, directo, referencia… con los nombres de
+canal de GA4), `source` (`utmSource` o dominio de origen), `campaign`, `hour`
+(`00`–`23`), `device`, `browser`, `os`, `language`, `screen`, `landing` (primera
+página vista de la visita), `exit` (última) y `acquisition`
+(`canal | fuente | página de entrada`, p. ej. `Organic Search | google.com | /es/servicios`).
+Cada visita cuenta una vez, con lo que traía su primer evento del día, así que
+cada desglose suma el total: lo que no se sabe va a `__unknown__` (un beacon v1
+no trae dispositivo; una visita de la que solo llegó un clic no tiene página de
+entrada) y las visitas directas, a `__direct__`.
+
+Algunas métricas solo se escriben cuando significan algo en ese sitio:
+
+- **`custom_events`**, si el sitio mandó alguno en la ventana.
+- **`conversions`**, si el proyecto tiene objetivos. Con objetivos, un día sin
+  conversiones es un 0; sin objetivos, no hay nada que contar.
+- **`new_visitors`**, solo en días con visitantes identificados (v2). Un día de
+  beacons v1 no tiene "0 nuevos": no se sabe. El primer día que un sitio manda
+  v2, todos sus visitantes son nuevos, porque no hay historia anterior.
+
+Los **visitantes únicos** de un periodo no se guardan como métrica: sumarlos día
+a día contaría tres veces a quien vuelve tres días. Se cuentan al leer, sobre
+`visitor_daily` —una fila por visitante y día—, que se conserva **800 días**
+para cubrir 12 meses comparados con los 12 anteriores.
 
 El día se decide **en la zona horaria del proyecto**, no en UTC: por eso el
 evento se guarda con su instante y no con una fecha ya recortada. Si la zona de

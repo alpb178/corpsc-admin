@@ -29,12 +29,47 @@ export interface ProjectSummary {
   metrics: MetricTotals;
 }
 
+/** Unique, new and returning visitors: counted at read time, never summed per day. */
+export interface VisitorStats {
+  unique: number;
+  new: number;
+  returning: number;
+  daily: Array<{ date: string; value: number | null }>;
+  /** First day with identified (v2) visitors, or null if none yet. */
+  since: string | null;
+}
+
+export interface ProjectSeries {
+  slug: string;
+  name: string;
+  points: Array<{ date: string; value: number | null }>;
+}
+
+export interface TopPage {
+  project: { slug: string; name: string };
+  path: string;
+  pageViews: number;
+}
+
 export interface Overview {
   range: Range;
   totals: MetricTotals;
   split: { own: MetricTotals; client: MetricTotals };
   series: SeriesPoint[];
+  /** Visits per day of each site. */
+  seriesByProject: ProjectSeries[];
   projects: ProjectSummary[];
+  visitors: VisitorStats;
+  counts: { activeProjects: number; countries: number; sources: number };
+  breakdowns: {
+    country: DimensionSlice[];
+    channel: DimensionSlice[];
+    source: DimensionSlice[];
+    device: DimensionSlice[];
+    /** Custom events, with `custom_events` (and `conversions` where they are goals). */
+    event: DimensionSlice[];
+  };
+  topPages: TopPage[];
   comparison?: Comparison;
 }
 
@@ -62,6 +97,7 @@ export interface ProjectDetail {
   range: Range;
   totals: MetricTotals;
   series: SeriesPoint[];
+  visitors: VisitorStats;
   breakdowns: {
     country: DimensionSlice[];
     device: DimensionSlice[];
@@ -74,6 +110,24 @@ export interface ProjectDetail {
     campaign: DimensionSlice[];
     /** "00"–"23" in the project's time zone, with `visits` and `page_views`. */
     hour: DimensionSlice[];
+    /** ISO 3166-2, "BO-L". */
+    region: DimensionSlice[];
+    /** "La Paz, BO". */
+    city: DimensionSlice[];
+    browser: DimensionSlice[];
+    os: DimensionSlice[];
+    /** Two-letter language code. */
+    language: DimensionSlice[];
+    /** Viewport bucket: xs … xxl. */
+    screen: DimensionSlice[];
+    /** First page of each visit. */
+    landing: DimensionSlice[];
+    /** Last page of each visit. */
+    exit: DimensionSlice[];
+    /** "channel | source | landing". */
+    acquisition: DimensionSlice[];
+    /** Custom events with `custom_events` and, for goals, `conversions`. */
+    event: DimensionSlice[];
   };
   comparison?: Comparison;
 }
@@ -142,4 +196,28 @@ export interface HubUserRow {
   active: boolean;
   lastLoginAt: string | null;
   createdAt: string;
+}
+
+/* ── Real time ── Mirror of `api/src/metrics/realtime.service.ts`. */
+
+export interface RecentEvent {
+  at: string;
+  project: { slug: string; name: string };
+  type: 'page_view' | 'click' | 'site_click' | 'custom';
+  path: string;
+  country: string | null;
+  city: string | null;
+  device: string | null;
+  /** Page views only: campaign source or referring domain. */
+  source: string | null;
+  /** Clicks: what was clicked. Custom events: their name. */
+  detail: string | null;
+}
+
+export interface RealtimeSnapshot {
+  minutes: number;
+  activeVisitors: number;
+  byProject: Array<{ slug: string; name: string; activeVisitors: number }>;
+  recent: RecentEvent[];
+  lastEventAt: string | null;
 }

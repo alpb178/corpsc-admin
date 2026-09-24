@@ -1,7 +1,8 @@
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { MetricsService } from './metrics.service';
-import { RangeDto, CompareDto } from './dto/range.dto';
+import { RangeDto, CompareDto, RealtimeQueryDto, VisitorsQueryDto } from './dto/range.dto';
+import { RealtimeService } from './realtime.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { FreshnessService } from '../ingestion/freshness.service';
@@ -16,6 +17,7 @@ export class MetricsController {
     private readonly metrics: MetricsService,
     private readonly prisma: PrismaService,
     private readonly freshness: FreshnessService,
+    private readonly realtime: RealtimeService,
   ) {}
 
   @Get('freshness')
@@ -63,6 +65,23 @@ export class MetricsController {
       .map((s) => s.trim())
       .filter(Boolean);
     return this.metrics.compareProjects(slugs, q.metric ?? 'visits', { from: q.from, to: q.to });
+  }
+
+  @Get('visitors')
+  @ApiOperation({
+    summary: 'Unique, new and returning visitors in a range, for one site or the group',
+    description:
+      'Counted at read time: unique visitors cannot be summed day by day. Only v2 beacons ' +
+      'identify visitors; `since` says from which day there is data.',
+  })
+  visitors(@Query() q: VisitorsQueryDto) {
+    return this.metrics.visitors({ from: q.from, to: q.to }, q.project);
+  }
+
+  @Get('realtime')
+  @ApiOperation({ summary: 'Active visitors and latest events, straight from the raw events' })
+  realtimeSnapshot(@Query() q: RealtimeQueryDto) {
+    return this.realtime.snapshot(q.project, q.minutes);
   }
 
   @Get('projects/:slug')

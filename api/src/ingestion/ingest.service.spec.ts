@@ -183,6 +183,47 @@ describe('IngestService', () => {
     ).rejects.toThrow(/ventana máxima/);
   });
 
+  it.each([
+    ['impossible dates', { from: '2026-02-30', to: '2026-03-01' }, 'fechas reales'],
+    ['a reversed window', { from: '2026-03-05', to: '2026-03-01' }, 'posterior'],
+  ])('rejects a window with %s', async (_case, range, message) => {
+    const { service } = makeService();
+    await expect(service.receive(PROJECT, payload({ range }), RunTrigger.PUSH)).rejects.toThrow(message);
+  });
+
+  it('warns about metrics sent without being declared, and skips non-finite values', async () => {
+    const { service, write } = makeService();
+    const result = await service.receive(
+      PROJECT,
+      payload({
+        definitions: [],
+        days: [
+          {
+            date: '2026-03-01',
+            metrics: { visits: 10, broken: Number.NaN },
+            breakdowns: [{ metric: 'visits', dimension: 'country', values: { BO: 10, XX: Number.POSITIVE_INFINITY } }],
+          },
+        ],
+      }),
+      RunTrigger.PUSH,
+    );
+
+    expect(result.warnings.join(' ')).toMatch(/sin declarar en `definitions`: visits/);
+    expect(rowsFrom(write).map((r) => r.dimValue)).not.toContain('XX');
+    expect(rowsFrom(write).map((r) => r.metricKey)).not.toContain('broken');
+  });
+
+  it('records a failure that is not an empty push and lets it through', async () => {
+    const { service, write, prisma } = makeService();
+    write.mockRejectedValueOnce(new Error('connection lost'));
+
+    await expect(service.receive(PROJECT, payload(), RunTrigger.PUSH)).rejects.toThrow('connection lost');
+    expect((prisma.ingestionRun.update as ReturnType<typeof vi.fn>).mock.calls[0][0].data).toMatchObject({
+      status: RunStatus.REJECTED,
+      errorCode: 'UNKNOWN',
+    });
+  });
+
   it('discards days outside the declared window', async () => {
     // The replacement only covers the window: a day outside it would stay
     // written forever without anyone ever touching it again.

@@ -6,9 +6,12 @@ import { IngestService } from './ingest.service';
 import { SiteEventsService } from './site-events.service';
 import { InternalMetricsDto } from './contract';
 import { SiteEventsDto } from './site-events.contract';
+import { IngestThrottlerGuard } from '../common/throttle';
 
 @ApiTags('ingest')
 @Controller('ingest')
+// Before the key check: a flood of invalid keys is throttled too.
+@UseGuards(IngestThrottlerGuard)
 export class IngestController {
   constructor(
     private readonly ingest: IngestService,
@@ -35,9 +38,9 @@ export class IngestController {
    * The door for sites that have nowhere to aggregate.
    *
    * The portfolio and the client sites are Vercel pages without a database:
-   * they send the raw fact —a visit, a click towards another site of the
-   * group— and the hub rolls them up overnight into the same daily metrics
-   * everyone else sends.
+   * they send the raw fact —a visit, a click, a custom event— and the hub
+   * rolls them up within seconds into the same daily metrics everyone else
+   * sends.
    *
    * A project that already pushes its aggregates must NOT use this door for
    * the same metrics: its push replaces the whole window and would delete

@@ -51,8 +51,11 @@ que deciden con qué nombre se guarda un clic**, no el cintillo de cada repo: un
 | `page_views` | Páginas vistas | por `path` |
 | `site_clicks` | Clics que se van a otro sitio del grupo | por `project` de destino y por `link_type` |
 | `clicks` | Clics en enlaces y botones, incluidos los que salen | por `path` y por `element` (ruta, sección y etiqueta) |
+| `custom_events` | Eventos que define el sitio (`contact_submit`, `add_to_cart`…) | por `event` |
+| `conversions` | Los eventos que el proyecto marca como objetivo | por `event` |
+| `new_visitors` | Visitantes vistos por primera vez ese día | — |
 
-Las cuatro salen de la consolidación —en vivo tras cada envío y a las 03:00—, que es dueña de ellas y de
+Todas salen de la consolidación —en vivo tras cada envío y a las 03:00—, que es dueña de ellas y de
 ninguna más. Detalle del contrato en [`eventos.md`](./eventos.md).
 
 ## Lo que no se mide
@@ -79,9 +82,10 @@ igual que ya hace la consolidación con `ownedMetricKeys`.
 2. **Ajustes → Proyectos** en el panel: zona horaria (la del sitio, no la tuya)
    y moneda si factura.
 3. **Generar la clave** ahí mismo. Se enseña una sola vez.
-4. **Copiar la integración** de cualquiera de los cinco repos ya integrados: el
-   `lib/hub-analytics.ts`, el componente y `app/api/hub-track/route.ts`.
-   Montar el componente en el layout raíz.
+4. **Sincronizar el tracker** desde `corpsc-hub/tracker`:
+   `pnpm sync <repo>/src/lib/hub-tracker`. Añadir la ruta
+   `app/api/hub-track/route.ts` (tres líneas) y montar `<HubAnalytics />` en el
+   layout raíz. Detalle en [`tracker/README.md`](../../tracker/README.md).
 5. **Configurar el entorno** del front: `HUB_URL` y `HUB_API_KEY`. Nunca en una
    variable `NEXT_PUBLIC_`: quien tenga la clave puede escribir métricas de ese
    proyecto.

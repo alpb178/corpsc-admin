@@ -37,6 +37,8 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   // `api/ingest` is left out: the sites use it, without a session, and a
-  // rewrite in next.config.ts forwards it to the API.
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/ingest|.*\\.svg$).*)'],
+  // rewrite in next.config.ts forwards it to the API. The icons, the brand
+  // mark and the sites' logos too: static files, and the login page shows the
+  // mark before there's a session.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|brand/|project-icons/|api/ingest|.*\\.svg$).*)'],
 };

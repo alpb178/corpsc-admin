@@ -17,6 +17,9 @@ export default defineConfig({
       reportsDirectory: './coverage',
       include: ['src/**/*.ts'],
       exclude: ['src/**/*.spec.ts', 'src/main.ts', 'src/**/*.module.ts'],
+      // The floor, only ever raised: CI fails if coverage drops below it.
+      // Branches sit just above 95 %, so new code comes with its tests.
+      thresholds: { lines: 99, statements: 99, branches: 95, functions: 100 },
     },
   },
   plugins: [

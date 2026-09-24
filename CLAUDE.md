@@ -25,6 +25,19 @@ Documento canónico: [`FLUJO-TRABAJO-DEVS.md`](./FLUJO-TRABAJO-DEVS.md).
   español. El código legado en español no se renombra "de paso". Detalle en
   `FLUJO-TRABAJO-DEVS.md`, secciones "Idioma del código" e "Idioma de git".
 
+## Tests y CI (obligatorio)
+
+- **Toda feature, cambio funcional o cambio en el tracking incluye o actualiza
+  sus tests en el mismo PR.** Sin excepción: el tracker corre en cinco sitios y
+  un error de forma se convierte en datos silenciosamente equivocados.
+- **El CI (`.github/workflows/ci.yml`) corre en cada PR** a `develop` y `main`:
+  API contra un Postgres real (typecheck, lint sin `--fix`, tests con coverage,
+  build), panel (typecheck, lint, tests con coverage, build) y tracker.
+- **Los umbrales de coverage son un suelo que solo sube.** Están en el
+  `vitest.config` de cada paquete; un PR que añade tests los sube a lo que
+  alcanza. El objetivo es ≥ 95 % en los tres; la API y el tracker ya lo
+  exigen, el panel todavía no.
+
 ## Decisiones de diseño que no hay que deshacer sin querer
 
 **La tabla de hechos es estrecha, no ancha.** `metric_daily` guarda una fila
@@ -76,15 +89,16 @@ de salida puede exponer `credential.ciphertext`.
   zona estaba mal puesta, y un contador incrementado sobre la marcha no se
   puede deshacer. Se conserva 90 días: lo justo para recalcular, no como
   archivo.
-- **La consolidación es dueña de `visits`, `page_views`, `site_clicks` y
-  `clicks`** y de nada más. Por eso `FactWriterService` acepta `ownedMetricKeys`: sin acotar el
+- **La consolidación es dueña de `visits`, `page_views`, `site_clicks`,
+  `clicks`, `custom_events`, `conversions` y `new_visitors`** y de nada más. Por eso `FactWriterService` acepta `ownedMetricKeys`: sin acotar el
   borrado de huérfanos, rehacer las visitas se llevaría por delante los pedidos
   del mismo día.
 - **La consolidación es en vivo, no solo de noche.** Cada envío a
   `/ingest/events` la pide para su proyecto (`scheduleLive`): espera 10 s para
   agrupar la ráfaga, nunca corre dos veces a la vez para el mismo proyecto y
   reutiliza un `IngestionRun` por ventana, para no enterrar Envíos con uno por
-  visita. El cron de las 03:00 sigue como red de seguridad. Vive en memoria:
+  visita. En vivo rehace hoy y ayer; el cron de las 03:00, cuatro días, y
+  recoge el evento que llega con más de un día de retraso. Vive en memoria:
   con más de una instancia de la API habría que moverla a una cola.
 - **Sin eventos no se escribe nada.** Un sitio callado no es un sitio con cero
   visitas, y escribir ceros haría indistinguible "no entró nadie" de "los
@@ -93,9 +107,37 @@ de salida puede exponer `credential.ciphertext`.
   canal, fuente, campaña y hora salen de ahí (`visitStarts`), para que cada
   desglose de `visits` sume el total. El país lo resuelve el hosting del sitio;
   del origen solo llega el dominio, nunca la URL entera.
+- **`visitor_daily` sobrevive a los eventos crudos** (800 días frente a 90):
+  es lo único que sabe si un visitante es nuevo y cuántos distintos hubo en un
+  año. Por eso la consolidación solo reescribe los días que todavía tienen
+  eventos; un día ya podado conserva sus visitantes. Los únicos de un rango se
+  cuentan al leer, nunca se guardan: no son sumables.
+- **Un beacon repetido se guarda una vez.** En la v2 cada evento lleva un
+  `eventId` (UUID del navegador) y `site_event` tiene un índice único
+  `(project_id, event_id)`; `createMany({ skipDuplicates })` descarta la copia.
+  Los eventos v1 no lo traen y tienen NULL, que nunca choca en un índice único.
+- **La ingesta se limita por clave, no por IP**, y el login por cuenta, no por
+  IP (`src/common/throttle.ts`). Los sitios comparten IPs de su hosting, y el
+  panel inicia sesión siempre desde su propio servidor: limitar por IP
+  castigaría a todos a la vez. El contador vive en memoria, como la
+  consolidación en vivo.
 - **La clave nunca baja al navegador.** El sitio manda los beacons a una ruta
   suya y esa ruta llama al hub. Publicar la clave en el cliente sería dejar que
   cualquiera escriba métricas de ese proyecto.
+
+## El tracker (`tracker/`)
+
+- **Una fuente, cinco copias que no pueden divergir.** El código que corre en
+  los sitios se escribe y se prueba aquí (≥ 95 % de coverage, lo exige
+  `vitest.config.ts`) y se lleva a cada repo con `pnpm sync`. Cada copia lleva
+  `MANIFEST.json` e `integrity.test.ts`: editarla a mano rompe el test del sitio.
+  Antes eran cinco copias a mano y ya habían divergido.
+- **La ruta del sitio responde antes de llamar al hub** (`after()` de Next ≥
+  15.1). Esperar al hub —que en Render se duerme— retrasaba la cookie de visita
+  y cada evento de esa espera abría una sesión nueva: visitas infladas. En Next
+  14 no hay `after()` y la espera se acota a 1,5 s.
+- **Las opciones de `<HubAnalytics>` son datos, no funciones**: el componente se
+  monta desde un layout de servidor, y una función no cruza esa frontera.
 
 ## El contrato de envío
 
@@ -125,6 +167,15 @@ de salida puede exponer `credential.ciphertext`.
   `?rango=` / `?sitios=` se siguen leyendo como alias. No quitar ni lo uno ni lo
   otro: hay enlaces compartidos y marcadores con las rutas viejas.
 
+- **La navegación es un drawer, como el admin de Tu Chamba** (`components/AppDrawer.tsx`):
+  Dashboard, un elemento por proyecto —sale de `GET /projects`, así que un
+  proyecto nuevo aparece solo— y las herramientas. Riel de 64 px que se abre
+  al pasar el ratón; en táctil, ☰ lo fija; en el móvil el riel se oculta y ☰
+  es la entrada. Cada menú recuerda la página en la que se abrió, y navegar lo
+  cierra sin un efecto que haga `setState` (lo prohíbe el lint del React
+  Compiler). Los enlaces conservan `?range=`.
+- **Los tests del panel corren con Vitest y Testing Library** (`pnpm test`).
+  `server-only` se sustituye por un módulo vacío en `vitest.config.mts`.
 - **La seguridad vive en `lib/dal.ts`, no en `proxy.ts`.** La documentación de
   Next 16 es explícita: el proxy es capa de experiencia. Las Server Functions
   se ejecutan como POST contra su propia ruta, así que un cambio de `matcher`

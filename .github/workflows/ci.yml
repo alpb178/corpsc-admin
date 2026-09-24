@@ -1,0 +1,108 @@
+# Checks every pull request and every push to develop and main.
+#
+# Three jobs, one per package, so a failure says where it is. Coverage is
+# enforced by each package's own vitest config: the thresholds there are the
+# floor, raised with every test PR until 95 %.
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API (NestJS + Postgres)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    services:
+      # The ingestion and read tests run against a real Postgres: the logic
+      # they check —days in the project's zone, distinct visitors— lives in SQL.
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: hub
+          POSTGRES_PASSWORD: hub
+          POSTGRES_DB: corpsc_hub
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U hub -d corpsc_hub"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://hub:hub@localhost:5432/corpsc_hub?schema=public
+      # Test-only secrets: nothing real is encrypted or signed with them.
+      JWT_SECRET: ci-only-jwt-secret-not-used-anywhere-else
+      HUB_ENCRYPTION_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: api/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma migrate deploy
+      - run: pnpm typecheck
+      # Without --fix: CI reports, it doesn't rewrite.
+      - run: pnpm exec eslint "src/**/*.ts" --max-warnings 0
+      - run: pnpm test:cov
+      - run: pnpm build
+
+  web:
+    name: Panel (Next.js)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    env:
+      # The build doesn't call the API; it only needs the variable defined.
+      API_URL: http://localhost:3001/api
+      SESSION_SECRET: ci-only-session-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint --max-warnings 0
+      - run: pnpm test:cov
+      - run: pnpm build
+
+  tracker:
+    name: Tracker
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tracker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: tracker/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      # Fails below 95 %: this code runs on the five sites.
+      - run: pnpm test:cov

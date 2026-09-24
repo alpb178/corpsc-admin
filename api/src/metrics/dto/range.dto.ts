@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsOptional, IsString, Matches } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
 
 export class RangeDto {
   @ApiProperty({ example: '2026-08-01' })
@@ -30,4 +30,34 @@ export class CompareDto extends RangeDto {
   @IsOptional()
   @IsString()
   metric?: string;
+}
+
+export class VisitorsQueryDto {
+  @ApiProperty({ example: '2026-08-01' })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'from debe ser YYYY-MM-DD' })
+  from!: string;
+
+  @ApiProperty({ example: '2026-08-31' })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'to debe ser YYYY-MM-DD' })
+  to!: string;
+
+  @ApiPropertyOptional({ example: 'tu-chamba', description: 'One site; the whole group if omitted' })
+  @IsOptional()
+  @IsString()
+  project?: string;
+}
+
+export class RealtimeQueryDto {
+  @ApiPropertyOptional({ example: 'tu-chamba', description: 'One site; the whole group if omitted' })
+  @IsOptional()
+  @IsString()
+  project?: string;
+
+  @ApiPropertyOptional({ default: 5, minimum: 1, maximum: 60 })
+  @IsOptional()
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  @Min(1)
+  @Max(60)
+  minutes?: number;
 }

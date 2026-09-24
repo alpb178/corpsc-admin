@@ -10,6 +10,8 @@ interface Props {
   secondary?: { key: string; unit: Unit; label: string };
   limit?: number;
   emptyHint?: string;
+  /** How a value reads. Defaults to `labelDimension` (countries, channels, reserved values). */
+  labelOf?: (value: string) => string;
 }
 
 /**
@@ -23,7 +25,16 @@ interface Props {
  * In HTML rather than a charting library because long names —a search query,
  * a URL— truncate far better with CSS.
  */
-export function RankBar({ title, slices, metricKey, unit = 'COUNT', secondary, limit = 8, emptyHint }: Props) {
+export function RankBar({
+  title,
+  slices,
+  metricKey,
+  unit = 'COUNT',
+  secondary,
+  limit = 8,
+  emptyHint,
+  labelOf = labelDimension,
+}: Props) {
   // `amount` and not `value`: DimensionSlice.value is the dimension's label
   // (the country, the query), and overwriting it would leave the rows nameless.
   const rows = slices
@@ -43,8 +54,8 @@ export function RankBar({ title, slices, metricKey, unit = 'COUNT', secondary, l
         <ul className="mt-3 flex flex-col gap-2.5">
           {rows.map((row) => (
             <li key={row.label} className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1">
-              <span className="truncate text-[13px] text-fg-muted" title={labelDimension(row.label)}>
-                {labelDimension(row.label)}
+              <span className="truncate text-[13px] text-fg-muted" title={labelOf(row.label)}>
+                {labelOf(row.label)}
               </span>
 
               <span className="tabular flex items-baseline gap-2 text-[13px] font-medium text-fg">

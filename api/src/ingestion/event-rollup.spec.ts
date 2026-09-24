@@ -1,9 +1,17 @@
 import 'dotenv/config';
 import { PrismaClient, ProjectKind, SiteEventType } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { EventRollupService, elementKey } from './event-rollup.service';
+import {
+  EventRollupService,
+  LIVE_DAYS,
+  VISITOR_RETENTION_DAYS,
+  acquisitionKey,
+  cityValue,
+  elementKey,
+  regionValue,
+} from './event-rollup.service';
 import { FactWriterService } from './fact-writer.service';
-import { toUtcDate } from './common/dates';
+import { addDays, todayIn, toUtcDate } from './common/dates';
 import type { PrismaService } from '../prisma/prisma.service';
 
 /**
@@ -42,6 +50,15 @@ interface EventSeed {
   utmSource?: string;
   utmMedium?: string;
   utmCampaign?: string;
+  visitorId?: string;
+  name?: string;
+  region?: string;
+  city?: string;
+  device?: string;
+  browser?: string;
+  os?: string;
+  language?: string;
+  screen?: string;
 }
 
 async function seedEvents(events: EventSeed[]): Promise<void> {
@@ -60,6 +77,15 @@ async function seedEvents(events: EventSeed[]): Promise<void> {
       utmSource: e.utmSource ?? null,
       utmMedium: e.utmMedium ?? null,
       utmCampaign: e.utmCampaign ?? null,
+      visitorId: e.visitorId ?? null,
+      name: e.name ?? null,
+      region: e.region ?? null,
+      city: e.city ?? null,
+      device: e.device ?? null,
+      browser: e.browser ?? null,
+      os: e.os ?? null,
+      language: e.language ?? null,
+      screen: e.screen ?? null,
       occurredAt: new Date(e.at),
     })),
   });
@@ -73,8 +99,11 @@ function stored() {
   });
 }
 
-async function valueOf(metricKey: string, dimValue = '__total__'): Promise<number | null> {
-  const row = (await stored()).find((r) => r.metricKey === metricKey && r.dimValue === dimValue);
+/** `dimension` disambiguates values several breakdowns share, like `__unknown__`. */
+async function valueOf(metricKey: string, dimValue = '__total__', dimension?: string): Promise<number | null> {
+  const row = (await stored()).find(
+    (r) => r.metricKey === metricKey && r.dimValue === dimValue && (!dimension || r.dimension === dimension),
+  );
   return row ? Number(row.value) : null;
 }
 
@@ -90,6 +119,8 @@ beforeEach(async () => {
   await prisma.siteEvent.deleteMany({ where: { projectId: project.id } });
   await prisma.metricDaily.deleteMany({ where: { projectId: project.id } });
   await prisma.ingestionRun.deleteMany({ where: { projectId: project.id } });
+  await prisma.visitorDaily.deleteMany({ where: { projectId: project.id } });
+  await prisma.conversionGoal.deleteMany({ where: { projectId: project.id } });
 });
 
 afterAll(async () => {
@@ -185,6 +216,34 @@ describe('event rollup', () => {
     expect(await valueOf('orders')).toBe(7);
   });
 
+  it('keeps what was rolled up for days whose raw events were already pruned', async () => {
+    // The 1st was rolled up long ago; its raw events are gone.
+    await prisma.metricDaily.create({
+      data: {
+        projectId: project.id,
+        date: toUtcDate(FROM),
+        metricKey: 'visits',
+        dimension: 'total',
+        dimValue: '__total__',
+        value: 42,
+      },
+    });
+    await seedEvents([
+      { type: SiteEventType.PAGE_VIEW, sessionId: 'session-one-aaa', at: '2026-03-02T15:00:00Z' },
+    ]);
+
+    // A manual rollup over a window that reaches back past the retention.
+    await service.rollupWindow(project, FROM, TO);
+
+    const visits = (await stored())
+      .filter((r) => r.metricKey === 'visits' && r.dimension === 'total')
+      .map((r) => [r.date.toISOString().slice(0, 10), Number(r.value)]);
+    expect(visits).toEqual([
+      ['2026-03-01', 42],
+      ['2026-03-02', 1],
+    ]);
+  });
+
   it('writes nothing without events: silence is not a zero', async () => {
     const result = await service.rollupWindow(project, FROM, TO);
 
@@ -249,7 +308,7 @@ describe('where and when visits come from', () => {
     expect(await valueOf('visits')).toBe(3);
     expect(await valueOf('visits', 'BO')).toBe(1);
     expect(await valueOf('visits', 'AR')).toBe(1);
-    expect(await valueOf('visits', '__unknown__')).toBe(1);
+    expect(await valueOf('visits', '__unknown__', 'country')).toBe(1);
     expect(await valueOf('visits', 'Organic Search')).toBe(1);
     expect(await valueOf('visits', 'Organic Social')).toBe(1);
     expect(await valueOf('visits', 'Direct')).toBe(1);
@@ -347,5 +406,308 @@ describe('live rollup', () => {
       spy.mockRestore();
       vi.useRealTimers();
     }
+  });
+});
+
+describe('contract v2 breakdowns', () => {
+  const PV = SiteEventType.PAGE_VIEW;
+
+  /** Sum of a breakdown of `visits`, to check it rebuilds the total. */
+  async function visitsBy(dimension: string): Promise<number> {
+    return (await stored())
+      .filter((r) => r.metricKey === 'visits' && r.dimension === dimension)
+      .reduce((acc, r) => acc + Number(r.value), 0);
+  }
+
+  it('breaks visits down by device, browser, os, language and screen, from their first event', async () => {
+    await seedEvents([
+      { type: PV, sessionId: 'session-one-aaa', at: '2026-03-01T15:00:00Z',
+        device: 'mobile', browser: 'Chrome', os: 'Android', language: 'es', screen: 'sm' },
+      // A later event of the same visit doesn't count it twice.
+      { type: PV, sessionId: 'session-one-aaa', at: '2026-03-01T15:05:00Z', device: 'desktop' },
+      { type: PV, sessionId: 'session-two-bbb', at: '2026-03-01T16:00:00Z',
+        device: 'desktop', browser: 'Safari', os: 'macOS', language: 'pt', screen: 'xl' },
+      // A v1 beacon carries none of it.
+      { type: PV, sessionId: 'session-three-c', at: '2026-03-01T17:00:00Z' },
+    ]);
+
+    await service.rollupWindow(project, FROM, TO);
+
+    expect(await valueOf('visits', 'mobile', 'device')).toBe(1);
+    expect(await valueOf('visits', 'desktop', 'device')).toBe(1);
+    expect(await valueOf('visits', '__unknown__', 'device')).toBe(1);
+    expect(await valueOf('visits', 'Chrome', 'browser')).toBe(1);
+    expect(await valueOf('visits', 'macOS', 'os')).toBe(1);
+    expect(await valueOf('visits', 'pt', 'language')).toBe(1);
+    expect(await valueOf('visits', 'sm', 'screen')).toBe(1);
+  });
+
+  it('writes region and city together with their country', async () => {
+    await seedEvents([
+      { type: PV, sessionId: 'session-one-aaa', at: '2026-03-01T15:00:00Z', country: 'BO', region: 'L', city: 'La Paz' },
+      { type: PV, sessionId: 'session-two-bbb', at: '2026-03-01T16:00:00Z', country: 'PE', region: 'LIM', city: 'Lima' },
+      { type: PV, sessionId: 'session-three-c', at: '2026-03-01T17:00:00Z', country: 'BO' },
+    ]);
+
+    await service.rollupWindow(project, FROM, TO);
+
+    expect(await valueOf('visits', 'BO-L', 'region')).toBe(1);
+    expect(await valueOf('visits', 'PE-LIM', 'region')).toBe(1);
+    expect(await valueOf('visits', 'La Paz, BO', 'city')).toBe(1);
+    expect(await valueOf('visits', '__unknown__', 'city')).toBe(1);
+  });
+
+  it('takes landing and exit from the first and last page view, and ties source to landing', async () => {
+    await seedEvents([
+      { type: PV, sessionId: 'session-one-aaa', at: '2026-03-01T15:00:00Z', path: '/es/servicios', referrer: 'google.com' },
+      { type: SiteEventType.CLICK, sessionId: 'session-one-aaa', at: '2026-03-01T15:01:00Z',
+        path: '/es/servicios', section: 'hero', label: 'Contacto' },
+      { type: PV, sessionId: 'session-one-aaa', at: '2026-03-01T15:02:00Z', path: '/es/contacto' },
+      { type: PV, sessionId: 'session-two-bbb', at: '2026-03-01T16:00:00Z', path: '/es', utmSource: 'facebook', utmMedium: 'social' },
+      // A visit of which only a late click arrived that day: no landing, no exit.
+      { type: SiteEventType.CLICK, sessionId: 'session-three-c', at: '2026-03-01T17:00:00Z',
+        path: '/es', section: 'footer', label: 'Email' },
+    ]);
+
+    await service.rollupWindow(project, FROM, TO);
+
+    expect(await valueOf('visits', '/es/servicios', 'landing')).toBe(1);
+    expect(await valueOf('visits', '/es/contacto', 'exit')).toBe(1);
+    expect(await valueOf('visits', '__unknown__', 'landing')).toBe(1);
+    expect(await valueOf('visits', 'Organic Search | google.com | /es/servicios', 'acquisition')).toBe(1);
+    expect(await valueOf('visits', 'Organic Social | facebook | /es', 'acquisition')).toBe(1);
+    expect(await valueOf('visits', 'Direct | __direct__ | __unknown__', 'acquisition')).toBe(1);
+  });
+
+  it('every new visits breakdown adds up to the total', async () => {
+    await seedEvents([
+      { type: PV, sessionId: 'session-one-aaa', at: '2026-03-01T15:00:00Z', country: 'BO', region: 'L', device: 'mobile' },
+      { type: PV, sessionId: 'session-two-bbb', at: '2026-03-01T16:00:00Z' },
+      { type: SiteEventType.CLICK, sessionId: 'session-three-c', at: '2026-03-01T17:00:00Z',
+        section: 'footer', label: 'Email' },
+    ]);
+
+    await service.rollupWindow(project, FROM, TO);
+
+    expect(await valueOf('visits')).toBe(3);
+    for (const dimension of ['region', 'city', 'device', 'browser', 'os', 'language', 'screen', 'landing', 'exit', 'acquisition']) {
+      expect(await visitsBy(dimension), dimension).toBe(3);
+    }
+  });
+});
+
+describe('custom events and conversions', () => {
+  const CUSTOM = SiteEventType.CUSTOM;
+
+  it('counts custom events by name', async () => {
+    await seedEvents([
+      { type: SiteEventType.PAGE_VIEW, sessionId: 'session-one-aaa', at: '2026-03-01T15:00:00Z' },
+      { type: CUSTOM, sessionId: 'session-one-aaa', at: '2026-03-01T15:01:00Z', name: 'contact_submit' },
+      { type: CUSTOM, sessionId: 'session-one-aaa', at: '2026-03-01T15:02:00Z', name: 'contact_submit' },
+      { type: CUSTOM, sessionId: 'session-two-bbb', at: '2026-03-01T16:00:00Z', name: 'whatsapp_click' },
+    ]);
+
+    await service.rollupWindow(project, FROM, TO);
+
+    expect(await valueOf('custom_events')).toBe(3);
+    expect(await valueOf('custom_events', 'contact_submit', 'event')).toBe(2);
+    expect(await valueOf('custom_events', 'whatsapp_click', 'event')).toBe(1);
+    // A custom event is neither a page view nor a click.
+    expect(await valueOf('page_views')).toBe(1);
+    expect(await valueOf('clicks')).toBe(0);
+  });
+
+  it('counts as conversions only the events marked as goals', async () => {
+    await prisma.conversionGoal.create({
+      data: { projectId: project.id, eventName: 'contact_submit', label: 'Formulario de contacto' },
+    });
+    await prisma.conversionGoal.create({
+      data: { projectId: project.id, eventName: 'newsletter', label: 'Boletín', active: false },
+    });
+    await seedEvents([
+      { type: CUSTOM, sessionId: 'session-one-aaa', at: '2026-03-01T15:01:00Z', name: 'contact_submit' },
+      { type: CUSTOM, sessionId: 'session-one-aaa', at: '2026-03-01T15:02:00Z', name: 'whatsapp_click' },
+      { type: CUSTOM, sessionId: 'session-two-bbb', at: '2026-03-01T16:00:00Z', name: 'newsletter' },
+    ]);
+
+    await service.rollupWindow(project, FROM, TO);
+
+    expect(await valueOf('conversions')).toBe(1);
+    expect(await valueOf('conversions', 'contact_submit', 'event')).toBe(1);
+    expect(await valueOf('conversions', 'newsletter', 'event')).toBeNull();
+  });
+
+  it('writes a zero for a day without conversions once the project has goals', async () => {
+    await prisma.conversionGoal.create({
+      data: { projectId: project.id, eventName: 'contact_submit', label: 'Formulario de contacto' },
+    });
+    await seedEvents([{ type: SiteEventType.PAGE_VIEW, sessionId: 'session-one-aaa', at: '2026-03-01T15:00:00Z' }]);
+
+    await service.rollupWindow(project, FROM, TO);
+
+    expect(await valueOf('conversions')).toBe(0);
+  });
+
+  it("writes neither metric for a site that doesn't measure them", async () => {
+    await seedEvents([{ type: SiteEventType.PAGE_VIEW, sessionId: 'session-one-aaa', at: '2026-03-01T15:00:00Z' }]);
+
+    await service.rollupWindow(project, FROM, TO);
+
+    const keys = new Set((await stored()).map((r) => r.metricKey));
+    expect(keys.has('custom_events')).toBe(false);
+    expect(keys.has('conversions')).toBe(false);
+  });
+});
+
+describe('visitors', () => {
+  const PV = SiteEventType.PAGE_VIEW;
+  const visitorDays = () =>
+    prisma.visitorDaily.findMany({
+      where: { projectId: project.id },
+      orderBy: [{ date: 'asc' }, { visitorId: 'asc' }],
+      select: { date: true, visitorId: true },
+    });
+
+  it('keeps one row per visitor and day, in the project timezone', async () => {
+    await seedEvents([
+      { type: PV, sessionId: 'session-one-aaa', at: '2026-03-01T15:00:00Z', visitorId: 'visitor-aaaa' },
+      { type: PV, sessionId: 'session-two-bbb', at: '2026-03-01T20:00:00Z', visitorId: 'visitor-aaaa' },
+      // 01:00 UTC on the 2nd is still the 1st in La Paz.
+      { type: PV, sessionId: 'session-three-c', at: '2026-03-02T01:00:00Z', visitorId: 'visitor-bbbb' },
+      { type: PV, sessionId: 'session-four-dd', at: '2026-03-02T15:00:00Z', visitorId: 'visitor-aaaa' },
+    ]);
+
+    await service.rollupWindow(project, FROM, TO);
+    await service.rollupWindow(project, FROM, TO);
+
+    expect((await visitorDays()).map((v) => [v.date.toISOString().slice(0, 10), v.visitorId])).toEqual([
+      ['2026-03-01', 'visitor-aaaa'],
+      ['2026-03-01', 'visitor-bbbb'],
+      ['2026-03-02', 'visitor-aaaa'],
+    ]);
+  });
+
+  it('counts a visitor as new only on the first day it is seen', async () => {
+    await seedEvents([
+      { type: PV, sessionId: 'session-one-aaa', at: '2026-03-01T15:00:00Z', visitorId: 'visitor-aaaa' },
+      { type: PV, sessionId: 'session-two-bbb', at: '2026-03-01T16:00:00Z', visitorId: 'visitor-bbbb' },
+      { type: PV, sessionId: 'session-three-c', at: '2026-03-02T15:00:00Z', visitorId: 'visitor-aaaa' },
+      { type: PV, sessionId: 'session-four-dd', at: '2026-03-02T16:00:00Z', visitorId: 'visitor-cccc' },
+    ]);
+
+    await service.rollupWindow(project, FROM, TO);
+
+    const newVisitors = (await stored())
+      .filter((r) => r.metricKey === 'new_visitors')
+      .map((r) => [r.date.toISOString().slice(0, 10), Number(r.value)]);
+    expect(newVisitors).toEqual([
+      ['2026-03-01', 2],
+      ['2026-03-02', 1],
+    ]);
+  });
+
+  it('remembers visitors from days whose raw events are gone', async () => {
+    // Seen weeks ago; those events were pruned, only the visitor-day remains.
+    await prisma.visitorDaily.create({
+      data: { projectId: project.id, date: toUtcDate('2026-02-01'), visitorId: 'visitor-aaaa' },
+    });
+    await seedEvents([
+      { type: PV, sessionId: 'session-one-aaa', at: '2026-03-01T15:00:00Z', visitorId: 'visitor-aaaa' },
+    ]);
+
+    await service.rollupWindow(project, '2026-02-01', TO);
+
+    const newVisitors = (await stored()).filter((r) => r.metricKey === 'new_visitors');
+    // Returning on the 1st; and the 1st of February, without raw events, isn't rewritten.
+    expect(newVisitors.map((r) => [r.date.toISOString().slice(0, 10), Number(r.value)])).toEqual([['2026-03-01', 0]]);
+    expect(await visitorDays()).toHaveLength(2);
+  });
+
+  it('writes no new visitors for a day of v1 beacons: unknown is not zero', async () => {
+    await seedEvents([{ type: PV, sessionId: 'session-one-aaa', at: '2026-03-01T15:00:00Z' }]);
+
+    await service.rollupWindow(project, FROM, TO);
+
+    expect(await valueOf('new_visitors')).toBeNull();
+    expect(await visitorDays()).toHaveLength(0);
+  });
+
+  it('prunes visitor-days only past their own, longer retention', async () => {
+    const today = todayIn('UTC');
+    await prisma.visitorDaily.createMany({
+      data: [
+        { projectId: project.id, date: toUtcDate(addDays(today, -(VISITOR_RETENTION_DAYS + 5))), visitorId: 'visitor-old' },
+        { projectId: project.id, date: toUtcDate(addDays(today, -200)), visitorId: 'visitor-kept' },
+      ],
+    });
+
+    await service.prune();
+
+    expect((await visitorDays()).map((v) => v.visitorId)).toEqual(['visitor-kept']);
+  });
+});
+
+describe('dimension values', () => {
+  it('writes a region as ISO 3166-2 when the country is known', () => {
+    expect(regionValue('BO', 'L')).toBe('BO-L');
+    expect(regionValue(null, 'L')).toBe('L');
+    expect(regionValue('BO', null)).toBe('__unknown__');
+  });
+
+  it('writes a city with its country', () => {
+    expect(cityValue('AR', 'Córdoba')).toBe('Córdoba, AR');
+    expect(cityValue(null, 'Córdoba')).toBe('Córdoba');
+    expect(cityValue('AR', null)).toBe('__unknown__');
+  });
+
+  it('keeps the acquisition value splittable', () => {
+    expect(acquisitionKey('Referral', 'a|b.com', '/x')).toBe('Referral | a/b.com | /x');
+  });
+});
+
+describe('live window', () => {
+  it('redoes only today and yesterday', async () => {
+    vi.useFakeTimers();
+    const spy = vi.spyOn(service, 'rollupWindow').mockResolvedValue(null);
+    try {
+      service.scheduleLive(project);
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      const today = todayIn(project.timezone);
+      expect(LIVE_DAYS).toBe(2);
+      expect(spy).toHaveBeenCalledWith(project, addDays(today, -1), today, { live: true });
+    } finally {
+      spy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('nightly rollup', () => {
+  it('rolls up every active project, and one failing leaves the others alone', async () => {
+    const other = { id: 'missing-project', slug: 'test-event-rollup-broken', timezone: TZ };
+    const findMany = vi.spyOn(prisma.project, 'findMany').mockResolvedValueOnce([project, other] as never);
+    const rollup = vi
+      .spyOn(service, 'rollup')
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValueOnce({ rowsWritten: 3, rowsDeleted: 0 });
+    try {
+      await service.rollupAll();
+      expect(rollup.mock.calls.map(([p]) => p.slug)).toEqual([project.slug, other.slug]);
+    } finally {
+      findMany.mockRestore();
+      rollup.mockRestore();
+    }
+  });
+
+  it("rolls up the project's last days", async () => {
+    await seedEvents([
+      { type: SiteEventType.PAGE_VIEW, sessionId: 'session-now-aaa', at: new Date().toISOString() },
+    ]);
+
+    const result = await service.rollup(project);
+
+    expect(result?.rowsWritten).toBeGreaterThan(0);
+    expect(await valueOf('visits')).toBe(1);
   });
 });

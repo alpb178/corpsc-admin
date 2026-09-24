@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 2,
+  "events": [
+    {
+      "type": "page_view",
+      "eventId": "0b6f1c1e-3d4a-4c8e-9a52-7a1f0e2b9c11",
+      "sessionId": "9f2c4a7e1b3d45f8a0c6e2d9b7f1a3c5",
+      "visitorId": "4d8e2b6f0a1c43e7b9d5f3a1c7e9b2d4",
+      "path": "/es/servicios",
+      "country": "BO",
+      "region": "L",
+      "city": "La Paz",
+      "device": "mobile",
+      "browser": "Chrome",
+      "os": "Android",
+      "language": "es",
+      "screen": "sm",
+      "referrer": "google.com",
+      "utmSource": "instagram",
+      "utmMedium": "social",
+      "utmCampaign": "otono",
+      "at": "2026-09-21T15:04:01.000Z"
+    },
+    {
+      "type": "click",
+      "eventId": "5a1e9c3b-7d2f-4b8a-a6c4-1e3f5b7d9a2c",
+      "sessionId": "9f2c4a7e1b3d45f8a0c6e2d9b7f1a3c5",
+      "visitorId": "4d8e2b6f0a1c43e7b9d5f3a1c7e9b2d4",
+      "path": "/es/servicios",
+      "section": "hero",
+      "label": "Ver proyectos",
+      "country": "BO",
+      "device": "mobile",
+      "at": "2026-09-21T15:04:10.000Z"
+    },
+    {
+      "type": "site_click",
+      "eventId": "c7b3e1a5-9f2d-4c6b-8e1a-3d5f7b9c1e4a",
+      "sessionId": "9f2c4a7e1b3d45f8a0c6e2d9b7f1a3c5",
+      "visitorId": "4d8e2b6f0a1c43e7b9d5f3a1c7e9b2d4",
+      "path": "/es/servicios",
+      "section": "projects",
+      "label": "Take",
+      "target": "take",
+      "linkType": "web",
+      "country": "BO",
+      "device": "mobile",
+      "at": "2026-09-21T15:04:22.000Z"
+    },
+    {
+      "type": "custom",
+      "eventId": "e2d4f6a8-1b3c-4d5e-9f7a-2c4e6a8b0d1f",
+      "sessionId": "9f2c4a7e1b3d45f8a0c6e2d9b7f1a3c5",
+      "visitorId": "4d8e2b6f0a1c43e7b9d5f3a1c7e9b2d4",
+      "path": "/es/contacto",
+      "name": "contact_submit",
+      "props": { "topic": "presupuesto" },
+      "country": "BO",
+      "device": "mobile",
+      "at": "2026-09-21T15:06:40.000Z"
+    }
+  ]
+}

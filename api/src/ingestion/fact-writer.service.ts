@@ -30,6 +30,15 @@ export interface WriteParams {
    * scoping it would wipe out the project's other metrics.
    */
   ownedMetricKeys?: string[];
+  /**
+   * Days of the window this writer can speak for. Orphans are only deleted
+   * on these; the rest of the window is left as it is.
+   *
+   * The event rollup needs it: a day whose raw events were already pruned
+   * produces no rows, and without this its visits would be deleted as if the
+   * day had been empty. A submission sends every day it has, so it omits it.
+   */
+  onlyDates?: IsoDate[];
 }
 
 /**
@@ -53,7 +62,7 @@ export class FactWriterService {
   constructor(private readonly prisma: PrismaService) {}
 
   async write(params: WriteParams): Promise<WriteResult> {
-    const { projectId, runId, from, to, rows, ownedMetricKeys } = params;
+    const { projectId, runId, from, to, rows, ownedMetricKeys, onlyDates } = params;
 
     // Safeguard against silent data collapse.
     //
@@ -97,18 +106,17 @@ export class FactWriterService {
         );
       }
 
-      const rowsDeleted = ownedMetricKeys
-        ? await tx.$executeRaw`
-            DELETE FROM metric_daily
-             WHERE project_id = ${projectId}
-               AND date BETWEEN ${toUtcDate(from)}::date AND ${toUtcDate(to)}::date
-               AND metric_key = ANY(${ownedMetricKeys}::varchar[])
-               AND ingested_at < ${startedAt}`
-        : await tx.$executeRaw`
-            DELETE FROM metric_daily
-             WHERE project_id = ${projectId}
-               AND date BETWEEN ${toUtcDate(from)}::date AND ${toUtcDate(to)}::date
-               AND ingested_at < ${startedAt}`;
+      const owned = ownedMetricKeys
+        ? Prisma.sql`AND metric_key = ANY(${ownedMetricKeys}::varchar[])`
+        : Prisma.empty;
+      const days = onlyDates ? Prisma.sql`AND date = ANY(${onlyDates.map(toUtcDate)}::date[])` : Prisma.empty;
+      const rowsDeleted = await tx.$executeRaw`
+        DELETE FROM metric_daily
+         WHERE project_id = ${projectId}
+           AND date BETWEEN ${toUtcDate(from)}::date AND ${toUtcDate(to)}::date
+           ${owned}
+           ${days}
+           AND ingested_at < ${startedAt}`;
 
       return { rowsWritten, rowsDeleted };
     });

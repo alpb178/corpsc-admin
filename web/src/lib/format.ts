@@ -123,3 +123,67 @@ export function labelDimension(value: string): string {
 
   return value;
 }
+
+const languageNames =
+  typeof Intl.DisplayNames === 'function'
+    ? new Intl.DisplayNames([LOCALE], { type: 'language' })
+    : null;
+
+/** `es` → "español". Reserved values and unknown codes as `labelDimension`. */
+export function labelLanguage(value: string): string {
+  if (value in RESERVED) return RESERVED[value];
+  try {
+    const name = languageNames?.of(value);
+    if (name && name !== value) return name;
+  } catch {
+    // Not a language code: shown as is.
+  }
+  return value;
+}
+
+/** The viewport buckets of the tracker, in words. */
+const SCREENS: Record<string, string> = {
+  xs: 'Móvil (< 576 px)',
+  sm: 'Móvil grande (576–767 px)',
+  md: 'Tableta (768–991 px)',
+  lg: 'Portátil (992–1199 px)',
+  xl: 'Escritorio (1200–1439 px)',
+  xxl: 'Pantalla grande (≥ 1440 px)',
+};
+
+export function labelScreen(value: string): string {
+  return SCREENS[value] ?? labelDimension(value);
+}
+
+/**
+ * "BO-L" → "L · Bolivia". The subdivision code alone is ambiguous ("L" is La
+ * Paz in Bolivia and Lima in Peru), so its country goes with it.
+ */
+export function labelRegion(value: string): string {
+  const match = /^([A-Z]{2})-(.+)$/.exec(value);
+  if (!match) return labelDimension(value);
+  return `${match[2]} · ${labelDimension(match[1])}`;
+}
+
+/** "hace 12 s", "hace 3 min", "hace 2 h": how long ago, for the real-time list. */
+export function formatAgo(iso: string, now: number = Date.now()): string {
+  const seconds = Math.max(0, Math.round((now - Date.parse(iso)) / 1000));
+  if (seconds < 60) return `hace ${seconds} s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `hace ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `hace ${hours} h`;
+  return `hace ${Math.floor(hours / 24)} d`;
+}
+
+const EVENT_TYPES: Record<string, string> = {
+  page_view: 'Visita a',
+  click: 'Clic en',
+  site_click: 'Salida a otro sitio desde',
+  custom: 'Evento en',
+};
+
+/** How a raw event type reads in the real-time list. */
+export function labelEventType(type: string): string {
+  return EVENT_TYPES[type] ?? type;
+}
