@@ -25,6 +25,18 @@ Documento canónico: [`FLUJO-TRABAJO-DEVS.md`](./FLUJO-TRABAJO-DEVS.md).
   español. El código legado en español no se renombra "de paso". Detalle en
   `FLUJO-TRABAJO-DEVS.md`, secciones "Idioma del código" e "Idioma de git".
 
+## Tests y CI (obligatorio)
+
+- **Toda feature, cambio funcional o cambio en el tracking incluye o actualiza
+  sus tests en el mismo PR.** Sin excepción: el tracker corre en cinco sitios y
+  un error de forma se convierte en datos silenciosamente equivocados.
+- **El CI (`.github/workflows/ci.yml`) corre en cada PR** a `develop` y `main`:
+  API contra un Postgres real (typecheck, lint sin `--fix`, tests con coverage,
+  build), panel (typecheck, lint, tests con coverage, build) y tracker.
+- **Los umbrales de coverage son un suelo que solo sube.** Están en el
+  `vitest.config` de cada paquete; un PR que añade tests los sube a lo que
+  alcanza. El objetivo es ≥ 95 % en los tres; el tracker ya lo exige.
+
 ## Decisiones de diseño que no hay que deshacer sin querer
 
 **La tabla de hechos es estrecha, no ancha.** `metric_daily` guarda una fila
