@@ -7,6 +7,8 @@ export interface Preset {
 }
 
 export const PRESETS: Preset[] = [
+  // Live: the beacon sites are rolled up seconds after each visit.
+  { key: 'today', label: 'Hoy', days: 1 },
   { key: '7d', label: '7 días', days: 7 },
   { key: '28d', label: '28 días', days: 28 },
   { key: '90d', label: '90 días', days: 90 },
