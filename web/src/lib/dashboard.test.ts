@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { topPageSlices, trafficByProject, visitorsHint, visitsAndVisitors } from './dashboard';
+import { acquisitionRows, topPageSlices, trafficByProject, visitorsHint, visitsAndVisitors } from './dashboard';
 import type { Overview } from './types';
 
 function overview(overrides: Partial<Overview> = {}): Overview {
@@ -100,5 +100,23 @@ describe('visitorsHint', () => {
   it('says from which day there are visitors when that is inside the range', () => {
     expect(visitorsHint('2026-09-15', '2026-09-01')).toBe('desde 15/09');
     expect(visitorsHint('2026-08-01', '2026-09-01')).toBeUndefined();
+  });
+});
+
+describe('acquisitionRows', () => {
+  it('splits channel, source and landing, and drops the rest-of-top bucket', () => {
+    expect(
+      acquisitionRows([
+        { value: 'Organic Search | google.com | /es/servicios', metrics: { visits: 4 } },
+        { value: '__other__', metrics: { visits: 9 } },
+        { value: 'Referral | a.com | /x | y', metrics: { visits: 1 } },
+        { value: 'Direct | __direct__ | /', metrics: { visits: 0 } },
+        { value: 'Broken', metrics: { visits: 2 } },
+      ]),
+    ).toEqual([
+      { channel: 'Organic Search', source: 'google.com', landing: '/es/servicios', visits: 4 },
+      // A pipe inside the landing survives the split.
+      { channel: 'Referral', source: 'a.com', landing: '/x | y', visits: 1 },
+    ]);
   });
 });

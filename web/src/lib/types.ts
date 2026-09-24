@@ -97,6 +97,7 @@ export interface ProjectDetail {
   range: Range;
   totals: MetricTotals;
   series: SeriesPoint[];
+  visitors: VisitorStats;
   breakdowns: {
     country: DimensionSlice[];
     device: DimensionSlice[];
@@ -109,6 +110,24 @@ export interface ProjectDetail {
     campaign: DimensionSlice[];
     /** "00"–"23" in the project's time zone, with `visits` and `page_views`. */
     hour: DimensionSlice[];
+    /** ISO 3166-2, "BO-L". */
+    region: DimensionSlice[];
+    /** "La Paz, BO". */
+    city: DimensionSlice[];
+    browser: DimensionSlice[];
+    os: DimensionSlice[];
+    /** Two-letter language code. */
+    language: DimensionSlice[];
+    /** Viewport bucket: xs … xxl. */
+    screen: DimensionSlice[];
+    /** First page of each visit. */
+    landing: DimensionSlice[];
+    /** Last page of each visit. */
+    exit: DimensionSlice[];
+    /** "channel | source | landing". */
+    acquisition: DimensionSlice[];
+    /** Custom events with `custom_events` and, for goals, `conversions`. */
+    event: DimensionSlice[];
   };
   comparison?: Comparison;
 }

@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { compact, formatChange, formatDay, formatDuration, formatFullDate, formatMetric, labelDimension } from './format';
+import {
+  compact,
+  formatChange,
+  formatDay,
+  formatDuration,
+  formatFullDate,
+  formatMetric,
+  labelDimension,
+  labelLanguage,
+  labelRegion,
+  labelScreen,
+} from './format';
 
 // es-BO separators: normalise spaces so the assertions don't depend on the ICU build.
 const plain = (s: string) => s.replace(/\s/g, ' ');
@@ -61,5 +72,17 @@ describe('labelDimension', () => {
     expect(labelDimension('BO')).toBe('Bolivia');
     expect(labelDimension('XX')).toBe('XX');
     expect(labelDimension('/es/precios')).toBe('/es/precios');
+  });
+});
+
+describe('labelLanguage, labelScreen, labelRegion', () => {
+  it('names languages, screen buckets and regions with their country', () => {
+    expect(labelLanguage('es')).toBe('español');
+    expect(labelLanguage('__unknown__')).toBe('Desconocido');
+    expect(labelLanguage('not a code')).toBe('not a code');
+    expect(labelScreen('xs')).toBe('Móvil (< 576 px)');
+    expect(labelScreen('__unknown__')).toBe('Desconocido');
+    expect(labelRegion('BO-L')).toBe('L · Bolivia');
+    expect(labelRegion('__unknown__')).toBe('Desconocido');
   });
 });

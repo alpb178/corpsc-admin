@@ -8,7 +8,7 @@ import type { TrendSeries } from '@/components/charts/TrendChart';
  */
 
 /** Visits and unique visitors per day, on one axis: same unit, same scale. */
-export function visitsAndVisitors(overview: Overview): {
+export function visitsAndVisitors(overview: Pick<Overview, 'series' | 'visitors'>): {
   data: Array<Record<string, string | number | null>>;
   series: TrendSeries[];
 } {
@@ -65,4 +65,26 @@ export function topPageSlices(pages: TopPage[]): DimensionSlice[] {
 export function visitorsHint(since: string | null, from: string): string | undefined {
   if (!since) return 'llega con el tracker v2';
   return since > from ? `desde ${since.slice(8, 10)}/${since.slice(5, 7)}` : undefined;
+}
+
+export interface Acquisition {
+  channel: string;
+  source: string;
+  landing: string;
+  visits: number;
+}
+
+/**
+ * "Organic Search | google.com | /es/servicios" back into its parts: how the
+ * visit arrived, from where, and on which page. `__other__` —the rest of the
+ * top-N— isn't a route and is left out.
+ */
+export function acquisitionRows(slices: DimensionSlice[]): Acquisition[] {
+  return slices
+    .filter((s) => s.value !== '__other__')
+    .map((s) => {
+      const [channel = '', source = '', ...landing] = s.value.split(' | ');
+      return { channel, source, landing: landing.join(' | '), visits: s.metrics.visits ?? 0 };
+    })
+    .filter((row) => row.visits > 0 && row.landing !== '');
 }
