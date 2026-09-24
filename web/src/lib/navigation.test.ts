@@ -13,8 +13,14 @@ describe('buildNav', () => {
     expect(first.items).toEqual([{ href: '/', label: 'Dashboard', icon: 'dashboard' }]);
     expect(sites.title).toBe('Proyectos');
     expect(sites.items).toEqual([
-      { href: '/projects/corpsc', label: 'CORPSC', icon: 'site', initials: 'CO' },
-      { href: '/projects/iris-natural', label: 'Iris Natural', icon: 'site', initials: 'IN' },
+      { href: '/projects/corpsc', label: 'CORPSC', icon: 'site', initials: 'CO', logo: '/project-icons/corpsc.png' },
+      {
+        href: '/projects/iris-natural',
+        label: 'Iris Natural',
+        icon: 'site',
+        initials: 'IN',
+        logo: '/project-icons/iris-natural.png',
+      },
     ]);
     expect(tools.items.map((i) => i.label)).toEqual(['Comparar', 'Envíos', 'Configuración']);
   });
@@ -24,6 +30,17 @@ describe('buildNav', () => {
       const labels = buildNav(PROJECTS, role).flatMap((s) => s.items.map((i) => i.label));
       expect(labels).not.toContain('Configuración');
     }
+  });
+
+  it('gives every current site its logo', () => {
+    const slugs = ['corpsc', 'tu-chamba', 'iris-natural', 'take', 'invoices'];
+    const [, sites] = buildNav(slugs.map((slug) => ({ slug, name: slug })), 'VIEWER');
+    expect(sites.items.map((i) => i.logo)).toEqual(slugs.map((slug) => `/project-icons/${slug}.png`));
+  });
+
+  it('falls back to initials for a project added without a logo', () => {
+    const [, sites] = buildNav([{ slug: 'nuevo-sitio', name: 'Nuevo Sitio' }], 'VIEWER');
+    expect(sites.items[0]).toEqual({ href: '/projects/nuevo-sitio', label: 'Nuevo Sitio', icon: 'site', initials: 'NS' });
   });
 
   it('leaves out the sites section when there are none', () => {

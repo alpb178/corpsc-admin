@@ -141,6 +141,17 @@ export function AppDrawer({ projects, user, children }: Props) {
                     <span className="flex h-6 w-6 shrink-0 items-center justify-center">
                       {Icon ? (
                         <Icon size={18} aria-hidden />
+                      ) : item.logo ? (
+                        // The label next to it already names the site.
+                        <Image
+                          src={item.logo}
+                          alt=""
+                          width={24}
+                          height={24}
+                          className={`h-6 w-6 rounded-[4px] object-cover ${
+                            active ? 'ring-2 ring-accent ring-offset-1 ring-offset-accent-soft' : 'ring-1 ring-line'
+                          }`}
+                        />
                       ) : (
                         <span
                           aria-hidden

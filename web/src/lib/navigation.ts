@@ -12,9 +12,24 @@ export interface NavItem {
   href: string;
   label: string;
   icon: NavIcon;
-  /** For sites: the initials shown on the collapsed rail instead of an icon. */
+  /** For sites: the initials shown on the collapsed rail when there's no logo. */
   initials?: string;
+  /** For sites: the site's own logo, from `public/project-icons/`. */
+  logo?: string;
 }
+
+/**
+ * Each site's logo, by slug: the favicon of its own repo, cut to a 96 px
+ * square (24 px on a 2× screen, with room for 3×). A project added to the hub
+ * without one here shows its initials, so it still appears on its own.
+ */
+const PROJECT_LOGOS: Record<string, string> = {
+  corpsc: '/project-icons/corpsc.png',
+  'tu-chamba': '/project-icons/tu-chamba.png',
+  'iris-natural': '/project-icons/iris-natural.png',
+  take: '/project-icons/take.png',
+  invoices: '/project-icons/invoices.png',
+};
 
 export interface NavSection {
   /** Heading shown only with the drawer expanded. */
@@ -44,6 +59,7 @@ export function buildNav(projects: NavProject[], role: HubRole): NavSection[] {
         label: p.name,
         icon: 'site' as const,
         initials: initialsOf(p.name),
+        ...(PROJECT_LOGOS[p.slug] ? { logo: PROJECT_LOGOS[p.slug] } : {}),
       })),
     });
   }
