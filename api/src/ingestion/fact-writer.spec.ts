@@ -118,6 +118,23 @@ describe('FactWriterService', () => {
     expect((await storedRows()).map((r) => r.dimValue)).toEqual(['BO']);
   });
 
+  it('only deletes orphans on the days it can speak for', async () => {
+    await writer.write({
+      projectId, runId, from: FROM, to: TO,
+      rows: [row('2026-03-01', 'BO', 60), row('2026-03-02', 'CL', 5)],
+    });
+
+    // Rewrites the 1st only: the 2nd, with no rows now, is left as it was.
+    const second = await writer.write({
+      projectId, runId: await newRun(), from: FROM, to: TO,
+      rows: [row('2026-03-01', 'BO', 61)],
+      onlyDates: ['2026-03-01'],
+    });
+
+    expect(second.rowsDeleted).toBe(0);
+    expect((await storedRows()).map((r) => [r.dimValue, Number(r.value)])).toEqual([['BO', 61], ['CL', 5]]);
+  });
+
   it('does not touch what is outside the window', async () => {
     await writer.write({
       projectId, runId, from: '2026-02-01', to: '2026-02-28',
