@@ -18,6 +18,9 @@ import { fileURLToPath } from 'node:url';
 export const MANIFEST = 'MANIFEST.json';
 export const INTEGRITY_TEST = 'integrity.test.ts';
 
+/** The test runner of the receiving site: most use Vitest; Invoices, Node's own. */
+export type Runner = 'vitest' | 'node';
+
 interface Manifest {
   version: string;
   files: Record<string, string>;
@@ -46,7 +49,11 @@ export function header(version: string): string {
 
 export function sync(
   targetDir: string,
-  { sourceDir = join(ROOT, 'src'), version = packageVersion() }: { sourceDir?: string; version?: string } = {},
+  {
+    sourceDir = join(ROOT, 'src'),
+    version = packageVersion(),
+    runner = 'vitest',
+  }: { sourceDir?: string; version?: string; runner?: Runner } = {},
 ): Manifest {
   mkdirSync(targetDir, { recursive: true });
 
@@ -65,7 +72,7 @@ export function sync(
   }
 
   writeFileSync(previous, `${JSON.stringify(manifest, null, 2)}\n`);
-  writeFileSync(join(targetDir, INTEGRITY_TEST), integrityTest(version));
+  writeFileSync(join(targetDir, INTEGRITY_TEST), integrityTest(version, runner));
   return manifest;
 }
 
@@ -73,24 +80,41 @@ function packageVersion(): string {
   return (JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { version: string }).version;
 }
 
-/** The test that fails when a copy is edited by hand. */
-function integrityTest(version: string): string {
-  return `${header(version)}
+/** The test that fails when a copy is edited by hand, for the site's runner. */
+function integrityTest(version: string, runner: Runner): string {
+  const common = `${header(version)}
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
-
+`;
+  const load = `
 const dir = dirname(fileURLToPath(import.meta.url));
 const manifest = JSON.parse(readFileSync(join(dir, '${MANIFEST}'), 'utf8')) as {
   files: Record<string, string>;
 };
+const hashOf = (name: string) => createHash('sha256').update(readFileSync(join(dir, name), 'utf8')).digest('hex');
+`;
 
+  if (runner === 'node') {
+    return `${common}import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+${load}
+describe('hub tracker copy', () => {
+  for (const [name, hash] of Object.entries(manifest.files)) {
+    it(\`\${name} is exactly what corpsc-hub/tracker ships\`, () => {
+      assert.equal(hashOf(name), hash, \`\${name} was edited by hand\`);
+    });
+  }
+});
+`;
+  }
+
+  return `${common}import { describe, expect, it } from 'vitest';
+${load}
 describe('hub tracker copy', () => {
   it.each(Object.entries(manifest.files))('%s is exactly what corpsc-hub/tracker ships', (name, hash) => {
-    const content = readFileSync(join(dir, name), 'utf8');
-    expect(createHash('sha256').update(content).digest('hex'), \`\${name} was edited by hand\`).toBe(hash);
+    expect(hashOf(name), \`\${name} was edited by hand\`).toBe(hash);
   });
 });
 `;
@@ -98,11 +122,14 @@ describe('hub tracker copy', () => {
 
 const invokedDirectly = process.argv[1] && basename(process.argv[1]) === basename(fileURLToPath(import.meta.url));
 if (invokedDirectly) {
-  const target = process.argv[2];
+  const args = process.argv.slice(2);
+  const target = args.find((a) => !a.startsWith('--'));
+  const runner: Runner = args.includes('--runner=node') ? 'node' : 'vitest';
   if (!target) {
-    console.error('Usage: pnpm sync <target folder>, e.g. ../../tu-chamba/web/src/lib/hub-tracker');
+    console.error('Usage: pnpm sync <target folder> [--runner=node]');
+    console.error('  e.g. pnpm sync ../../tu-chamba/web/src/lib/hub-tracker');
     process.exit(1);
   }
-  const { version, files } = sync(resolve(process.cwd(), target));
+  const { version, files } = sync(resolve(process.cwd(), target), { runner });
   console.log(`hub-tracker v${version}: ${Object.keys(files).length} files → ${target}`);
 }

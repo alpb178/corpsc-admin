@@ -20,6 +20,9 @@ pnpm install
 pnpm sync ../../tu-chamba/web/src/lib/hub-tracker
 ```
 
+En un sitio cuyo runner de tests es el de Node (`node --test`, como Invoices),
+`pnpm sync <carpeta> --runner=node`.
+
 Copia los archivos con una cabecera `GENERATED`, un `MANIFEST.json` con el hash
 de cada uno y un `integrity.test.ts` que falla si alguien edita la copia. El
 arreglo va aquí y se vuelve a sincronizar en los cinco.

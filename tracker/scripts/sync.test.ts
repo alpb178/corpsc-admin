@@ -1,5 +1,6 @@
 // @vitest-environment node
-import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { appendFileSync, mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { INTEGRITY_TEST, MANIFEST, header, sha256, sourceFiles, sync } from './sync';
@@ -40,6 +41,27 @@ describe('sync', () => {
     expect(test).toContain("from 'vitest'");
     expect(test).toContain(MANIFEST);
     expect(test.startsWith(header('1.2.3'))).toBe(true);
+  });
+
+  it("writes the integrity test for Node's runner when the site uses it", () => {
+    const target = tmp();
+    sync(target, { runner: 'node' });
+    const test = readFileSync(join(target, INTEGRITY_TEST), 'utf8');
+    expect(test).toContain("from 'node:test'");
+    expect(test).not.toContain('vitest');
+  });
+
+  it("the Node integrity test passes on a clean copy and fails on an edited one", () => {
+    const target = tmp();
+    sync(target, { runner: 'node' });
+    const run = () => spawnSync(process.execPath, ['--test', join(target, INTEGRITY_TEST)], { encoding: 'utf8' });
+
+    expect(run().status).toBe(0);
+
+    appendFileSync(join(target, 'path.ts'), '\n// a local fix\n');
+    const failed = run();
+    expect(failed.status).not.toBe(0);
+    expect(failed.stdout + failed.stderr).toContain('path.ts was edited by hand');
   });
 
   it('removes files a previous version copied and this one no longer has', () => {
