@@ -21,7 +21,7 @@ export interface TrendSeries {
 }
 
 interface Props {
-  data: Array<Record<string, string | number>>;
+  data: Array<Record<string, string | number | null>>;
   series: TrendSeries[];
   unit?: Unit;
   height?: number;

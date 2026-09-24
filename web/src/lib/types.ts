@@ -29,12 +29,47 @@ export interface ProjectSummary {
   metrics: MetricTotals;
 }
 
+/** Unique, new and returning visitors: counted at read time, never summed per day. */
+export interface VisitorStats {
+  unique: number;
+  new: number;
+  returning: number;
+  daily: Array<{ date: string; value: number | null }>;
+  /** First day with identified (v2) visitors, or null if none yet. */
+  since: string | null;
+}
+
+export interface ProjectSeries {
+  slug: string;
+  name: string;
+  points: Array<{ date: string; value: number | null }>;
+}
+
+export interface TopPage {
+  project: { slug: string; name: string };
+  path: string;
+  pageViews: number;
+}
+
 export interface Overview {
   range: Range;
   totals: MetricTotals;
   split: { own: MetricTotals; client: MetricTotals };
   series: SeriesPoint[];
+  /** Visits per day of each site. */
+  seriesByProject: ProjectSeries[];
   projects: ProjectSummary[];
+  visitors: VisitorStats;
+  counts: { activeProjects: number; countries: number; sources: number };
+  breakdowns: {
+    country: DimensionSlice[];
+    channel: DimensionSlice[];
+    source: DimensionSlice[];
+    device: DimensionSlice[];
+    /** Custom events, with `custom_events` (and `conversions` where they are goals). */
+    event: DimensionSlice[];
+  };
+  topPages: TopPage[];
   comparison?: Comparison;
 }
 
