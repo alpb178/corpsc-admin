@@ -15,6 +15,7 @@ function snapshot(overrides: Partial<RealtimeSnapshot> = {}): RealtimeSnapshot {
     ],
     recent: [
       {
+        id: '101',
         at: new Date(NOW - 12_000).toISOString(),
         project: { slug: 'take', name: 'Take' },
         type: 'page_view',
@@ -26,6 +27,7 @@ function snapshot(overrides: Partial<RealtimeSnapshot> = {}): RealtimeSnapshot {
         detail: null,
       },
       {
+        id: '102',
         at: new Date(NOW - 3 * 60_000).toISOString(),
         project: { slug: 'corpsc', name: 'CORPSC' },
         type: 'custom',

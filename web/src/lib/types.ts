@@ -203,6 +203,8 @@ export interface HubUserRow {
 /* ── Real time ── Mirror of `api/src/metrics/realtime.service.ts`. */
 
 export interface RecentEvent {
+  /** The raw event's id, for deleting it. */
+  id: string;
   at: string;
   project: { slug: string; name: string };
   type: 'page_view' | 'click' | 'site_click' | 'custom';
@@ -223,3 +225,38 @@ export interface RealtimeSnapshot {
   recent: RecentEvent[];
   lastEventAt: string | null;
 }
+
+/* ── Records ── Mirror of `api/src/records`. */
+
+/** The panel's tables whose rows can be deleted. */
+export type RecordTable = 'page' | 'element' | 'landing' | 'exit' | 'acquisition' | 'recent';
+
+export interface DeleteRowInput {
+  slug: string;
+  table: RecordTable;
+  key: string;
+  from: string;
+  to: string;
+}
+
+export interface DeleteRowsResult {
+  deletedEvents: number;
+  recomputedDays: number;
+  emptiedDays: number;
+  clearedDays: number;
+}
+
+export interface WipeResult {
+  events: number;
+  metrics: number;
+  visitorDays: number;
+  runs: number;
+}
+
+/** What a Server Function reports back to a form or a table. */
+export interface ActionResult {
+  error?: string;
+  ok?: string;
+}
+
+export type DeleteRowAction = (input: DeleteRowInput) => Promise<ActionResult>;

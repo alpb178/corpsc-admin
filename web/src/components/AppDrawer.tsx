@@ -7,6 +7,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import {
   ArrowLeftRight,
   ChevronDown,
+  Database,
   Inbox,
   LayoutDashboard,
   LogOut,
@@ -23,6 +24,7 @@ const ICONS: Record<Exclude<NavIcon, 'site'>, LucideIcon> = {
   dashboard: LayoutDashboard,
   compare: ArrowLeftRight,
   submissions: Inbox,
+  records: Database,
   settings: Settings,
 };
 

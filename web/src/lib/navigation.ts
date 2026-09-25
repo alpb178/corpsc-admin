@@ -6,7 +6,7 @@ export interface NavProject {
   name: string;
 }
 
-export type NavIcon = 'dashboard' | 'site' | 'compare' | 'submissions' | 'settings';
+export type NavIcon = 'dashboard' | 'site' | 'compare' | 'submissions' | 'records' | 'settings';
 
 export interface NavItem {
   href: string;
@@ -93,6 +93,8 @@ export function buildNav(projects: NavProject[], role: HubRole): NavSection[] {
     { href: '/compare', label: 'Comparar', icon: 'compare' },
     { href: '/submissions', label: 'Envíos', icon: 'submissions' },
   ];
+  // Records can be deleted there: only for those who may.
+  if (role !== 'VIEWER') tools.push({ href: '/records', label: 'Registros', icon: 'records' });
   if (role === 'ADMIN') tools.push({ href: '/settings/projects', label: 'Configuración', icon: 'settings' });
   sections.push({ title: 'Herramientas', items: tools });
 

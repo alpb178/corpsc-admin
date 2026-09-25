@@ -1,4 +1,6 @@
 import { api, ApiError } from '@/lib/api';
+import { requireUser } from '@/lib/dal';
+import { deleteRow } from '@/app/(dashboard)/records/actions';
 import { DEFAULT_PRESET, presetFrom, resolveRange } from '@/lib/ranges';
 import { formatMetric } from '@/lib/format';
 import { metricTrend, projectCards, topPageSlices, trafficByProject, visitorsHint, visitsAndVisitors } from '@/lib/dashboard';
@@ -23,6 +25,8 @@ export default async function DashboardPage({
   const params = await searchParams;
   const preset = presetFrom(params);
   const range = resolveRange(preset);
+  const user = await requireUser();
+  const deletion = user.role === 'VIEWER' ? undefined : { action: deleteRow, from: range.from, to: range.to };
   // Only an explicit preset travels in the links: the default stays clean.
   const rangeParam = params.range ?? params.rango ? preset : preset === DEFAULT_PRESET ? null : preset;
 
@@ -123,7 +127,7 @@ export default async function DashboardPage({
           <ProjectCards overview={data} range={rangeParam} />
 
           <div className="mt-6">
-            <RealtimePanel initial={initialLive} />
+            <RealtimePanel initial={initialLive} deletion={deletion} />
           </div>
 
           <section className="card mt-3 p-4">

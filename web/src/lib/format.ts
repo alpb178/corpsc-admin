@@ -179,6 +179,21 @@ export function labelRegion(value: string): string {
   return `${match[2]} · ${labelDimension(match[1])}`;
 }
 
+const clock = new Intl.DateTimeFormat(LOCALE, {
+  day: 'numeric',
+  month: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+  // 24 h: es-BO would otherwise write "06:42 p. m.", and the table has no room for it.
+  hourCycle: 'h23',
+  timeZone: 'America/La_Paz',
+});
+
+/** "25 sept, 18:42", in the group's time zone: when a list isn't live, the hour beats "hace 3 h". */
+export function formatClock(iso: string): string {
+  return clock.format(new Date(iso));
+}
+
 /** "hace 12 s", "hace 3 min", "hace 2 h": how long ago, for the real-time list. */
 export function formatAgo(iso: string, now: number = Date.now()): string {
   const seconds = Math.max(0, Math.round((now - Date.parse(iso)) / 1000));

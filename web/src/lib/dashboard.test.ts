@@ -114,9 +114,9 @@ describe('acquisitionRows', () => {
         { value: 'Broken', metrics: { visits: 2 } },
       ]),
     ).toEqual([
-      { channel: 'Organic Search', source: 'google.com', landing: '/es/servicios', visits: 4 },
+      { key: 'Organic Search | google.com | /es/servicios', channel: 'Organic Search', source: 'google.com', landing: '/es/servicios', visits: 4 },
       // A pipe inside the landing survives the split.
-      { channel: 'Referral', source: 'a.com', landing: '/x | y', visits: 1 },
+      { key: 'Referral | a.com | /x | y', channel: 'Referral', source: 'a.com', landing: '/x | y', visits: 1 },
     ]);
   });
 });
