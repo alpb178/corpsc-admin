@@ -1,6 +1,7 @@
 import { RankList, rankRows } from './RankBar';
+import { regions } from 'react-svg-worldmap';
 import { WorldMap } from './WorldMap';
-import { formatMetric } from '@/lib/format';
+import { formatMetric, labelDimension } from '@/lib/format';
 import type { DimensionSlice } from '@/lib/types';
 
 interface Props {
@@ -19,6 +20,10 @@ export function CountriesCard({ slices, title = 'Países', limit = 6 }: Props) {
   const mapped = slices
     .filter((s) => /^[A-Z]{2}$/.test(s.value) && (s.metrics.visits ?? 0) > 0)
     .map((s) => ({ code: s.value, value: s.metrics.visits ?? 0 }));
+  // The map has no shape for the smallest states —Malta, Singapore— so they
+  // only exist in the list, and the card says so rather than look wrong.
+  const drawable = new Set(regions.map((r) => r.code.toUpperCase()));
+  const undrawn = mapped.filter((c) => !drawable.has(c.code)).map((c) => labelDimension(c.code));
 
   return (
     <section className="card p-4">
@@ -39,6 +44,10 @@ export function CountriesCard({ slices, title = 'Países', limit = 6 }: Props) {
           <RankList rows={rows} total={total} max={max} kind="country" />
         </div>
       )}
+
+      {undrawn.length > 0 ? (
+        <p className="mt-3 text-[11px] text-fg-faint">Sin dibujo en el mapa: {undrawn.join(', ')}.</p>
+      ) : null}
     </section>
   );
 }
