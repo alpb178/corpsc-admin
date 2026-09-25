@@ -4,6 +4,8 @@ import {
   formatAgo,
   formatChange,
   formatDay,
+  formatShare,
+  formatShortDay,
   formatDuration,
   formatFullDate,
   formatMetric,
@@ -58,6 +60,14 @@ describe('formatChange', () => {
 describe('dates', () => {
   it('formats ISO days in UTC, so they never shift a day', () => {
     expect(formatDay('2026-09-01')).toMatch(/1.*sept?/i);
+    expect(formatShortDay('2026-09-01')).toBe('1/9');
+  });
+
+  it('writes a share as whole percent and never as 0 %', () => {
+    expect(formatShare(0.404)).toMatch(/^40\s?%$/);
+    expect(formatShare(1)).toMatch(/^100\s?%$/);
+    expect(formatShare(0.002)).toMatch(/^< 1\s?%$/);
+    expect(formatShare(0)).toMatch(/^0\s?%$/);
     expect(formatFullDate('2026-09-01')).toMatch(/1 de septiembre de 2026/);
   });
 });

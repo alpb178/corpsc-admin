@@ -29,7 +29,7 @@ export default async function UsersPage() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-      <section className="overflow-x-auto rounded-[6px] border border-line bg-card">
+      <section className="overflow-x-auto card">
         <table className="w-full text-[13px]">
           <thead>
             <tr className="border-b border-line text-left text-fg-faint">

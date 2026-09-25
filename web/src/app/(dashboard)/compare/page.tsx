@@ -107,13 +107,13 @@ async function CompareChart({
 
   return (
     <>
-      <section className="mt-4 rounded-[6px] border border-line bg-card p-4">
+      <section className="mt-4 card p-4">
         <TrendChart data={rows} series={series} height={320} />
       </section>
 
       {/* Table view: each site's identity must not depend on telling colours
           apart in the chart. */}
-      <section className="mt-3 overflow-x-auto rounded-[6px] border border-line bg-card">
+      <section className="mt-3 overflow-x-auto card">
         <table className="w-full text-[13px]">
           <caption className="sr-only">Sesiones totales por sitio en el periodo</caption>
           <thead>

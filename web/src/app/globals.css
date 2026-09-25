@@ -32,6 +32,28 @@
 
   --color-positive: var(--positive);
   --color-negative: var(--negative);
+  --color-positive-soft: var(--positive-soft);
+  --color-negative-soft: var(--negative-soft);
+
+  /* Motion. Every use carries `motion-reduce:animate-none`: the figures and
+     the bars are the content, and someone who asked for less movement must
+     still get them, just without the entrance. */
+  --animate-rise: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-fade-up: fade-up 0.45s ease-out both;
+  --animate-grow: grow 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  @keyframes rise {
+    from { transform: scaleY(0); }
+    to { transform: scaleY(1); }
+  }
+  @keyframes grow {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+  }
 
   --color-brand-navy: #06132e;
   --color-brand-blue: #1668e3;
@@ -63,6 +85,9 @@
 
   --positive: #0f7a55;
   --negative: #c0392f;
+  /* Tinted pills behind a change: the text keeps the full tone on top. */
+  --positive-soft: rgba(15, 122, 85, 0.1);
+  --negative-soft: rgba(192, 57, 47, 0.1);
 
   /* Categorical series — light mode, surface #ffffff */
   --series-1: #1668e3;  /* CORPSC blue */
@@ -102,4 +127,56 @@ body {
    room than an 8 and the numbers jump around when they update. */
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Cards, as in Tu Chamba's admin: white, a hairline border and a shadow
+   soft enough to read as paper rather than as a floating panel. A card
+   that is a link lifts on hover and takes the brand border, so "this
+   opens something" is visible before clicking.
+   ────────────────────────────────────────────────────────────────── */
+@utility card {
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  box-shadow:
+    0 1px 2px rgba(6, 19, 46, 0.04),
+    0 1px 3px rgba(6, 19, 46, 0.05);
+}
+
+@utility card-link {
+  transition:
+    transform 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+
+  &:hover,
+  &:focus-visible {
+    transform: translateY(-2px);
+    border-color: var(--accent);
+    box-shadow: 0 10px 24px rgba(6, 19, 46, 0.1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &:hover,
+    &:focus-visible {
+      transform: none;
+    }
+  }
+}
+
+/* Children enter one after another. Twelve is more than any grid here has. */
+@utility stagger {
+  & > :nth-child(1) { animation-delay: 0ms; }
+  & > :nth-child(2) { animation-delay: 50ms; }
+  & > :nth-child(3) { animation-delay: 100ms; }
+  & > :nth-child(4) { animation-delay: 150ms; }
+  & > :nth-child(5) { animation-delay: 200ms; }
+  & > :nth-child(6) { animation-delay: 250ms; }
+  & > :nth-child(7) { animation-delay: 300ms; }
+  & > :nth-child(8) { animation-delay: 350ms; }
+  & > :nth-child(9) { animation-delay: 400ms; }
+  & > :nth-child(10) { animation-delay: 450ms; }
+  & > :nth-child(11) { animation-delay: 500ms; }
+  & > :nth-child(12) { animation-delay: 550ms; }
 }

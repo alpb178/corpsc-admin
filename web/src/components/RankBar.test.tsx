@@ -18,10 +18,32 @@ describe('RankBar', () => {
     expect(screen.queryByText('Perú')).toBeNull();
   });
 
-  it('scales the bars to the largest value', () => {
+  it('scales the fills to the largest value and writes each share of the whole', () => {
     const { container } = render(<RankBar title="Países" slices={slices} metricKey="visits" />);
-    const widths = [...container.querySelectorAll<HTMLElement>('li div > div')].map((d) => d.style.width);
+    const widths = [...container.querySelectorAll<HTMLElement>('li > div[aria-hidden]')].map((d) => d.style.width);
     expect(widths).toEqual(['100%', '25%']);
+    expect(screen.getByText(/^80\s?%$/)).toBeTruthy();
+    expect(screen.getByText(/^20\s?%$/)).toBeTruthy();
+    expect(screen.getByText('100 en total')).toBeTruthy();
+  });
+
+  it('shares are of the whole list, the rest included, even when the rows are capped', () => {
+    render(<RankBar title="Países" slices={slices} metricKey="visits" limit={1} />);
+    expect(screen.getByText(/^80\s?%$/)).toBeTruthy();
+    expect(screen.getByText('100 en total')).toBeTruthy();
+  });
+
+  it('has no total or share for a list of rates', () => {
+    render(<RankBar title="CTR" slices={[{ value: 'a', metrics: { ctr: 0.5 } }]} metricKey="ctr" unit="RATIO" />);
+    expect(screen.queryByText(/en total/)).toBeNull();
+    expect(screen.queryByText(/^100\s?%$/)).toBeNull();
+  });
+
+  it('puts a mark next to each value when told what they are', () => {
+    const { container } = render(<RankBar title="Países" slices={slices} metricKey="visits" kind="country" />);
+    expect(screen.getByText('🇧🇴')).toBeTruthy();
+    // The unknown country gets a globe, not a broken flag.
+    expect(container.querySelectorAll('li svg')).toHaveLength(1);
   });
 
   it('adds a secondary figure with its explanation', () => {

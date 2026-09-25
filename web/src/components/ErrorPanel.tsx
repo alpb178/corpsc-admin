@@ -1,6 +1,6 @@
 export function ErrorPanel({ title, message }: { title: string; message: string }) {
   return (
-    <div role="alert" className="rounded-[6px] border border-line bg-card p-5">
+    <div role="alert" className="card p-5">
       <h2 className="text-[14px] font-semibold text-fg">{title}</h2>
       <p className="mt-1.5 text-[13px] text-fg-muted">{message}</p>
     </div>

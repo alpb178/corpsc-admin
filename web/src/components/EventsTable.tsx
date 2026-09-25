@@ -11,7 +11,7 @@ export function EventsTable({ slices }: { slices: DimensionSlice[] }) {
   const hasGoals = rows.some((r) => r.metrics.conversions !== undefined);
 
   return (
-    <section className="rounded-[6px] border border-line bg-card">
+    <section className="card">
       <div className="border-b border-line px-4 py-3">
         <h2 className="text-[13px] font-semibold text-fg">Eventos y conversiones</h2>
       </div>

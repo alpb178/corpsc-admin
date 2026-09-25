@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { acquisitionRows, topPageSlices, trafficByProject, visitorsHint, visitsAndVisitors } from './dashboard';
+import { acquisitionRows, bucketed, metricTrend, projectCards, topPageSlices, trafficByProject, visitorsHint, visitsAndVisitors } from './dashboard';
 import type { Overview } from './types';
 
 function overview(overrides: Partial<Overview> = {}): Overview {
@@ -118,5 +118,68 @@ describe('acquisitionRows', () => {
       // A pipe inside the landing survives the split.
       { channel: 'Referral', source: 'a.com', landing: '/x | y', visits: 1 },
     ]);
+  });
+});
+
+describe('metricTrend', () => {
+  it('takes one metric out of the series, day by day, with gaps', () => {
+    expect(metricTrend(overview().series, 'visits')).toEqual([
+      { date: '2026-09-01', value: 10 },
+      { date: '2026-09-02', value: null },
+      { date: '2026-09-03', value: 20 },
+    ]);
+  });
+});
+
+describe('bucketed', () => {
+  const days = (n: number, value: (i: number) => number | null) =>
+    Array.from({ length: n }, (_, i) => ({ date: `d${i}`, value: value(i) }));
+
+  it('leaves a short range alone', () => {
+    const points = days(10, (i) => i);
+    expect(bucketed(points, 31)).toBe(points);
+  });
+
+  it('sums consecutive days into at most `max` columns, keeping the span', () => {
+    const out = bucketed(days(10, () => 1), 4);
+    expect(out).toEqual([
+      { date: 'd0', to: 'd2', value: 3 },
+      { date: 'd3', to: 'd5', value: 3 },
+      { date: 'd6', to: 'd8', value: 3 },
+      { date: 'd9', to: 'd9', value: 1 },
+    ]);
+  });
+
+  it('is a gap only when every day in the column was one', () => {
+    const out = bucketed(days(4, (i) => (i < 2 ? null : i)), 2);
+    expect(out.map((b) => b.value)).toEqual([null, 5]);
+  });
+});
+
+describe('projectCards', () => {
+  const summary = (slug: string, name: string, metrics: Record<string, number>) => ({
+    slug,
+    name,
+    kind: 'OWN' as const,
+    domain: `${slug}.corpsc.com`,
+    metrics,
+    comparison: { deltas: { visits: { current: metrics.visits ?? 0, previous: 1, change: 0, improved: null } } },
+  });
+
+  it('sorts the sites by visits, each with its own days, logo and change; the quiet ones apart', () => {
+    const { withData, without } = projectCards({
+      projects: [summary('corpsc', 'CORPSC', { visits: 10 }), summary('take', 'Take', { visits: 50 }), summary('new', 'New', {})],
+      seriesByProject: [{ slug: 'take', name: 'Take', points: [{ date: '2026-09-01', value: 50 }] }],
+    });
+
+    expect(withData.map((p) => p.slug)).toEqual(['take', 'corpsc']);
+    expect(withData[0]).toMatchObject({
+      logo: '/project-icons/take.png',
+      deltas: { visits: { current: 50 } },
+      trend: [{ date: '2026-09-01', value: 50 }],
+    });
+    expect(withData[1].logo).toBe('/project-icons/corpsc.png');
+    expect(withData[1].trend).toEqual([]);
+    expect(without.map((p) => p.slug)).toEqual(['new']);
   });
 });

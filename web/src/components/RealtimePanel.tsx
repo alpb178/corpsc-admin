@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { AnimatedNumber } from './AnimatedNumber';
 import { formatAgo, formatMetric, labelDimension, labelEventType } from '@/lib/format';
 import type { RealtimeSnapshot } from '@/lib/types';
 
@@ -72,7 +73,7 @@ export function RealtimePanel({ initial, project }: Props) {
   }, [project]);
 
   return (
-    <section aria-label="Tiempo real" className="rounded-[6px] border border-line bg-card">
+    <section aria-label="Tiempo real" className="card">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
         <h2 className="flex items-center gap-2 text-[13px] font-semibold text-fg">
           {/* The dot says "live"; the word says it too, so it isn't colour alone. */}
@@ -95,8 +96,8 @@ export function RealtimePanel({ initial, project }: Props) {
         <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
           <div className="border-b border-line p-4 lg:border-b-0 lg:border-r">
             <p className="text-[13px] font-medium text-fg-muted">Usuarios activos</p>
-            <p className="tabular mt-1 text-[42px] font-semibold leading-none text-fg">
-              {formatMetric(snapshot.activeVisitors)}
+            <p className="mt-1 text-[42px] font-bold leading-none text-accent">
+              <AnimatedNumber value={snapshot.activeVisitors} />
             </p>
             <p className="mt-1 text-[12px] text-fg-faint">en los últimos {snapshot.minutes} min</p>
 
