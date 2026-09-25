@@ -1,4 +1,5 @@
-import { compact, formatMetric, labelDimension, type Unit } from '@/lib/format';
+import { compact, formatMetric, formatShare, labelDimension, type Unit } from '@/lib/format';
+import { RankIcon, type RankKind } from './RankIcon';
 import type { DimensionSlice } from '@/lib/types';
 
 interface Props {
@@ -12,15 +13,19 @@ interface Props {
   emptyHint?: string;
   /** How a value reads. Defaults to `labelDimension` (countries, channels, reserved values). */
   labelOf?: (value: string) => string;
+  /** What the values are, for the mark next to each one. */
+  kind?: RankKind;
 }
 
 /**
- * Sorted horizontal bars: comparing magnitudes.
+ * Sorted rows, each filled from the left in proportion to the largest: the
+ * bar is the row's background, so name, figure and share read on one line
+ * and the eye compares lengths without an axis.
  *
  * A single hue, not eight: the question is "how much", not "which is which",
  * and handing out colours here would spend the categorical palette for
- * nothing. The value is written at the end of each bar, so the figure reads
- * without relying on colour or measuring against an axis.
+ * nothing. The figure is written on every row and the share says how much of
+ * the whole it is, so nothing depends on measuring the fill.
  *
  * In HTML rather than a charting library because long names —a search query,
  * a URL— truncate far better with CSS.
@@ -34,31 +39,55 @@ export function RankBar({
   limit = 8,
   emptyHint,
   labelOf = labelDimension,
+  kind,
 }: Props) {
   // `amount` and not `value`: DimensionSlice.value is the dimension's label
   // (the country, the query), and overwriting it would leave the rows nameless.
-  const rows = slices
+  const all = slices
     .map((s) => ({ label: s.value, metrics: s.metrics, amount: s.metrics[metricKey] ?? 0 }))
-    .filter((r) => r.amount > 0)
-    .slice(0, limit);
+    .filter((r) => r.amount > 0);
+  const rows = all.slice(0, limit);
 
   const max = Math.max(...rows.map((r) => r.amount), 1);
+  // The share is of everything in the list, the rest included, so the top
+  // rows never add up to more than the whole.
+  const total = all.reduce((sum, r) => sum + r.amount, 0);
+  // Only a count adds up; a list of rates has no total.
+  const additive = unit === 'COUNT';
 
   return (
     <section className="card p-4">
-      <h3 className="text-[13px] font-semibold text-fg">{title}</h3>
+      <div className="flex items-baseline justify-between gap-2">
+        <h3 className="text-[13px] font-semibold text-fg">{title}</h3>
+        {rows.length > 0 && additive ? (
+          <p className="tabular text-[12px] text-fg-faint">{formatMetric(total, unit)} en total</p>
+        ) : null}
+      </div>
 
       {rows.length === 0 ? (
         <p className="mt-3 text-[13px] text-fg-faint">{emptyHint ?? 'Sin datos en este periodo.'}</p>
       ) : (
-        <ul className="mt-3 flex flex-col gap-2.5">
-          {rows.map((row) => (
-            <li key={row.label} className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1">
-              <span className="truncate text-[13px] text-fg-muted" title={labelOf(row.label)}>
-                {labelOf(row.label)}
+        <ul className="mt-3 flex flex-col gap-1">
+          {rows.map((row, i) => (
+            <li
+              key={row.label}
+              className="group relative flex h-8 items-center gap-2 overflow-hidden rounded-[5px] px-2"
+            >
+              {/* The fill sits behind the text; `animate-grow` stretches it from the left. */}
+              <div
+                aria-hidden
+                className="absolute inset-y-0 left-0 origin-left rounded-[5px] bg-accent/10 transition-colors animate-grow group-hover:bg-accent/15 motion-reduce:animate-none"
+                style={{ width: `${Math.max(2, (row.amount / max) * 100)}%`, animationDelay: `${i * 40}ms` }}
+              />
+
+              <span className="relative flex min-w-0 flex-1 items-center gap-2">
+                {kind ? <RankIcon kind={kind} value={row.label} /> : null}
+                <span className="truncate text-[13px] text-fg" title={labelOf(row.label)}>
+                  {labelOf(row.label)}
+                </span>
               </span>
 
-              <span className="tabular flex items-baseline gap-2 text-[13px] font-medium text-fg">
+              <span className="tabular relative flex shrink-0 items-baseline gap-2 text-[13px] font-semibold text-fg">
                 {formatMetric(row.amount, unit)}
                 {secondary ? (
                   <span className="tabular text-[12px] font-normal text-fg-faint">
@@ -67,12 +96,11 @@ export function RankBar({
                 ) : null}
               </span>
 
-              <div className="col-span-2 h-[6px] overflow-hidden rounded-[3px] bg-[var(--grid)]">
-                <div
-                  className="h-full origin-left rounded-[3px] bg-[var(--seq-4)] animate-grow motion-reduce:animate-none"
-                  style={{ width: `${Math.max(2, (row.amount / max) * 100)}%` }}
-                />
-              </div>
+              {additive ? (
+                <span className="tabular relative w-10 shrink-0 text-right text-[12px] text-fg-faint">
+                  {formatShare(row.amount / total)}
+                </span>
+              ) : null}
             </li>
           ))}
         </ul>

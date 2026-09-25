@@ -218,9 +218,15 @@ de salida puede exponer `credential.ciphertext`.
   `router.refresh()` en una transición): las cifras ruedan al valor nuevo y
   las animaciones CSS de entrada no se repiten porque el DOM se conserva. Para
   mientras la pestaña está oculta y se pone al día al volver, como En vivo.
-- **Las barras de ranking van en HTML, no en Recharts.** Los nombres largos
-  —una consulta, una URL— se truncan mucho mejor con CSS. Recharts se usa solo
-  donde aporta: series temporales con crosshair.
+- **Las barras de ranking van en HTML, no en Recharts** (`RankBar`). Los
+  nombres largos —una consulta, una URL— se truncan mucho mejor con CSS.
+  Recharts se usa solo donde aporta: series temporales con crosshair. El
+  relleno va *detrás* de la fila (nombre, cifra y % del total en una línea),
+  el % es sobre toda la lista incluido `__other__`, y sólo hay total y % con
+  unidad `COUNT`: una lista de tasas no suma. `kind` pone una marca al lado
+  (`RankIcon`): bandera por código ISO, icono por dispositivo o canal, y una
+  ficha con la inicial para las fuentes, porque un favicon obligaría a pedirlo
+  fuera y el panel no habla con nadie.
 - **Las líneas son rectas (`type="linear"`), no suavizadas.** Suavizar inventa
   valores intermedios que ningún día tuvo.
 - **Solo modo claro, sobre blanco**, como los admins de tu-chamba e Iris

@@ -113,8 +113,8 @@ export default async function ProjectPage({
           {/* Where they come from. */}
           <h2 className="mb-2 mt-6 text-[15px] font-semibold text-fg">Procedencia</h2>
           <div className="grid gap-3 lg:grid-cols-3">
-            <RankBar title="Canales" slices={breakdowns.channel} metricKey="visits" />
-            <RankBar title="Fuentes" slices={breakdowns.source} metricKey="visits" />
+            <RankBar title="Canales" slices={breakdowns.channel} metricKey="visits" kind="channel" />
+            <RankBar title="Fuentes" slices={breakdowns.source} metricKey="visits" kind="source" />
             <RankBar
               title="Campañas"
               slices={breakdowns.campaign}
@@ -133,7 +133,7 @@ export default async function ProjectPage({
           {/* Where they are, and when. */}
           <h2 className="mb-2 mt-6 text-[15px] font-semibold text-fg">Ubicación y horario</h2>
           <div className="grid gap-3 lg:grid-cols-3">
-            <RankBar title="Países" slices={breakdowns.country} metricKey="visits" />
+            <RankBar title="Países" slices={breakdowns.country} metricKey="visits" kind="country" />
             <RankBar title="Regiones" slices={breakdowns.region ?? []} metricKey="visits" labelOf={labelRegion} emptyHint={V2_HINT} />
             <RankBar title="Ciudades" slices={breakdowns.city ?? []} metricKey="visits" emptyHint={V2_HINT} />
           </div>
@@ -144,7 +144,7 @@ export default async function ProjectPage({
           {/* With what. */}
           <h2 className="mb-2 mt-6 text-[15px] font-semibold text-fg">Dispositivos</h2>
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            <RankBar title="Tipo de dispositivo" slices={breakdowns.device} metricKey="visits" limit={4} emptyHint={V2_HINT} />
+            <RankBar title="Tipo de dispositivo" slices={breakdowns.device} metricKey="visits" limit={4} emptyHint={V2_HINT} kind="device" />
             <RankBar title="Navegadores" slices={breakdowns.browser ?? []} metricKey="visits" emptyHint={V2_HINT} />
             <RankBar title="Sistemas operativos" slices={breakdowns.os ?? []} metricKey="visits" emptyHint={V2_HINT} />
             <RankBar title="Idiomas" slices={breakdowns.language ?? []} metricKey="visits" labelOf={labelLanguage} emptyHint={V2_HINT} />

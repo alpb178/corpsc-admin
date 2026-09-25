@@ -131,13 +131,14 @@ export default async function DashboardPage({
 
           <h2 className="mb-2 mt-6 text-[15px] font-semibold text-fg">Procedencia</h2>
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-            <RankBar title="Países" slices={breakdowns.country} metricKey="visits" />
-            <RankBar title="Canales" slices={breakdowns.channel} metricKey="visits" />
-            <RankBar title="Fuentes" slices={breakdowns.source} metricKey="visits" />
+            <RankBar title="Países" slices={breakdowns.country} metricKey="visits" kind="country" />
+            <RankBar title="Canales" slices={breakdowns.channel} metricKey="visits" kind="channel" />
+            <RankBar title="Fuentes" slices={breakdowns.source} metricKey="visits" kind="source" />
             <RankBar
               title="Dispositivos"
               slices={breakdowns.device}
               metricKey="visits"
+              kind="device"
               limit={4}
               emptyHint="Llega con el tracker v2 de cada sitio."
             />
