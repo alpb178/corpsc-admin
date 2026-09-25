@@ -16,6 +16,8 @@ const TYPE_NAMES: Record<SiteEventType, string> = {
 };
 
 export interface RecentEvent {
+  /** The raw event's id, as text: BigInt doesn't survive JSON. It lets the panel delete one. */
+  id: string;
   at: Date;
   project: { slug: string; name: string };
   type: string;
@@ -72,6 +74,7 @@ export class RealtimeService {
         orderBy: { occurredAt: 'desc' },
         take: RECENT_EVENTS,
         select: {
+          id: true,
           occurredAt: true,
           type: true,
           path: true,
@@ -104,6 +107,7 @@ export class RealtimeService {
         .map((p) => ({ slug: p.slug, name: p.name, activeVisitors: perProject.get(p.id) ?? 0 }))
         .sort((a, b) => b.activeVisitors - a.activeVisitors),
       recent: recent.map((e) => ({
+        id: String(e.id),
         at: e.occurredAt,
         project: e.project,
         type: TYPE_NAMES[e.type],
