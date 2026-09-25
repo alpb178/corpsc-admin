@@ -192,11 +192,59 @@ de salida puede exponer `credential.ciphertext`.
   del comparador repintaría a todos los demás.
 - **Máximo ocho series.** La novena no es una tinta nueva: se agrupa o se
   divide el gráfico.
-- **Los KPI son baldosas, no gráficos.** Un número suelto se lee de un vistazo;
-  una barra sin comparación no añade nada.
-- **Las barras de ranking van en HTML, no en Recharts.** Los nombres largos
-  —una consulta, una URL— se truncan mucho mejor con CSS. Recharts se usa solo
-  donde aporta: series temporales con crosshair.
+- **Los KPI son tarjetas, no gráficos**, al estilo del admin de Tu Chamba: la
+  cifra grande en el azul de marca, la variación como píldora (flecha + %
+  + "vs anterior") y un *sparkline* de sus propios días sin ejes ni leyenda
+  (`StatTile`, `DeltaPill`, `Sparkline`). Lo que se pide al dashboard es que
+  el crecimiento o la caída esté siempre a la vista; para leer valores está el
+  gráfico de abajo.
+- **Cada sitio tiene su tarjeta y su propia comparación** (`ProjectCards`).
+  La API compara cada proyecto con *su* periodo anterior (`projects[].comparison`
+  en `/metrics/overview?compare=true`): el grupo puede subir mientras un sitio
+  cae, y esa caída tiene que verse en su tarjeta, no diluirse en la flecha
+  verde del total. Los sitios sin visitas se nombran al pie, sin tarjeta: un
+  cero con línea plana parece un sitio en apuros.
+- **Las columnas por día van en HTML** (`DailyColumns`), como en Tu Chamba: una
+  tinta, el pico escrito, el resto en el tooltip, y los días vacíos como muesca
+  gris. Más de 31 días se suman por columna (`bucketed`): sólo para métricas
+  aditivas, nunca para tasas.
+- **Las cifras hacen *count-up* escribiendo en el nodo de texto, sin
+  `setState`** (`AnimatedNumber`): el servidor pinta la cifra final (no hay
+  destello a 0) y el tween escribe `nodeValue` sobre el nodo que React creó,
+  para que la siguiente actualización de React siga cayendo en él. Toda
+  animación lleva `motion-reduce:animate-none` y el count-up respeta
+  `prefers-reduced-motion`: las cifras y las barras son el contenido.
+- **El dashboard abre con el proyecto líder** (`LeadingProject`): el sitio con
+  más visitas del periodo, su variación, su cuota del grupo y sus días. Su
+  tarjeta sigue en la cuadrícula de abajo, entre las demás, para comparar.
+- **Los países van en un mapa con la lista al lado** (`CountriesCard`,
+  `WorldMap`). El mapa es `react-svg-worldmap` (MIT): lleva sus propios datos
+  y no pide nada fuera. Se carga **sólo en el cliente** (`next/dynamic` con
+  `ssr: false`): mide la ventana para el ancho responsive y su HTML de
+  servidor nunca coincide con el del navegador; React marcaba la hidratación.
+  La paleta secuencial va como literales hex porque la librería escribe el
+  color en atributos SVG, donde una variable CSS no resuelve. El mapa es la
+  imagen; las cifras están en la lista con banderas, no dependen de matices.
+- **Los dispositivos son una barra partida y una ficha por dispositivo con
+  icono** (`DeviceSplit`), y el horario lleva las cuatro franjas del día con su
+  cuota (`HourlyActivity`): lo que se pide a esas tarjetas es una respuesta de
+  una palabra ("móvil", "por la tarde"), no una lista que leer.
+- **El dashboard se refresca solo cada minuto** (`AutoRefresh`,
+  `router.refresh()` en una transición): las cifras ruedan al valor nuevo y
+  las animaciones CSS de entrada no se repiten porque el DOM se conserva. Para
+  mientras la pestaña está oculta y se pone al día al volver, como En vivo.
+- **Las barras de ranking van en HTML, no en Recharts** (`RankBar`). Los
+  nombres largos —una consulta, una URL— se truncan mucho mejor con CSS.
+  Recharts se usa solo donde aporta: series temporales con crosshair. El
+  relleno va *detrás* de la fila (nombre, cifra y % del total en una línea),
+  el % es sobre toda la lista incluido `__other__`, y sólo hay total y % con
+  unidad `COUNT`: una lista de tasas no suma. `kind` pone una marca al lado
+  (`RankIcon`): bandera por código ISO, icono por dispositivo o canal, y para
+  fuentes, navegadores y sistemas el logotipo de la marca (`BrandIcon`, de
+  `simple-icons`, CC0, empaquetado con el panel) o el logo del sitio del grupo
+  si la fuente es uno propio (`groupSiteOf`). Un favicon obligaría a pedirlo
+  fuera y el panel no habla con nadie; una marca que el set no lleva
+  (LinkedIn, Edge, Windows) se queda en ficha con inicial, nunca en blanco.
 - **Las líneas son rectas (`type="linear"`), no suavizadas.** Suavizar inventa
   valores intermedios que ningún día tuvo.
 - **Solo modo claro, sobre blanco**, como los admins de tu-chamba e Iris
@@ -219,6 +267,36 @@ de salida puede exponer `credential.ciphertext`.
 - **Una moneda en blanco no borra la que hubiera.** La API solo acepta un ISO
   4217 de tres letras y no hay forma de dejarla en nulo; hay sitios que no
   facturan y nunca la tuvieron.
+
+## Registros: borrar lo que el hub guarda
+
+- **Borrar una fila es borrar sus eventos crudos y volver a consolidar**
+  (`api/src/records`). Las tablas del panel son agregados hechos a partir de
+  `site_event`: borrar solo la fila de `metric_daily` la haría reaparecer la
+  noche siguiente. Sólo se toca el periodo que está en pantalla: la petición
+  dice qué días y nada fuera de ellos se mueve.
+- **Tres clases de día salen de ahí.** El día que aún tiene eventos se
+  recalcula entero; el día que tenía eventos y se queda sin ninguno pierde
+  también sus filas consolidadas (si no seguiría contando visitas que ya no
+  existen); el día cuyos eventos ya se depuraron (más de 90 días) no se puede
+  recalcular: sólo se quita la fila nombrada y sus totales se quedan como
+  estaban. El panel lo dice al pie de la tabla.
+- **Entradas, salidas y «cómo llegan» son visitas, no eventos.** Borrar una
+  fila de esas tablas borra la visita entera (todos los eventos de esa sesión
+  ese día), localizada igual que la consolidación la contó (`visitStarts`,
+  público para eso). Un «Último evento» se borra por id y su periodo es su
+  propio día, diga lo que diga la pantalla.
+- **Borrar todo un proyecto** deja el proyecto, su clave y sus conversiones,
+  y vacía eventos, métricas de todos los días, visitantes-día y el historial
+  de envíos. El formulario exige escribir el nombre del sitio letra por letra.
+- **Pueden borrar ADMIN y ANALYST, nunca VIEWER.** Lo comprueban la API
+  (`@Roles`), cada Server Function (`requireRole`) y la página `/records`;
+  a un viewer no se le pinta ni la columna ni la entrada del drawer, por
+  cortesía, no por seguridad.
+- **Todas las tablas son `DataTable`**: diez filas por página, la página nunca
+  salta al encoger las filas, y la columna de borrar sólo existe cuando hay
+  quien pueda borrar. El borrado pregunta una vez, en la propia fila, y cuenta
+  en el pie qué pasó.
 
 ## Stack y sus rarezas
 

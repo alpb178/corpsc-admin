@@ -19,7 +19,7 @@ export function NewUserForm() {
   const [state, action, pending] = useActionState<ActionState, FormData>(createUser, {});
 
   return (
-    <form action={action} className="rounded-[6px] border border-line bg-card p-4">
+    <form action={action} className="card p-4">
       <h2 className="text-[13px] font-semibold text-fg">Dar de alta</h2>
 
       <div className="mt-3 space-y-3">

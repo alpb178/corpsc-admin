@@ -6,7 +6,7 @@ export interface NavProject {
   name: string;
 }
 
-export type NavIcon = 'dashboard' | 'site' | 'compare' | 'submissions' | 'settings';
+export type NavIcon = 'dashboard' | 'site' | 'compare' | 'submissions' | 'records' | 'settings';
 
 export interface NavItem {
   href: string;
@@ -30,6 +30,31 @@ const PROJECT_LOGOS: Record<string, string> = {
   take: '/project-icons/take.png',
   invoices: '/project-icons/invoices.png',
 };
+
+/** The site's logo, if the panel ships one; the caller shows initials otherwise. */
+export function logoOf(slug: string): string | undefined {
+  return PROJECT_LOGOS[slug];
+}
+
+/** The group's hosts whose subdomain doesn't spell the slug. */
+const GROUP_HOSTS: Record<string, string> = {
+  'www.corpsc.com': 'corpsc',
+  'corpsc.com': 'corpsc',
+  'irisnatural.corpsc.com': 'iris-natural',
+};
+
+/**
+ * Which site of the group a traffic source is, if any: "take.corpsc.com",
+ * "www.corpsc.com" or a bare "corpsc" all point back at the group, and the
+ * panel can show that site's own logo instead of a letter.
+ */
+export function groupSiteOf(source: string): string | undefined {
+  const host = source.toLowerCase().replace(/^www\./, '');
+  if (host in PROJECT_LOGOS) return host;
+  if (source.toLowerCase() in GROUP_HOSTS) return GROUP_HOSTS[source.toLowerCase()];
+  const sub = /^([a-z0-9-]+)\.corpsc\.com$/.exec(host)?.[1];
+  return sub && sub in PROJECT_LOGOS ? sub : undefined;
+}
 
 export interface NavSection {
   /** Heading shown only with the drawer expanded. */
@@ -68,6 +93,8 @@ export function buildNav(projects: NavProject[], role: HubRole): NavSection[] {
     { href: '/compare', label: 'Comparar', icon: 'compare' },
     { href: '/submissions', label: 'Envíos', icon: 'submissions' },
   ];
+  // Records can be deleted there: only for those who may.
+  if (role !== 'VIEWER') tools.push({ href: '/records', label: 'Registros', icon: 'records' });
   if (role === 'ADMIN') tools.push({ href: '/settings/projects', label: 'Configuración', icon: 'settings' });
   sections.push({ title: 'Herramientas', items: tools });
 

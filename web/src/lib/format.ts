@@ -34,6 +34,14 @@ export function formatMetric(value: number | undefined, unit: Unit = 'COUNT'): s
   }
 }
 
+const share = new Intl.NumberFormat(LOCALE, { style: 'percent', maximumFractionDigits: 0 });
+
+/** A part of a whole, whole numbers only: 0.404 → "40 %"; under 1 % reads "< 1 %", never "0 %". */
+export function formatShare(fraction: number): string {
+  if (fraction > 0 && fraction < 0.005) return `< ${share.format(0.01)}`;
+  return share.format(fraction);
+}
+
 /** Compact figure for the axes: 12.400 → 12,4 k */
 export function compact(value: number): string {
   if (Math.abs(value) >= 1_000_000) return `${oneDecimal.format(value / 1_000_000)} M`;
@@ -62,6 +70,12 @@ export function formatDay(iso: string): string {
 
 export function formatFullDate(iso: string): string {
   return fullDate.format(new Date(`${iso}T00:00:00Z`));
+}
+
+/** "2026-09-05" → "5/9": for axes with a column per day, where "5 sept" doesn't fit. */
+export function formatShortDay(iso: string): string {
+  const [, month, day] = iso.split('-');
+  return `${Number(day)}/${Number(month)}`;
 }
 
 /** Ingestion's reserved labels and the ones Google returns in English. */
@@ -163,6 +177,21 @@ export function labelRegion(value: string): string {
   const match = /^([A-Z]{2})-(.+)$/.exec(value);
   if (!match) return labelDimension(value);
   return `${match[2]} · ${labelDimension(match[1])}`;
+}
+
+const clock = new Intl.DateTimeFormat(LOCALE, {
+  day: 'numeric',
+  month: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+  // 24 h: es-BO would otherwise write "06:42 p. m.", and the table has no room for it.
+  hourCycle: 'h23',
+  timeZone: 'America/La_Paz',
+});
+
+/** "25 sept, 18:42", in the group's time zone: when a list isn't live, the hour beats "hace 3 h". */
+export function formatClock(iso: string): string {
+  return clock.format(new Date(iso));
 }
 
 /** "hace 12 s", "hace 3 min", "hace 2 h": how long ago, for the real-time list. */

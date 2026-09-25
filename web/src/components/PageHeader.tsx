@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { formatFullDate } from '@/lib/format';
 import { RangePicker } from './RangePicker';
 import type { Range } from '@/lib/types';
@@ -8,9 +9,11 @@ interface Props {
   range: Range;
   preset: string;
   comparedTo?: Range;
+  /** Something next to the range picker: the dashboard's refresh control. */
+  aside?: ReactNode;
 }
 
-export function PageHeader({ title, subtitle, range, preset, comparedTo }: Props) {
+export function PageHeader({ title, subtitle, range, preset, comparedTo, aside }: Props) {
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div>
@@ -25,7 +28,10 @@ export function PageHeader({ title, subtitle, range, preset, comparedTo }: Props
           ) : null}
         </p>
       </div>
-      <RangePicker current={preset} />
+      <div className="flex flex-wrap items-center gap-2">
+        {aside}
+        <RangePicker current={preset} />
+      </div>
     </div>
   );
 }

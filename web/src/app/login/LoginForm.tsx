@@ -7,7 +7,7 @@ export function LoginForm({ next }: { next: string }) {
   const [state, action, pending] = useActionState<LoginState, FormData>(login, {});
 
   return (
-    <form action={action} className="rounded-[6px] border border-line bg-card p-5">
+    <form action={action} className="card p-5">
       <input type="hidden" name="next" value={next} />
 
       <label className="block text-[13px] font-medium text-fg-muted" htmlFor="email">

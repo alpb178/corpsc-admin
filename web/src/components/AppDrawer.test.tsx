@@ -37,7 +37,7 @@ describe('AppDrawer', () => {
     renderDrawer();
 
     const links = within(menu()).getAllByRole('link').map((a) => a.getAttribute('href'));
-    expect(links).toEqual(['/', '/projects/corpsc', '/projects/tu-chamba', '/compare', '/submissions', '/settings/projects']);
+    expect(links).toEqual(['/', '/projects/corpsc', '/projects/tu-chamba', '/compare', '/submissions', '/records', '/settings/projects']);
     expect(screen.getByText('contenido')).toBeTruthy();
   });
 

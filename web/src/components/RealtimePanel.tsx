@@ -1,7 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { formatAgo, formatMetric, labelDimension, labelEventType } from '@/lib/format';
+import { AnimatedNumber } from './AnimatedNumber';
+import { RecentEventsTable } from './RecentEventsTable';
+import type { Deletion } from './DataTable';
+import { formatMetric } from '@/lib/format';
 import type { RealtimeSnapshot } from '@/lib/types';
 
 /** Often enough to feel live, rarely enough not to load anything. */
@@ -12,6 +15,8 @@ interface Props {
   initial: RealtimeSnapshot | null;
   /** One site; the whole group if omitted. */
   project?: string;
+  /** For whoever may delete an event. */
+  deletion?: Omit<Deletion, 'table' | 'slug'>;
 }
 
 /**
@@ -23,7 +28,7 @@ interface Props {
  * becomes visible again. A failed poll keeps the last good snapshot and says
  * so, rather than blanking the widget.
  */
-export function RealtimePanel({ initial, project }: Props) {
+export function RealtimePanel({ initial, project, deletion }: Props) {
   const [snapshot, setSnapshot] = useState<RealtimeSnapshot | null>(initial);
   const [stale, setStale] = useState(initial === null);
   // Re-rendered with each poll, so "hace 12 s" moves on too.
@@ -72,7 +77,7 @@ export function RealtimePanel({ initial, project }: Props) {
   }, [project]);
 
   return (
-    <section aria-label="Tiempo real" className="rounded-[6px] border border-line bg-card">
+    <section aria-label="Tiempo real" className="card">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
         <h2 className="flex items-center gap-2 text-[13px] font-semibold text-fg">
           {/* The dot says "live"; the word says it too, so it isn't colour alone. */}
@@ -95,8 +100,8 @@ export function RealtimePanel({ initial, project }: Props) {
         <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
           <div className="border-b border-line p-4 lg:border-b-0 lg:border-r">
             <p className="text-[13px] font-medium text-fg-muted">Usuarios activos</p>
-            <p className="tabular mt-1 text-[42px] font-semibold leading-none text-fg">
-              {formatMetric(snapshot.activeVisitors)}
+            <p className="mt-1 text-[42px] font-bold leading-none text-accent">
+              <AnimatedNumber value={snapshot.activeVisitors} />
             </p>
             <p className="mt-1 text-[12px] text-fg-faint">en los últimos {snapshot.minutes} min</p>
 
@@ -113,34 +118,7 @@ export function RealtimePanel({ initial, project }: Props) {
           </div>
 
           <div className="min-w-0 p-4">
-            <p className="text-[13px] font-medium text-fg-muted">Últimos eventos</p>
-            {snapshot.recent.length === 0 ? (
-              <p className="mt-2 text-[13px] text-fg-faint">Ningún evento todavía.</p>
-            ) : (
-              <ol className="mt-2 flex flex-col divide-y divide-[var(--line)]">
-                {snapshot.recent.slice(0, 8).map((event, i) => (
-                  <li key={`${event.at}-${i}`} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 py-1.5 text-[12px]">
-                    <time dateTime={event.at} className="tabular w-[72px] shrink-0 text-fg-faint">
-                      {formatAgo(event.at, now)}
-                    </time>
-                    {!project ? <span className="font-medium text-fg">{event.project.name}</span> : null}
-                    <span className="text-fg-muted">
-                      {labelEventType(event.type)} <span className="text-fg">{event.path}</span>
-                      {event.detail ? <span className="text-fg-muted"> · {event.detail}</span> : null}
-                    </span>
-                    <span className="ml-auto text-fg-faint">
-                      {[
-                        event.city ?? (event.country ? labelDimension(event.country) : null),
-                        event.source,
-                        event.device ? labelDimension(event.device) : null,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            )}
+            <RecentEventsTable events={snapshot.recent} now={now} showProject={!project} deletion={deletion} bare />
           </div>
         </div>
       )}

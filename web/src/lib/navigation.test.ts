@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildNav, initialsOf, isActive, withRange } from './navigation';
+import { groupSiteOf, buildNav, initialsOf, isActive, withRange } from './navigation';
 
 const PROJECTS = [
   { slug: 'corpsc', name: 'CORPSC' },
@@ -22,13 +22,14 @@ describe('buildNav', () => {
         logo: '/project-icons/iris-natural.png',
       },
     ]);
-    expect(tools.items.map((i) => i.label)).toEqual(['Comparar', 'Envíos', 'Configuración']);
+    expect(tools.items.map((i) => i.label)).toEqual(['Comparar', 'Envíos', 'Registros', 'Configuración']);
   });
 
-  it('shows Configuración only to admins', () => {
+  it('shows Configuración only to admins, and Registros to anyone who may delete', () => {
     for (const role of ['ANALYST', 'VIEWER'] as const) {
       const labels = buildNav(PROJECTS, role).flatMap((s) => s.items.map((i) => i.label));
       expect(labels).not.toContain('Configuración');
+      expect(labels.includes('Registros')).toBe(role === 'ANALYST');
     }
   });
 
@@ -78,5 +79,17 @@ describe('initialsOf', () => {
     ['Take', 'TA'],
   ])('%s → %s', (name, initials) => {
     expect(initialsOf(name)).toBe(initials);
+  });
+});
+
+describe('groupSiteOf', () => {
+  it('recognises the group\'s own hosts and slugs, and nothing else', () => {
+    expect(groupSiteOf('take.corpsc.com')).toBe('take');
+    expect(groupSiteOf('www.corpsc.com')).toBe('corpsc');
+    expect(groupSiteOf('corpsc.com')).toBe('corpsc');
+    expect(groupSiteOf('irisnatural.corpsc.com')).toBe('iris-natural');
+    expect(groupSiteOf('tu-chamba')).toBe('tu-chamba');
+    expect(groupSiteOf('google.com')).toBeUndefined();
+    expect(groupSiteOf('evil.corpsc.com')).toBeUndefined();
   });
 });

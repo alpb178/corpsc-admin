@@ -10,6 +10,7 @@ import { ProjectsModule } from './projects/projects.module';
 import { CredentialsModule } from './credentials/credentials.module';
 import { IngestionModule } from './ingestion/ingestion.module';
 import { MetricsModule } from './metrics/metrics.module';
+import { RecordsModule } from './records/records.module';
 import { HealthModule } from './health/health.module';
 
 @Module({
@@ -26,6 +27,7 @@ import { HealthModule } from './health/health.module';
     CredentialsModule,
     IngestionModule,
     MetricsModule,
+    RecordsModule,
     HealthModule,
   ],
 })

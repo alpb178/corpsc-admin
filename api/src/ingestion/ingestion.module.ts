@@ -19,6 +19,6 @@ import { EventRollupService } from './event-rollup.service';
     SiteEventsService,
     EventRollupService,
   ],
-  exports: [FreshnessService],
+  exports: [FreshnessService, EventRollupService],
 })
 export class IngestionModule {}
