@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 /** The dimensions that get a picture next to their name. */
-export type RankKind = 'country' | 'device' | 'channel' | 'source';
+export type RankKind = 'country' | 'device' | 'channel' | 'source' | 'name';
 
 const DEVICES: Record<string, LucideIcon> = {
   mobile: Smartphone,
@@ -50,8 +50,9 @@ function flagOf(code: string): string {
  * written next to it.
  *
  * A source is a domain, and there is no favicon without asking the outside
- * world for it, which the panel never does: it gets a letter tile instead.
- * Anything reserved or unknown gets a globe.
+ * world for it, which the panel never does: it gets a letter tile instead,
+ * as does any other named thing (a browser, an operating system). Anything
+ * reserved or unknown gets a globe.
  */
 export function RankIcon({ kind, value }: { kind: RankKind; value: string }) {
   const box = 'flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[5px]';
@@ -64,7 +65,7 @@ export function RankIcon({ kind, value }: { kind: RankKind; value: string }) {
     );
   }
 
-  if (kind === 'source' && !value.startsWith('__')) {
+  if ((kind === 'source' || kind === 'name') && !value.startsWith('__')) {
     return (
       <span aria-hidden className={`${box} bg-accent-soft text-[11px] font-bold uppercase text-accent`}>
         {value.replace(/^www\./, '').charAt(0)}

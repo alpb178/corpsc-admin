@@ -214,6 +214,21 @@ de salida puede exponer `credential.ciphertext`.
   para que la siguiente actualización de React siga cayendo en él. Toda
   animación lleva `motion-reduce:animate-none` y el count-up respeta
   `prefers-reduced-motion`: las cifras y las barras son el contenido.
+- **El dashboard abre con el proyecto líder** (`LeadingProject`): el sitio con
+  más visitas del periodo, su variación, su cuota del grupo y sus días. Su
+  tarjeta sigue en la cuadrícula de abajo, entre las demás, para comparar.
+- **Los países van en un mapa con la lista al lado** (`CountriesCard`,
+  `WorldMap`). El mapa es `react-svg-worldmap` (MIT): lleva sus propios datos
+  y no pide nada fuera. Se carga **sólo en el cliente** (`next/dynamic` con
+  `ssr: false`): mide la ventana para el ancho responsive y su HTML de
+  servidor nunca coincide con el del navegador; React marcaba la hidratación.
+  La paleta secuencial va como literales hex porque la librería escribe el
+  color en atributos SVG, donde una variable CSS no resuelve. El mapa es la
+  imagen; las cifras están en la lista con banderas, no dependen de matices.
+- **Los dispositivos son una barra partida y una ficha por dispositivo con
+  icono** (`DeviceSplit`), y el horario lleva las cuatro franjas del día con su
+  cuota (`HourlyActivity`): lo que se pide a esas tarjetas es una respuesta de
+  una palabra ("móvil", "por la tarde"), no una lista que leer.
 - **El dashboard se refresca solo cada minuto** (`AutoRefresh`,
   `router.refresh()` en una transición): las cifras ruedan al valor nuevo y
   las animaciones CSS de entrada no se repiten porque el DOM se conserva. Para

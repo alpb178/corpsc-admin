@@ -1,7 +1,7 @@
 import { api, ApiError } from '@/lib/api';
 import { DEFAULT_PRESET, presetFrom, resolveRange } from '@/lib/ranges';
 import { formatMetric } from '@/lib/format';
-import { metricTrend, topPageSlices, trafficByProject, visitorsHint, visitsAndVisitors } from '@/lib/dashboard';
+import { metricTrend, projectCards, topPageSlices, trafficByProject, visitorsHint, visitsAndVisitors } from '@/lib/dashboard';
 import { PageHeader } from '@/components/PageHeader';
 import { StatTile } from '@/components/StatTile';
 import { RankBar } from '@/components/RankBar';
@@ -9,6 +9,9 @@ import { TrendChart } from '@/components/charts/TrendChart';
 import { ErrorPanel, EmptyState } from '@/components/ErrorPanel';
 import { RealtimePanel } from '@/components/RealtimePanel';
 import { ProjectCards } from '@/components/ProjectCards';
+import { LeadingProject } from '@/components/LeadingProject';
+import { DeviceSplit } from '@/components/DeviceSplit';
+import { CountriesCard } from '@/components/CountriesCard';
 import { AutoRefresh } from '@/components/AutoRefresh';
 import type { Overview, RealtimeSnapshot } from '@/lib/types';
 
@@ -46,6 +49,7 @@ export default async function DashboardPage({
     data.seriesByProject,
     data.projects.map((p) => p.slug),
   );
+  const leader = projectCards(data).withData[0];
 
   return (
     <>
@@ -65,6 +69,13 @@ export default async function DashboardPage({
         />
       ) : (
         <>
+          {/* The headline first: which site leads the period. */}
+          {leader ? (
+            <div className="mb-3">
+              <LeadingProject project={leader} groupVisits={totals.visits ?? 0} range={rangeParam} />
+            </div>
+          ) : null}
+
           {/* The figures that answer "how is the group doing", each with its
               change and the shape of its days. A metric nobody sends here
               (conversions without goals) isn't drawn as a zero. */}
@@ -130,18 +141,16 @@ export default async function DashboardPage({
           ) : null}
 
           <h2 className="mb-2 mt-6 text-[15px] font-semibold text-fg">Procedencia</h2>
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-            <RankBar title="Países" slices={breakdowns.country} metricKey="visits" kind="country" />
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            <div className="md:col-span-2">
+              <CountriesCard slices={breakdowns.country} />
+            </div>
             <RankBar title="Canales" slices={breakdowns.channel} metricKey="visits" kind="channel" />
             <RankBar title="Fuentes" slices={breakdowns.source} metricKey="visits" kind="source" />
-            <RankBar
-              title="Dispositivos"
-              slices={breakdowns.device}
-              metricKey="visits"
-              kind="device"
-              limit={4}
-              emptyHint="Llega con el tracker v2 de cada sitio."
-            />
+            <DeviceSplit slices={breakdowns.device} emptyHint="Llega con el tracker v2 de cada sitio." />
+            {data.split.client.visits ? (
+              <Split own={data.split.own.visits ?? 0} client={data.split.client.visits} />
+            ) : null}
           </div>
 
           <h2 className="mb-2 mt-6 text-[15px] font-semibold text-fg">Contenido</h2>
@@ -156,9 +165,6 @@ export default async function DashboardPage({
             />
           </div>
 
-          {data.split.client.visits ? (
-            <Split own={data.split.own.visits ?? 0} client={data.split.client.visits} />
-          ) : null}
         </>
       )}
     </>
@@ -171,9 +177,9 @@ function Split({ own, client }: { own: number; client: number }) {
   const ownPct = own / total;
 
   return (
-    <section className="card mt-3 p-4">
+    <section className="card p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-[13px] font-semibold text-fg">Visitas por tipo de sitio</h2>
+        <h3 className="text-[13px] font-semibold text-fg">Visitas por tipo de sitio</h3>
         <p className="tabular text-[12px] text-fg-muted">
           Propios {formatMetric(own)} · Clientes {formatMetric(client)}
         </p>
