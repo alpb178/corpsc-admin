@@ -31,6 +31,11 @@ const PROJECT_LOGOS: Record<string, string> = {
   invoices: '/project-icons/invoices.png',
 };
 
+/** The site's logo, if the panel ships one; the caller shows initials otherwise. */
+export function logoOf(slug: string): string | undefined {
+  return PROJECT_LOGOS[slug];
+}
+
 export interface NavSection {
   /** Heading shown only with the drawer expanded. */
   title?: string;

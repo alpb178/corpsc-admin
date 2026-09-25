@@ -64,6 +64,12 @@ export function formatFullDate(iso: string): string {
   return fullDate.format(new Date(`${iso}T00:00:00Z`));
 }
 
+/** "2026-09-05" → "5/9": for axes with a column per day, where "5 sept" doesn't fit. */
+export function formatShortDay(iso: string): string {
+  const [, month, day] = iso.split('-');
+  return `${Number(day)}/${Number(month)}`;
+}
+
 /** Ingestion's reserved labels and the ones Google returns in English. */
 const RESERVED: Record<string, string> = {
   __other__: 'Resto',

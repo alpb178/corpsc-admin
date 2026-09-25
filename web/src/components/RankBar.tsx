@@ -45,7 +45,7 @@ export function RankBar({
   const max = Math.max(...rows.map((r) => r.amount), 1);
 
   return (
-    <section className="rounded-[6px] border border-line bg-card p-4">
+    <section className="card p-4">
       <h3 className="text-[13px] font-semibold text-fg">{title}</h3>
 
       {rows.length === 0 ? (
@@ -69,7 +69,7 @@ export function RankBar({
 
               <div className="col-span-2 h-[6px] overflow-hidden rounded-[3px] bg-[var(--grid)]">
                 <div
-                  className="h-full rounded-[3px] bg-[var(--seq-4)]"
+                  className="h-full origin-left rounded-[3px] bg-[var(--seq-4)] animate-grow motion-reduce:animate-none"
                   style={{ width: `${Math.max(2, (row.amount / max) * 100)}%` }}
                 />
               </div>

@@ -1,23 +1,27 @@
-import Link from 'next/link';
 import { api, ApiError } from '@/lib/api';
-import { presetFrom, resolveRange } from '@/lib/ranges';
+import { DEFAULT_PRESET, presetFrom, resolveRange } from '@/lib/ranges';
 import { formatMetric } from '@/lib/format';
-import { topPageSlices, trafficByProject, visitorsHint, visitsAndVisitors } from '@/lib/dashboard';
+import { metricTrend, topPageSlices, trafficByProject, visitorsHint, visitsAndVisitors } from '@/lib/dashboard';
 import { PageHeader } from '@/components/PageHeader';
 import { StatTile } from '@/components/StatTile';
 import { RankBar } from '@/components/RankBar';
 import { TrendChart } from '@/components/charts/TrendChart';
 import { ErrorPanel, EmptyState } from '@/components/ErrorPanel';
 import { RealtimePanel } from '@/components/RealtimePanel';
-import type { Overview, ProjectSummary, RealtimeSnapshot } from '@/lib/types';
+import { ProjectCards } from '@/components/ProjectCards';
+import { AutoRefresh } from '@/components/AutoRefresh';
+import type { Overview, RealtimeSnapshot } from '@/lib/types';
 
 export default async function DashboardPage({
   searchParams,
 }: {
   searchParams: Promise<{ range?: string; rango?: string }>;
 }) {
-  const preset = presetFrom(await searchParams);
+  const params = await searchParams;
+  const preset = presetFrom(params);
   const range = resolveRange(preset);
+  // Only an explicit preset travels in the links: the default stays clean.
+  const rangeParam = params.range ?? params.rango ? preset : preset === DEFAULT_PRESET ? null : preset;
 
   // Real time is a bonus: if it fails, the dashboard still opens.
   const live = api<RealtimeSnapshot>('/metrics/realtime').catch(() => null);
@@ -51,6 +55,7 @@ export default async function DashboardPage({
         range={data.range}
         preset={preset}
         comparedTo={comparison?.range}
+        aside={<AutoRefresh />}
       />
 
       {!hasData ? (
@@ -60,32 +65,57 @@ export default async function DashboardPage({
         />
       ) : (
         <>
-          {/* The figures that answer "how is the group doing". Tiles, not
-              charts: they're standalone numbers. A metric nobody sends here
+          {/* The figures that answer "how is the group doing", each with its
+              change and the shape of its days. A metric nobody sends here
               (conversions without goals) isn't drawn as a zero. */}
-          <section aria-label="Indicadores del grupo" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <StatTile label="Visitas" hint="sesiones" value={totals.visits} delta={comparison?.deltas.visits} hero />
+          <section aria-label="Indicadores del grupo" className="stagger grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <StatTile
+              label="Visitas"
+              hint="sesiones"
+              value={totals.visits}
+              delta={comparison?.deltas.visits}
+              trend={metricTrend(data.series, 'visits')}
+              hero
+            />
             <StatTile
               label="Visitantes únicos"
               hint={visitorsHint(visitors.since, data.range.from)}
               value={visitors.since ? visitors.unique : undefined}
               delta={visitors.since ? comparison?.deltas.unique_visitors : undefined}
+              trend={visitors.since ? visitors.daily : undefined}
             />
-            <StatTile label="Páginas vistas" value={totals.page_views} delta={comparison?.deltas.page_views} />
-            <StatTile label="Clics" value={totals.clicks} delta={comparison?.deltas.clicks} />
+            <StatTile
+              label="Páginas vistas"
+              value={totals.page_views}
+              delta={comparison?.deltas.page_views}
+              trend={metricTrend(data.series, 'page_views')}
+            />
+            <StatTile
+              label="Clics"
+              value={totals.clicks}
+              delta={comparison?.deltas.clicks}
+              trend={metricTrend(data.series, 'clicks')}
+            />
             {totals.conversions !== undefined ? (
-              <StatTile label="Conversiones" value={totals.conversions} delta={comparison?.deltas.conversions} />
+              <StatTile
+                label="Conversiones"
+                value={totals.conversions}
+                delta={comparison?.deltas.conversions}
+                trend={metricTrend(data.series, 'conversions')}
+              />
             ) : null}
             <StatTile label="Proyectos activos" value={counts.activeProjects} hint={`de ${data.projects.length}`} />
             <StatTile label="Países" value={counts.countries} />
             <StatTile label="Fuentes" value={counts.sources} />
           </section>
 
-          <div className="mt-3">
+          <ProjectCards overview={data} range={rangeParam} />
+
+          <div className="mt-6">
             <RealtimePanel initial={initialLive} />
           </div>
 
-          <section className="mt-3 rounded-[6px] border border-line bg-card p-4">
+          <section className="card mt-3 p-4">
             <h2 className="mb-3 text-[13px] font-semibold text-fg">
               {trend.series.length > 1 ? 'Visitas y visitantes por día' : 'Visitas por día'}
             </h2>
@@ -93,13 +123,14 @@ export default async function DashboardPage({
           </section>
 
           {byProject.series.length > 0 ? (
-            <section className="mt-3 rounded-[6px] border border-line bg-card p-4">
+            <section className="card mt-3 p-4">
               <h2 className="mb-3 text-[13px] font-semibold text-fg">Visitas por proyecto</h2>
               <TrendChart data={byProject.data} series={byProject.series} />
             </section>
           ) : null}
 
-          <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+          <h2 className="mb-2 mt-6 text-[15px] font-semibold text-fg">Procedencia</h2>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
             <RankBar title="Países" slices={breakdowns.country} metricKey="visits" />
             <RankBar title="Canales" slices={breakdowns.channel} metricKey="visits" />
             <RankBar title="Fuentes" slices={breakdowns.source} metricKey="visits" />
@@ -112,7 +143,8 @@ export default async function DashboardPage({
             />
           </div>
 
-          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+          <h2 className="mb-2 mt-6 text-[15px] font-semibold text-fg">Contenido</h2>
+          <div className="grid gap-3 lg:grid-cols-2">
             <RankBar title="Páginas más visitadas" slices={topPageSlices(data.topPages)} metricKey="page_views" limit={10} />
             <RankBar
               title="Eventos más usados"
@@ -126,8 +158,6 @@ export default async function DashboardPage({
           {data.split.client.visits ? (
             <Split own={data.split.own.visits ?? 0} client={data.split.client.visits} />
           ) : null}
-
-          <ProjectsTable projects={data.projects} />
         </>
       )}
     </>
@@ -140,7 +170,7 @@ function Split({ own, client }: { own: number; client: number }) {
   const ownPct = own / total;
 
   return (
-    <section className="mt-3 rounded-[6px] border border-line bg-card p-4">
+    <section className="card mt-3 p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-[13px] font-semibold text-fg">Visitas por tipo de sitio</h2>
         <p className="tabular text-[12px] text-fg-muted">
@@ -148,64 +178,15 @@ function Split({ own, client }: { own: number; client: number }) {
         </p>
       </div>
       <div className="mt-3 flex h-[10px] gap-[2px] overflow-hidden rounded-[4px]">
-        <div className="rounded-l-[4px] bg-[var(--series-1)]" style={{ width: `${ownPct * 100}%` }} />
+        <div
+          className="origin-left rounded-l-[4px] bg-[var(--series-1)] transition-[width] duration-700 ease-out"
+          style={{ width: `${ownPct * 100}%` }}
+        />
         <div className="flex-1 rounded-r-[4px] bg-[var(--series-3)]" />
       </div>
       <p className="mt-2 text-[12px] text-fg-faint">
         {Math.round(ownPct * 100)}% del tráfico del grupo viene de productos propios.
       </p>
-    </section>
-  );
-}
-
-function ProjectsTable({ projects }: { projects: ProjectSummary[] }) {
-  const withData = projects.filter((p) => (p.metrics.visits ?? 0) > 0);
-  const without = projects.length - withData.length;
-  const sorted = [...withData].sort((a, b) => (b.metrics.visits ?? 0) - (a.metrics.visits ?? 0));
-  // A column only if some site measures it: "Conversiones —" on every row says nothing.
-  const showConversions = withData.some((p) => p.metrics.conversions !== undefined);
-
-  return (
-    <section className="mt-3 rounded-[6px] border border-line bg-card">
-      <div className="flex items-baseline justify-between gap-2 border-b border-line px-4 py-3">
-        <h2 className="text-[13px] font-semibold text-fg">Por proyecto</h2>
-        {without > 0 ? (
-          <p className="text-[12px] text-fg-faint">
-            {without} {without === 1 ? 'sitio sin datos' : 'sitios sin datos'} en este periodo
-          </p>
-        ) : null}
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="w-full text-[13px]">
-          <thead>
-            <tr className="border-b border-line text-left text-fg-faint">
-              <th scope="col" className="px-4 py-2 font-medium">Sitio</th>
-              <th scope="col" className="px-4 py-2 text-right font-medium">Visitas</th>
-              <th scope="col" className="px-4 py-2 text-right font-medium">Páginas</th>
-              <th scope="col" className="px-4 py-2 text-right font-medium">Clics</th>
-              {showConversions ? <th scope="col" className="px-4 py-2 text-right font-medium">Conversiones</th> : null}
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((p) => (
-              <tr key={p.slug} className="border-b border-line last:border-0 hover:bg-elevated">
-                <th scope="row" className="px-4 py-2.5 text-left font-normal">
-                  <Link href={`/projects/${p.slug}`} className="font-medium text-fg hover:text-accent">
-                    {p.name}
-                  </Link>
-                </th>
-                <td className="tabular px-4 py-2.5 text-right text-fg">{formatMetric(p.metrics.visits)}</td>
-                <td className="tabular px-4 py-2.5 text-right text-fg-muted">{formatMetric(p.metrics.page_views)}</td>
-                <td className="tabular px-4 py-2.5 text-right text-fg-muted">{formatMetric(p.metrics.clicks)}</td>
-                {showConversions ? (
-                  <td className="tabular px-4 py-2.5 text-right text-fg-muted">{formatMetric(p.metrics.conversions)}</td>
-                ) : null}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </section>
   );
 }

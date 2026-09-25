@@ -11,7 +11,7 @@ export function AcquisitionTable({ slices, limit = 12 }: { slices: DimensionSlic
   const rows = acquisitionRows(slices).slice(0, limit);
 
   return (
-    <section className="rounded-[6px] border border-line bg-card">
+    <section className="card">
       <div className="border-b border-line px-4 py-3">
         <h2 className="text-[13px] font-semibold text-fg">Cómo llegan</h2>
         <p className="mt-0.5 text-[12px] text-fg-faint">Canal, fuente y página de entrada de cada visita.</p>

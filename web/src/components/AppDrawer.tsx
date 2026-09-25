@@ -214,7 +214,7 @@ export function AppDrawer({ projects, user, children }: Props) {
                 <div aria-hidden="true" className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
                 <div
                   role="menu"
-                  className="absolute right-0 top-full z-50 mt-2 w-60 overflow-hidden rounded-[6px] border border-line bg-card shadow-xl"
+                  className="absolute right-0 top-full z-50 mt-2 w-60 overflow-hidden card shadow-xl"
                 >
                   <div className="border-b border-line px-4 py-3">
                     <p className="truncate text-[13px] font-medium text-fg">{user.name}</p>

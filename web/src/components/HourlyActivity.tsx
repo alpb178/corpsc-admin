@@ -17,7 +17,7 @@ export function HourlyActivity({ slices, timezone }: { slices: DimensionSlice[];
   const peak = values.reduce((best, v) => (v.visits > best.visits ? v : best), values[0]);
 
   return (
-    <section className="rounded-[6px] border border-line bg-card p-4">
+    <section className="card p-4">
       <div className="flex items-baseline justify-between gap-2">
         <h3 className="text-[13px] font-semibold text-fg">Horario de visitas</h3>
         <p className="text-[12px] text-fg-faint">{timezone}</p>
@@ -38,8 +38,8 @@ export function HourlyActivity({ slices, timezone }: { slices: DimensionSlice[];
                 role="listitem"
                 aria-label={`${v.hour}:00 — ${formatMetric(v.visits)} visitas`}
                 title={`${v.hour}:00 — ${formatMetric(v.visits)} visitas`}
-                className="flex-1 rounded-t-[2px] bg-accent"
-                style={{ height: `${Math.max((v.visits / max) * 100, v.visits > 0 ? 3 : 0)}%` }}
+                className="flex-1 origin-bottom rounded-t-[2px] bg-accent animate-rise motion-reduce:animate-none"
+                style={{ height: `${Math.max((v.visits / max) * 100, v.visits > 0 ? 3 : 0)}%`, animationDelay: `${Number(v.hour) * 15}ms` }}
               />
             ))}
           </div>

@@ -26,7 +26,7 @@ export function ProjectCard({ project, credential, unassigned }: Props) {
   const [revocation, revoke, revoking] = useActionState<ActionState, FormData>(revokeKey, {});
 
   return (
-    <details className="group rounded-[6px] border border-line bg-card">
+    <details className="group card">
       <summary className="flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-[13px]">
         <span className="font-medium text-fg">{project.name}</span>
         <span className="text-fg-faint">{project.domain}</span>

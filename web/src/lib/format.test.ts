@@ -4,6 +4,7 @@ import {
   formatAgo,
   formatChange,
   formatDay,
+  formatShortDay,
   formatDuration,
   formatFullDate,
   formatMetric,
@@ -58,6 +59,7 @@ describe('formatChange', () => {
 describe('dates', () => {
   it('formats ISO days in UTC, so they never shift a day', () => {
     expect(formatDay('2026-09-01')).toMatch(/1.*sept?/i);
+    expect(formatShortDay('2026-09-01')).toBe('1/9');
     expect(formatFullDate('2026-09-01')).toMatch(/1 de septiembre de 2026/);
   });
 });

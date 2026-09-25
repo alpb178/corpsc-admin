@@ -97,7 +97,7 @@ export default async function ProjectPage({
             ) : null}
           </section>
 
-          <section className="mt-3 rounded-[6px] border border-line bg-card p-4">
+          <section className="mt-3 card p-4">
             <h2 className="mb-3 text-[13px] font-semibold text-fg">
               {trend.series.length > 1 ? 'Visitas y visitantes por día' : 'Visitas por día'}
             </h2>

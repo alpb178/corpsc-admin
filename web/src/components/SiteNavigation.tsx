@@ -46,7 +46,7 @@ export function SiteNavigation({ pages, elements }: { pages: DimensionSlice[]; e
 
   return (
     <div className="mt-3 grid gap-3 lg:grid-cols-2">
-      <section className="rounded-[6px] border border-line bg-card">
+      <section className="card">
         <div className="border-b border-line px-4 py-3">
           <h2 className="text-[13px] font-semibold text-fg">Páginas visitadas</h2>
           <p className="mt-0.5 text-[12px] text-fg-faint">Elige una para ver dónde se hizo clic en ella.</p>
@@ -99,7 +99,7 @@ export function SiteNavigation({ pages, elements }: { pages: DimensionSlice[]; e
         )}
       </section>
 
-      <section className="rounded-[6px] border border-line bg-card">
+      <section className="card">
         <div className="flex items-baseline justify-between gap-2 border-b border-line px-4 py-3">
           <div className="min-w-0">
             <h2 className="text-[13px] font-semibold text-fg">Dónde hacen clic</h2>

@@ -27,6 +27,8 @@ export interface ProjectSummary {
   kind: 'OWN' | 'CLIENT';
   domain: string;
   metrics: MetricTotals;
+  /** The site against its own previous period. Only with `compare=true`. */
+  comparison?: { deltas: Record<string, Delta> };
 }
 
 /** Unique, new and returning visitors: counted at read time, never summed per day. */
