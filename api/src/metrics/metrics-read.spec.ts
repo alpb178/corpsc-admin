@@ -173,6 +173,24 @@ describe('MetricsService.overview', () => {
 
     expect(view.comparison.deltas.unique_visitors).toMatchObject({ current: 2, previous: 1, change: 1, improved: true });
   });
+
+  it('compares each site with its own previous period, not with the group', async () => {
+    // Alpha had 30 visits on 8 May and has 15 now: it falls while the group
+    // (18 now against 30 before) falls less. Beta had nothing before.
+    await metric(alpha.id, '2031-05-08', 'visits', 30);
+
+    const view = (await metrics.overview(RANGE, true)) as View;
+    const bySlug = Object.fromEntries(view.projects.map((p: { slug: string }) => [p.slug, p]));
+
+    expect(bySlug[alpha.slug].comparison.deltas.visits).toMatchObject({ current: 15, previous: 30, change: -0.5, improved: false });
+    expect(bySlug[beta.slug].comparison.deltas.visits).toMatchObject({ current: 3, previous: 0, change: null, improved: null });
+    expect(view.comparison.deltas.visits).toMatchObject({ current: 18, previous: 30 });
+  });
+
+  it('leaves the sites without a comparison when none is asked for', async () => {
+    const view = (await metrics.overview(RANGE, false)) as View;
+    expect(view.projects.every((p: { comparison?: unknown }) => p.comparison === undefined)).toBe(true);
+  });
 });
 
 describe('MetricsService.compareProjects', () => {

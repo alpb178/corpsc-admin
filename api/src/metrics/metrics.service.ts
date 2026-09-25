@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { MetricUnit, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { FreshnessService } from '../ingestion/freshness.service';
-import { compare, isImprovement, withDerived, type MetricMeta, type MetricTotals } from './derived';
+import { compare, isImprovement, withDerived, type Delta, type MetricMeta, type MetricTotals } from './derived';
 import { addDays, daysBetween, isIsoDate, toUtcDate, type IsoDate } from '../ingestion/common/dates';
 import { OTHER, TOTAL_DIMENSION } from '../ingestion/common/metric-row';
 import { UNKNOWN } from '../ingestion/event-rollup.service';
@@ -19,6 +19,8 @@ export interface ProjectSummary {
   kind: string;
   domain: string;
   metrics: MetricTotals;
+  /** Each site against its own previous period. Only with `compare=true`. */
+  comparison?: { deltas: Record<string, Delta & { improved: boolean | null }> };
 }
 
 @Injectable()
@@ -85,19 +87,31 @@ export class MetricsService {
 
     if (withComparison) {
       const previous = this.previousRange(range);
-      const deltas = compare(
-        { ...current, unique_visitors: visitors.unique },
-        {
-          ...withDerived(await this.sumTotals(previous), definitions),
-          unique_visitors: (await this.visitorStats.stats(previous)).unique,
-        },
-      );
+      const [previousTotals, previousVisitors, previousByProject] = await Promise.all([
+        this.sumTotals(previous),
+        this.visitorStats.stats(previous),
+        this.sumTotalsByProject(previous),
+      ]);
       result.comparison = {
         range: previous,
-        deltas: Object.fromEntries(
-          Object.entries(deltas).map(([key, d]) => [key, { ...d, improved: isImprovement(key, d.change) }]),
+        deltas: judged(
+          compare(
+            { ...current, unique_visitors: visitors.unique },
+            { ...withDerived(previousTotals, definitions), unique_visitors: previousVisitors.unique },
+          ),
         ),
       };
+
+      // Each site against ITS OWN previous period: the group can grow while
+      // one site falls, and the dashboard has to show the fall on that site's
+      // card, not hide it inside the group's green arrow.
+      const before = new Map(
+        (await this.decorateProjects(previousByProject, definitions)).map((p) => [p.slug, p.metrics]),
+      );
+      result.projects = projects.map((p) => ({
+        ...p,
+        comparison: { deltas: judged(compare(p.metrics, before.get(p.slug) ?? {})) },
+      }));
     }
 
     return result;
@@ -177,12 +191,7 @@ export class MetricsService {
           unique_visitors: (await this.visitorStats.stats(previous, project.id)).unique,
         },
       );
-      result.comparison = {
-        range: previous,
-        deltas: Object.fromEntries(
-          Object.entries(deltas).map(([key, d]) => [key, { ...d, improved: isImprovement(key, d.change) }]),
-        ),
-      };
+      result.comparison = { range: previous, deltas: judged(deltas) };
     }
 
     return result;
@@ -471,6 +480,13 @@ export class MetricsService {
     const span = daysBetween(range.from, range.to) + 1;
     return { from: addDays(range.from, -span), to: addDays(range.from, -1) };
   }
+}
+
+/** Adds to each delta whether it is good news: fewer cancellations is a rise. */
+function judged(deltas: Record<string, Delta>): Record<string, Delta & { improved: boolean | null }> {
+  return Object.fromEntries(
+    Object.entries(deltas).map(([key, d]) => [key, { ...d, improved: isImprovement(key, d.change) }]),
+  );
 }
 
 /** How many values a breakdown returns by default. */
