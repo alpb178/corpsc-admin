@@ -22,13 +22,14 @@ describe('buildNav', () => {
         logo: '/project-icons/iris-natural.png',
       },
     ]);
-    expect(tools.items.map((i) => i.label)).toEqual(['Comparar', 'Envíos', 'Configuración']);
+    expect(tools.items.map((i) => i.label)).toEqual(['Comparar', 'Envíos', 'Registros', 'Configuración']);
   });
 
-  it('shows Configuración only to admins', () => {
+  it('shows Configuración only to admins, and Registros to anyone who may delete', () => {
     for (const role of ['ANALYST', 'VIEWER'] as const) {
       const labels = buildNav(PROJECTS, role).flatMap((s) => s.items.map((i) => i.label));
       expect(labels).not.toContain('Configuración');
+      expect(labels.includes('Registros')).toBe(role === 'ANALYST');
     }
   });
 

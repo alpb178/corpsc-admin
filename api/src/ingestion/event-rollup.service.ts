@@ -134,7 +134,7 @@ function compositeKey(parts: string[]): string {
     .slice(0, 512);
 }
 
-interface RollupProject {
+export interface RollupProject {
   id: string;
   slug: string;
   timezone: string;
@@ -154,8 +154,9 @@ interface DayTotals {
  * Each visit of the day as it started: country, source, device and hour come
  * from its first event; landing and exit from its first and last page view.
  */
-interface VisitStart {
+export interface VisitStart {
   day: Date;
+  session_id: string;
   hour: number;
   country: string | null;
   region: string | null;
@@ -720,7 +721,8 @@ export class EventRollupService implements OnModuleDestroy {
    * page view that day (only a late click) has no landing or exit, and goes
    * to `__unknown__` in those.
    */
-  private visitStarts(project: RollupProject, from: IsoDate, to: IsoDate): Promise<VisitStart[]> {
+  /** Public for the records module: deleting a landing or an acquisition row means finding its sessions. */
+  visitStarts(project: RollupProject, from: IsoDate, to: IsoDate): Promise<VisitStart[]> {
     const tz = project.timezone;
     const guardFrom = toUtcDate(addDays(from, -1));
     const guardTo = toUtcDate(addDays(to, 2));
@@ -757,7 +759,7 @@ export class EventRollupService implements OnModuleDestroy {
          WHERE type = 'PAGE_VIEW'
          ORDER BY day, session_id, occurred_at DESC
       )
-      SELECT s.day, s.hour, s.country, s.region, s.city, s.device, s.browser, s.os,
+      SELECT s.day, s.session_id, s.hour, s.country, s.region, s.city, s.device, s.browser, s.os,
              s.language, s.screen, s.referrer, s.utm_source, s.utm_medium, s.utm_campaign,
              l.landing, e.exit
         FROM starts s

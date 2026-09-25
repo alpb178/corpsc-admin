@@ -69,6 +69,8 @@ export function visitorsHint(since: string | null, from: string): string | undef
 }
 
 export interface Acquisition {
+  /** The row as the hub stores it: what a deletion names. */
+  key: string;
   channel: string;
   source: string;
   landing: string;
@@ -85,7 +87,7 @@ export function acquisitionRows(slices: DimensionSlice[]): Acquisition[] {
     .filter((s) => s.value !== '__other__')
     .map((s) => {
       const [channel = '', source = '', ...landing] = s.value.split(' | ');
-      return { channel, source, landing: landing.join(' | '), visits: s.metrics.visits ?? 0 };
+      return { key: s.value, channel, source, landing: landing.join(' | '), visits: s.metrics.visits ?? 0 };
     })
     .filter((row) => row.visits > 0 && row.landing !== '');
 }
