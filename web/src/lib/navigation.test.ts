@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildNav, initialsOf, isActive, withRange } from './navigation';
+import { groupSiteOf, buildNav, initialsOf, isActive, withRange } from './navigation';
 
 const PROJECTS = [
   { slug: 'corpsc', name: 'CORPSC' },
@@ -78,5 +78,17 @@ describe('initialsOf', () => {
     ['Take', 'TA'],
   ])('%s → %s', (name, initials) => {
     expect(initialsOf(name)).toBe(initials);
+  });
+});
+
+describe('groupSiteOf', () => {
+  it('recognises the group\'s own hosts and slugs, and nothing else', () => {
+    expect(groupSiteOf('take.corpsc.com')).toBe('take');
+    expect(groupSiteOf('www.corpsc.com')).toBe('corpsc');
+    expect(groupSiteOf('corpsc.com')).toBe('corpsc');
+    expect(groupSiteOf('irisnatural.corpsc.com')).toBe('iris-natural');
+    expect(groupSiteOf('tu-chamba')).toBe('tu-chamba');
+    expect(groupSiteOf('google.com')).toBeUndefined();
+    expect(groupSiteOf('evil.corpsc.com')).toBeUndefined();
   });
 });

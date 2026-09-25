@@ -149,8 +149,8 @@ export default async function ProjectPage({
           <h2 className="mb-2 mt-6 text-[15px] font-semibold text-fg">Dispositivos</h2>
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             <DeviceSplit title="Tipo de dispositivo" slices={breakdowns.device} emptyHint={V2_HINT} />
-            <RankBar title="Navegadores" slices={breakdowns.browser ?? []} metricKey="visits" emptyHint={V2_HINT} kind="name" />
-            <RankBar title="Sistemas operativos" slices={breakdowns.os ?? []} metricKey="visits" emptyHint={V2_HINT} kind="name" />
+            <RankBar title="Navegadores" slices={breakdowns.browser ?? []} metricKey="visits" emptyHint={V2_HINT} kind="browser" />
+            <RankBar title="Sistemas operativos" slices={breakdowns.os ?? []} metricKey="visits" emptyHint={V2_HINT} kind="os" />
             <RankBar title="Idiomas" slices={breakdowns.language ?? []} metricKey="visits" labelOf={labelLanguage} emptyHint={V2_HINT} />
             <RankBar title="Pantallas" slices={breakdowns.screen ?? []} metricKey="visits" labelOf={labelScreen} emptyHint={V2_HINT} />
           </div>

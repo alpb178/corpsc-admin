@@ -36,6 +36,26 @@ export function logoOf(slug: string): string | undefined {
   return PROJECT_LOGOS[slug];
 }
 
+/** The group's hosts whose subdomain doesn't spell the slug. */
+const GROUP_HOSTS: Record<string, string> = {
+  'www.corpsc.com': 'corpsc',
+  'corpsc.com': 'corpsc',
+  'irisnatural.corpsc.com': 'iris-natural',
+};
+
+/**
+ * Which site of the group a traffic source is, if any: "take.corpsc.com",
+ * "www.corpsc.com" or a bare "corpsc" all point back at the group, and the
+ * panel can show that site's own logo instead of a letter.
+ */
+export function groupSiteOf(source: string): string | undefined {
+  const host = source.toLowerCase().replace(/^www\./, '');
+  if (host in PROJECT_LOGOS) return host;
+  if (source.toLowerCase() in GROUP_HOSTS) return GROUP_HOSTS[source.toLowerCase()];
+  const sub = /^([a-z0-9-]+)\.corpsc\.com$/.exec(host)?.[1];
+  return sub && sub in PROJECT_LOGOS ? sub : undefined;
+}
+
 export interface NavSection {
   /** Heading shown only with the drawer expanded. */
   title?: string;

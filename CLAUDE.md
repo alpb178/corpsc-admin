@@ -239,9 +239,12 @@ de salida puede exponer `credential.ciphertext`.
   relleno va *detrás* de la fila (nombre, cifra y % del total en una línea),
   el % es sobre toda la lista incluido `__other__`, y sólo hay total y % con
   unidad `COUNT`: una lista de tasas no suma. `kind` pone una marca al lado
-  (`RankIcon`): bandera por código ISO, icono por dispositivo o canal, y una
-  ficha con la inicial para las fuentes, porque un favicon obligaría a pedirlo
-  fuera y el panel no habla con nadie.
+  (`RankIcon`): bandera por código ISO, icono por dispositivo o canal, y para
+  fuentes, navegadores y sistemas el logotipo de la marca (`BrandIcon`, de
+  `simple-icons`, CC0, empaquetado con el panel) o el logo del sitio del grupo
+  si la fuente es uno propio (`groupSiteOf`). Un favicon obligaría a pedirlo
+  fuera y el panel no habla con nadie; una marca que el set no lleva
+  (LinkedIn, Edge, Windows) se queda en ficha con inicial, nunca en blanco.
 - **Las líneas son rectas (`type="linear"`), no suavizadas.** Suavizar inventa
   valores intermedios que ningún día tuvo.
 - **Solo modo claro, sobre blanco**, como los admins de tu-chamba e Iris
