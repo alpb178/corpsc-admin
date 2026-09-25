@@ -192,8 +192,32 @@ de salida puede exponer `credential.ciphertext`.
   del comparador repintaría a todos los demás.
 - **Máximo ocho series.** La novena no es una tinta nueva: se agrupa o se
   divide el gráfico.
-- **Los KPI son baldosas, no gráficos.** Un número suelto se lee de un vistazo;
-  una barra sin comparación no añade nada.
+- **Los KPI son tarjetas, no gráficos**, al estilo del admin de Tu Chamba: la
+  cifra grande en el azul de marca, la variación como píldora (flecha + %
+  + "vs anterior") y un *sparkline* de sus propios días sin ejes ni leyenda
+  (`StatTile`, `DeltaPill`, `Sparkline`). Lo que se pide al dashboard es que
+  el crecimiento o la caída esté siempre a la vista; para leer valores está el
+  gráfico de abajo.
+- **Cada sitio tiene su tarjeta y su propia comparación** (`ProjectCards`).
+  La API compara cada proyecto con *su* periodo anterior (`projects[].comparison`
+  en `/metrics/overview?compare=true`): el grupo puede subir mientras un sitio
+  cae, y esa caída tiene que verse en su tarjeta, no diluirse en la flecha
+  verde del total. Los sitios sin visitas se nombran al pie, sin tarjeta: un
+  cero con línea plana parece un sitio en apuros.
+- **Las columnas por día van en HTML** (`DailyColumns`), como en Tu Chamba: una
+  tinta, el pico escrito, el resto en el tooltip, y los días vacíos como muesca
+  gris. Más de 31 días se suman por columna (`bucketed`): sólo para métricas
+  aditivas, nunca para tasas.
+- **Las cifras hacen *count-up* escribiendo en el nodo de texto, sin
+  `setState`** (`AnimatedNumber`): el servidor pinta la cifra final (no hay
+  destello a 0) y el tween escribe `nodeValue` sobre el nodo que React creó,
+  para que la siguiente actualización de React siga cayendo en él. Toda
+  animación lleva `motion-reduce:animate-none` y el count-up respeta
+  `prefers-reduced-motion`: las cifras y las barras son el contenido.
+- **El dashboard se refresca solo cada minuto** (`AutoRefresh`,
+  `router.refresh()` en una transición): las cifras ruedan al valor nuevo y
+  las animaciones CSS de entrada no se repiten porque el DOM se conserva. Para
+  mientras la pestaña está oculta y se pone al día al volver, como En vivo.
 - **Las barras de ranking van en HTML, no en Recharts.** Los nombres largos
   —una consulta, una URL— se truncan mucho mejor con CSS. Recharts se usa solo
   donde aporta: series temporales con crosshair.
