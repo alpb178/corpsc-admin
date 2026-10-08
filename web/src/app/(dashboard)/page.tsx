@@ -158,17 +158,7 @@ export default async function DashboardPage({
           </div>
 
           <h2 className="mb-2 mt-6 text-[15px] font-semibold text-fg">Contenido</h2>
-          <div className="grid gap-3 lg:grid-cols-2">
-            <RankBar title="Páginas más visitadas" slices={topPageSlices(data.topPages)} metricKey="page_views" limit={10} />
-            <RankBar
-              title="Eventos más usados"
-              slices={breakdowns.event}
-              metricKey="custom_events"
-              limit={10}
-              emptyHint="Ningún sitio ha enviado eventos propios en este periodo (track())."
-            />
-          </div>
-
+          <RankBar title="Páginas más visitadas" slices={topPageSlices(data.topPages)} metricKey="page_views" limit={10} />
         </>
       )}
     </>
