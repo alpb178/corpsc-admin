@@ -21,14 +21,14 @@ describe('StatTile', () => {
     expect(screen.getByText(/vs 1.000/)).toBeTruthy();
   });
 
-  it('marks a worsening and a change it cannot judge', () => {
+  it('marks a worsening change, and omits the pill rather than claim a 0 % change with no base', () => {
     const { rerender } = render(
       <StatTile label="x" value={5} delta={{ current: 5, previous: 10, change: -0.5, improved: false }} />,
     );
     expect(screen.getByText(/-50\s?%/).className).toContain('text-negative');
 
     rerender(<StatTile label="x" value={5} delta={{ current: 5, previous: 0, change: null, improved: null }} />);
-    expect(screen.getByText(/sin base/).className).toContain('text-fg-subtle');
+    expect(screen.queryByText(/sin base/)).toBeNull();
   });
 
   it('shows a dash, not a zero, when there is no figure', () => {
