@@ -3,6 +3,7 @@ import { api, ApiError } from '@/lib/api';
 import { formatMetric } from '@/lib/format';
 import { FreshnessBadge } from '@/components/FreshnessBadge';
 import { ErrorPanel } from '@/components/ErrorPanel';
+import { DataTable } from '@/components/DataTable';
 import type { ProjectFreshness } from '@/lib/types';
 
 interface Run {
@@ -96,47 +97,43 @@ export default async function SubmissionsPage() {
         </ul>
       </section>
 
-      <section className="mt-3 overflow-x-auto card">
-        <h2 className="border-b border-line px-4 py-3 text-[13px] font-semibold text-fg">
-          Últimos envíos recibidos
-        </h2>
-        {runs.length === 0 ? (
-          <p className="px-4 py-4 text-[13px] text-fg-faint">Todavía no ha llegado ningún envío.</p>
-        ) : (
-          <table className="w-full text-[13px]">
-            <thead>
-              <tr className="border-b border-line text-left text-fg-faint">
-                <th scope="col" className="px-4 py-2 font-medium">Proyecto</th>
-                <th scope="col" className="px-4 py-2 font-medium">Periodo</th>
-                <th scope="col" className="px-4 py-2 text-right font-medium">Escritas</th>
-                <th scope="col" className="px-4 py-2 text-right font-medium">Borradas</th>
-                <th scope="col" className="px-4 py-2 font-medium">Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {runs.map((run) => (
-                <tr key={run.id} className="border-b border-line last:border-0 align-top">
-                  <th scope="row" className="px-4 py-2.5 text-left font-medium text-fg">{run.project.name}</th>
-                  <td className="tabular whitespace-nowrap px-4 py-2.5 text-fg-muted">
-                    {run.windowFrom.slice(0, 10)} → {run.windowTo.slice(0, 10)}
-                  </td>
-                  <td className="tabular px-4 py-2.5 text-right text-fg">{formatMetric(run.rowsWritten)}</td>
-                  <td className="tabular px-4 py-2.5 text-right text-fg-muted">{formatMetric(run.rowsDeleted)}</td>
-                  <td className="px-4 py-2.5">
-                    <span className={STATUS[run.status].tone}>{STATUS[run.status].label}</span>
-                    {run.errorMessage ? (
-                      <p className="mt-1 max-w-[46ch] text-[12px] text-fg-faint">{run.errorMessage}</p>
-                    ) : null}
-                    {run.warnings?.map((w) => (
-                      <p key={w} className="mt-1 max-w-[46ch] text-[12px] text-fg-faint">{w}</p>
-                    ))}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+      <div className="mt-3">
+        <DataTable
+          title="Últimos envíos recibidos"
+          columns={[
+            { key: 'project', label: 'Proyecto' },
+            { key: 'period', label: 'Periodo' },
+            { key: 'written', label: 'Escritas', align: 'right' },
+            { key: 'deleted', label: 'Borradas', align: 'right' },
+            { key: 'status', label: 'Estado' },
+          ]}
+          rows={runs.map((run) => ({
+            id: run.id,
+            cells: {
+              project: <span className="font-medium text-fg">{run.project.name}</span>,
+              period: (
+                <span className="tabular whitespace-nowrap text-fg-muted">
+                  {run.windowFrom.slice(0, 10)} → {run.windowTo.slice(0, 10)}
+                </span>
+              ),
+              written: <span className="text-fg">{formatMetric(run.rowsWritten)}</span>,
+              deleted: <span className="text-fg-muted">{formatMetric(run.rowsDeleted)}</span>,
+              status: (
+                <>
+                  <span className={STATUS[run.status].tone}>{STATUS[run.status].label}</span>
+                  {run.errorMessage ? (
+                    <p className="mt-1 max-w-[46ch] text-[12px] text-fg-faint">{run.errorMessage}</p>
+                  ) : null}
+                  {run.warnings?.map((w) => (
+                    <p key={w} className="mt-1 max-w-[46ch] text-[12px] text-fg-faint">{w}</p>
+                  ))}
+                </>
+              ),
+            },
+          }))}
+          emptyText="Todavía no ha llegado ningún envío."
+        />
+      </div>
     </>
   );
 }

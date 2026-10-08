@@ -28,23 +28,25 @@ interface Props {
  * no legend: for those there are the charts below.
  */
 export function StatTile({ label, value, unit = 'COUNT', delta, hero = false, hint, trend }: Props) {
+  // A `null` change means there's no previous period to compare against —
+  // not a 0 % change. Saying so ("sin base") invited reading it as a real
+  // figure, so the pill is omitted instead; the card keeps its reserved row
+  // so every tile in the grid stays the same height either way.
+  const showDelta = delta && delta.change !== null;
+
   return (
-    <div className="card p-4 animate-fade-up motion-reduce:animate-none">
+    <div className="card flex h-full flex-col p-4 animate-fade-up motion-reduce:animate-none">
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-[13px] font-medium text-fg-muted">{label}</span>
         {hint ? <span className="text-[11px] text-fg-faint">{hint}</span> : null}
       </div>
 
-      <div className="mt-2 flex items-end justify-between gap-3">
+      <div className="mt-2 flex flex-1 items-end justify-between gap-3">
         <div className="min-w-0">
           <div className={`font-bold text-accent ${hero ? 'text-[40px] leading-none' : 'text-[28px] leading-tight'}`}>
             <AnimatedNumber value={value} unit={unit} />
           </div>
-          {delta ? (
-            <div className="mt-2">
-              <DeltaPill delta={delta} unit={unit} />
-            </div>
-          ) : null}
+          <div className="mt-2 min-h-[18px]">{showDelta ? <DeltaPill delta={delta} unit={unit} /> : null}</div>
         </div>
         {trend && value !== undefined ? <Sparkline points={trend} unit={unit} /> : null}
       </div>
