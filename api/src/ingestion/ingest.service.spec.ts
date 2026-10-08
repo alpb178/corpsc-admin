@@ -297,6 +297,16 @@ describe('IngestService', () => {
     expect(result.warnings.some((w) => w.includes('recortó'))).toBe(true);
   });
 
+  it('scopes orphan deletion to the metrics it declares', async () => {
+    // tu-chamba, Iris Natural, Take and Invoices all also send traffic via
+    // `/ingest/events`. Without this, a business-metrics push would wipe out
+    // that day's `visits` the moment it starts sending `orders`/`signups`.
+    const { service, write } = makeService();
+    await service.receive(PROJECT, payload(), RunTrigger.PUSH);
+
+    expect(write.mock.calls[0][0]).toMatchObject({ ownedMetricKeys: ['visits', 'revenue'] });
+  });
+
   it('rejects an empty push over existing data instead of emptying the window', async () => {
     // The most dangerous failure in the design: a broken query in the project
     // returns zero rows and the replacement would wipe out good data.
