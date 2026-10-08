@@ -94,6 +94,11 @@ export class IngestService {
         from,
         to,
         rows,
+        // A submission only speaks for the metrics it declares. A project that
+        // also sends traffic via `/ingest/events` (every site on the group
+        // does) would otherwise have that day's visits wiped out the moment
+        // it starts pushing business metrics for the same window.
+        ownedMetricKeys: payload.definitions.map((d) => d.key),
       });
 
       const status = warnings.length > 0 ? RunStatus.PARTIAL : RunStatus.SUCCESS;
