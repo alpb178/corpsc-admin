@@ -16,7 +16,6 @@ import { DeviceSplit } from '@/components/DeviceSplit';
 import { CountriesCard } from '@/components/CountriesCard';
 import { AcquisitionTable } from '@/components/AcquisitionTable';
 import { PathTable } from '@/components/PathTable';
-import { EventsTable } from '@/components/EventsTable';
 import { RealtimePanel } from '@/components/RealtimePanel';
 import { visitorsHint, visitsAndVisitors } from '@/lib/dashboard';
 import { formatMetric, labelLanguage, labelRegion, labelScreen } from '@/lib/format';
@@ -120,15 +119,9 @@ export default async function ProjectPage({
 
           {/* Where they come from. */}
           <h2 className="mb-2 mt-6 text-[15px] font-semibold text-fg">Procedencia</h2>
-          <div className="grid gap-3 lg:grid-cols-3">
+          <div className="grid gap-3 lg:grid-cols-2">
             <RankBar title="Canales" slices={breakdowns.channel} metricKey="visits" kind="channel" />
             <RankBar title="Fuentes" slices={breakdowns.source} metricKey="visits" kind="source" />
-            <RankBar
-              title="Campañas"
-              slices={breakdowns.campaign}
-              metricKey="visits"
-              emptyHint="Ninguna visita llegó con utm_campaign en este periodo."
-            />
           </div>
           <div className="mt-3">
             <AcquisitionTable slices={breakdowns.acquisition ?? []} deletion={deletion} />
@@ -173,10 +166,6 @@ export default async function ProjectPage({
             <RankBar title="Sistemas operativos" slices={breakdowns.os ?? []} metricKey="visits" emptyHint={V2_HINT} kind="os" />
             <RankBar title="Idiomas" slices={breakdowns.language ?? []} metricKey="visits" labelOf={labelLanguage} emptyHint={V2_HINT} />
             <RankBar title="Pantallas" slices={breakdowns.screen ?? []} metricKey="visits" labelOf={labelScreen} emptyHint={V2_HINT} />
-          </div>
-
-          <div className="mt-6">
-            <EventsTable slices={breakdowns.event ?? []} />
           </div>
 
           <BusinessKpis totals={totals} comparison={comparison} />
