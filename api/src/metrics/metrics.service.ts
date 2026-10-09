@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { MetricUnit, Prisma } from '@prisma/client';
+import { Aggregation, MetricUnit, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { FreshnessService } from '../ingestion/freshness.service';
 import { compare, isImprovement, withDerived, type Delta, type MetricMeta, type MetricTotals } from './derived';
@@ -39,8 +39,8 @@ export class MetricsService {
 
     const [totals, byProject, series, seriesByProject, visitors, country, channel, source, device, event, topPages] =
       await Promise.all([
-        this.sumTotals(range),
-        this.sumTotalsByProject(range),
+        this.sumTotals(range, definitions),
+        this.sumTotalsByProject(range, definitions),
         this.dailySeries(range),
         this.seriesByProject(range, 'visits'),
         this.visitorStats.stats(range),
@@ -88,9 +88,9 @@ export class MetricsService {
     if (withComparison) {
       const previous = this.previousRange(range);
       const [previousTotals, previousVisitors, previousByProject] = await Promise.all([
-        this.sumTotals(previous),
+        this.sumTotals(previous, definitions),
         this.visitorStats.stats(previous),
-        this.sumTotalsByProject(previous),
+        this.sumTotalsByProject(previous, definitions),
       ]);
       result.comparison = {
         range: previous,
@@ -131,7 +131,7 @@ export class MetricsService {
       totals, series, visitors, country, device, paths, elements, channel, source, campaign, hour,
       region, city, browser, os, language, screen, landing, exit, acquisition, event,
     ] = await Promise.all([
-      this.sumTotals(range, project.id),
+      this.sumTotals(range, definitions, project.id),
       this.dailySeries(range, project.id),
       this.visitorStats.stats(range, project.id),
       this.breakdown(range, project.id, 'country', 'visits'),
@@ -187,7 +187,7 @@ export class MetricsService {
       const deltas = compare(
         { ...current, unique_visitors: visitors.unique },
         {
-          ...withDerived(await this.sumTotals(previous, project.id), definitions),
+          ...withDerived(await this.sumTotals(previous, definitions, project.id), definitions),
           unique_visitors: (await this.visitorStats.stats(previous, project.id)).unique,
         },
       );
@@ -258,9 +258,18 @@ export class MetricsService {
 
   // ─────────────────────────── Base queries ───────────────────────────
 
-  private async sumTotals(range: Range, projectId?: string): Promise<MetricTotals> {
+  /**
+   * One total per metric for the range, honoring each metric's aggregation.
+   *
+   * Most metrics are daily counts and get summed — `orders: 12` on Monday and
+   * `orders: 8` on Tuesday is 20 orders that week. A metric declared `LAST`
+   * is a snapshot, not a daily amount — CONTRATO.md's example is a project's
+   * total registered users: summing seven days of "500 users" would claim
+   * 3500 users. For those, the range's answer is the most recent day's value.
+   */
+  private async sumTotals(range: Range, definitions: MetricMeta[], projectId?: string): Promise<MetricTotals> {
     const rows = await this.prisma.metricDaily.groupBy({
-      by: ['metricKey'],
+      by: ['metricKey', 'date'],
       where: {
         ...(projectId ? { projectId } : {}),
         dimension: TOTAL_DIMENSION,
@@ -269,18 +278,46 @@ export class MetricsService {
       _sum: { value: true },
     });
 
-    return Object.fromEntries(rows.map((r) => [r.metricKey, num(r._sum.value)]));
+    const byMetric = new Map<string, Array<{ date: Date; value: number }>>();
+    for (const row of rows) {
+      const points = byMetric.get(row.metricKey) ?? [];
+      points.push({ date: row.date, value: num(row._sum.value) });
+      byMetric.set(row.metricKey, points);
+    }
+
+    const aggregationOf = new Map(definitions.map((d) => [d.key, d.aggregation]));
+    return Object.fromEntries(
+      [...byMetric.entries()].map(([metricKey, points]) => [
+        metricKey,
+        reduceAggregated(points, aggregationOf.get(metricKey) ?? Aggregation.SUM),
+      ]),
+    );
   }
 
-  private async sumTotalsByProject(range: Range) {
-    return this.prisma.metricDaily.groupBy({
-      by: ['projectId', 'metricKey'],
+  private async sumTotalsByProject(range: Range, definitions: MetricMeta[]) {
+    const rows = await this.prisma.metricDaily.groupBy({
+      by: ['projectId', 'metricKey', 'date'],
       where: {
         dimension: TOTAL_DIMENSION,
         date: { gte: toUtcDate(range.from), lte: toUtcDate(range.to) },
       },
       _sum: { value: true },
     });
+
+    const byGroup = new Map<string, { projectId: string; metricKey: string; points: Array<{ date: Date; value: number }> }>();
+    for (const row of rows) {
+      const groupKey = `${row.projectId}\u0000${row.metricKey}`;
+      const group = byGroup.get(groupKey) ?? { projectId: row.projectId, metricKey: row.metricKey, points: [] };
+      group.points.push({ date: row.date, value: num(row._sum.value) });
+      byGroup.set(groupKey, group);
+    }
+
+    const aggregationOf = new Map(definitions.map((d) => [d.key, d.aggregation]));
+    return [...byGroup.values()].map((g) => ({
+      projectId: g.projectId,
+      metricKey: g.metricKey,
+      value: reduceAggregated(g.points, aggregationOf.get(g.metricKey) ?? Aggregation.SUM),
+    }));
   }
 
   /** Daily series for a project, or for the whole group if none is given. */
@@ -411,7 +448,7 @@ export class MetricsService {
   }
 
   private async decorateProjects(
-    rows: Array<{ projectId: string; metricKey: string; _sum: { value: Prisma.Decimal | null } }>,
+    rows: Array<{ projectId: string; metricKey: string; value: number }>,
     definitions: MetricMeta[],
   ): Promise<ProjectSummary[]> {
     const projects = await this.prisma.project.findMany({
@@ -422,7 +459,7 @@ export class MetricsService {
     return projects.map((p) => {
       const totals: MetricTotals = {};
       for (const row of rows) {
-        if (row.projectId === p.id) totals[row.metricKey] = num(row._sum.value);
+        if (row.projectId === p.id) totals[row.metricKey] = row.value;
       }
       return {
         slug: p.slug,
@@ -502,6 +539,22 @@ function named<T extends { value: string }>(slices: T[]): T[] {
 /** Prisma returns Decimals as objects; the JSON must carry numbers. */
 function num(value: Prisma.Decimal | null): number {
   return value ? Number(value) : 0;
+}
+
+/**
+ * Reduces a metric's daily points to the range's single answer, per its
+ * declared aggregation. `SUM` (the default) adds every day; `LAST` keeps
+ * only the most recent day, for snapshots like a running user count; `MAX`
+ * keeps the highest day, for things like a position that shouldn't be added.
+ */
+function reduceAggregated(points: Array<{ date: Date; value: number }>, aggregation: Aggregation): number {
+  if (aggregation === Aggregation.LAST) {
+    return points.reduce((latest, p) => (p.date > latest.date ? p : latest)).value;
+  }
+  if (aggregation === Aggregation.MAX) {
+    return Math.max(...points.map((p) => p.value));
+  }
+  return points.reduce((sum, p) => sum + p.value, 0);
 }
 
 function iso(date: Date): IsoDate {
