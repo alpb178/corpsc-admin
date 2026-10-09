@@ -9,6 +9,7 @@ const BUSINESS = [
   { key: 'orders_paid', label: 'Pedidos cobrados', unit: 'COUNT' },
   { key: 'leads', label: 'Contactos', unit: 'COUNT' },
   { key: 'signups', label: 'Altas', unit: 'COUNT' },
+  { key: 'users_total', label: 'Usuarios registrados', unit: 'COUNT' },
   { key: 'publications', label: 'Publicaciones', unit: 'COUNT' },
   { key: 'invoices', label: 'Facturas', unit: 'COUNT' },
 ] as const;

@@ -91,6 +91,10 @@ const METRICS: MetricSeed[] = [
   { key: 'revenue',       label: 'Ingresos',         labelEn: 'Revenue',     unit: MetricUnit.CURRENCY, sortOrder: 130 },
   { key: 'leads',         label: 'Contactos',        labelEn: 'Leads',       unit: MetricUnit.COUNT,    sortOrder: 140 },
   { key: 'signups',       label: 'Altas',            labelEn: 'Signups',     unit: MetricUnit.COUNT,    sortOrder: 150 },
+  // A snapshot, not a daily amount — `aggregation: LAST` keeps the range's
+  // most recent day instead of summing every day's running total.
+  { key: 'users_total',   label: 'Usuarios registrados', labelEn: 'Registered users', unit: MetricUnit.COUNT,
+    aggregation: Aggregation.LAST, sortOrder: 155 },
   { key: 'publications',  label: 'Publicaciones',    labelEn: 'Publications',unit: MetricUnit.COUNT,    sortOrder: 160 },
   { key: 'invoices',      label: 'Facturas',         labelEn: 'Invoices',    unit: MetricUnit.COUNT,    sortOrder: 170 },
 
