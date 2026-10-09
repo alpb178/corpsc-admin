@@ -156,6 +156,24 @@ describe('MetricsService.overview', () => {
     ]);
   });
 
+  it('keeps the most recent day per project for a metric declared LAST', async () => {
+    await prisma.metricDefinition.upsert({
+      where: { key: 'users_total' },
+      update: { aggregation: 'LAST' },
+      create: { key: 'users_total', label: 'Usuarios registrados', unit: 'COUNT', aggregation: 'LAST' },
+    });
+    await metric(alpha.id, '2031-05-10', 'users_total', 10);
+    await metric(alpha.id, '2031-05-11', 'users_total', 12);
+    await metric(beta.id, '2031-05-10', 'users_total', 40);
+    await metric(beta.id, '2031-05-11', 'users_total', 42);
+
+    const view = (await metrics.overview(RANGE, false)) as View;
+    const bySlug = Object.fromEntries(view.projects.map((p: { slug: string; metrics: Record<string, number> }) => [p.slug, p.metrics]));
+
+    expect(bySlug[alpha.slug].users_total).toBe(12);
+    expect(bySlug[beta.slug].users_total).toBe(42);
+  });
+
   it('lists top pages with their site: the same path on two sites is two pages', async () => {
     const view = (await metrics.overview(RANGE, false)) as View;
 
@@ -247,6 +265,22 @@ describe('MetricsService.project', () => {
 
   it('rejects an unknown site', async () => {
     await expect(metrics.project(`${PREFIX}-nope`, RANGE, false)).rejects.toThrow(NotFoundException);
+  });
+
+  it('keeps the most recent day for a metric declared LAST, instead of summing the range', async () => {
+    // A snapshot like a project's running user count: summing three days of
+    // "10, 12, 15 users" must never read as "37 users".
+    await prisma.metricDefinition.upsert({
+      where: { key: 'users_total' },
+      update: { aggregation: 'LAST' },
+      create: { key: 'users_total', label: 'Usuarios registrados', unit: 'COUNT', aggregation: 'LAST' },
+    });
+    await metric(alpha.id, '2031-05-10', 'users_total', 10);
+    await metric(alpha.id, '2031-05-11', 'users_total', 12);
+    await metric(alpha.id, '2031-05-12', 'users_total', 15);
+
+    const view = (await metrics.project(alpha.slug, RANGE, false)) as View;
+    expect(view.totals.users_total).toBe(15);
   });
 });
 
