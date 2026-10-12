@@ -18,6 +18,24 @@ interface Props {
 const KIND: Record<ProjectCardData['kind'], string> = { OWN: 'Propio', CLIENT: 'Cliente' };
 
 /**
+ * The site's own headline figure, in priority order. A shop has conversions
+ * or orders; a job board has contacts, registered users or sign-ups; a
+ * portfolio has publications; Invoices has its invoices. The first one the
+ * project actually sends wins — mirrors the list `BusinessKpis` draws on the
+ * site's own page, so the card's third figure is never a metric the dashboard
+ * can't also show in full.
+ */
+const HEADLINE: Array<{ key: keyof ProjectCardData['metrics']; label: string }> = [
+  { key: 'conversions', label: 'Conversiones' },
+  { key: 'orders', label: 'Pedidos' },
+  { key: 'leads', label: 'Contactos' },
+  { key: 'users_total', label: 'Usuarios' },
+  { key: 'signups', label: 'Altas' },
+  { key: 'publications', label: 'Publicaciones' },
+  { key: 'invoices', label: 'Facturas' },
+];
+
+/**
  * One site, at a glance: its visits in the period, whether they grew or fell
  * against the previous one, the shape of its days, and the figures behind
  * them. The whole card opens the site's page, as the KPI cards of Tu Chamba's
@@ -74,13 +92,12 @@ export function ProjectCard({ project, range }: Props) {
       <dl className="mt-4 grid grid-cols-3 gap-2 border-t border-line pt-3">
         <MiniStat label="Páginas" value={metrics.page_views} delta={deltas?.page_views} />
         <MiniStat label="Clics" value={metrics.clicks} delta={deltas?.clicks} />
-        {metrics.conversions !== undefined ? (
-          <MiniStat label="Conversiones" value={metrics.conversions} delta={deltas?.conversions} />
-        ) : metrics.orders !== undefined ? (
-          <MiniStat label="Pedidos" value={metrics.orders} delta={deltas?.orders} />
-        ) : metrics.leads !== undefined ? (
-          <MiniStat label="Contactos" value={metrics.leads} delta={deltas?.leads} />
-        ) : null}
+        {(() => {
+          const headline = HEADLINE.find((m) => metrics[m.key] !== undefined);
+          return headline ? (
+            <MiniStat label={headline.label} value={metrics[headline.key]} delta={deltas?.[headline.key]} />
+          ) : null;
+        })()}
       </dl>
     </Link>
   );

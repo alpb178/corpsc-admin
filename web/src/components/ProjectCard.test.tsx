@@ -41,6 +41,20 @@ describe('ProjectCard', () => {
     expect(within(link).getByText(/-15\s?%/)).toBeTruthy();
   });
 
+  it('falls back to users_total when the site has no conversions, orders or leads', () => {
+    // Tu Chamba sends `signups`/`users_total`, never orders or leads — the
+    // dashboard used to leave this slot blank for it.
+    render(
+      <ProjectCard
+        project={{ ...card, slug: 'tu-chamba', name: 'Tu Chamba', metrics: { visits: 500, users_total: 1234 } }}
+        range={null}
+      />,
+    );
+
+    expect(screen.getByText('Usuarios')).toBeTruthy();
+    expect(screen.getByText('1.234')).toBeTruthy();
+  });
+
   it('says when there is no previous period, and shows initials without a logo', () => {
     render(
       <ProjectCard
