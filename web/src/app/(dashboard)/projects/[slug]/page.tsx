@@ -17,7 +17,7 @@ import { CountriesCard } from '@/components/CountriesCard';
 import { AcquisitionTable } from '@/components/AcquisitionTable';
 import { PathTable } from '@/components/PathTable';
 import { RealtimePanel } from '@/components/RealtimePanel';
-import { visitorsHint, visitsAndVisitors } from '@/lib/dashboard';
+import { hasAnyData, visitorsHint, visitsAndVisitors } from '@/lib/dashboard';
 import { formatMetric, labelLanguage, labelRegion, labelScreen } from '@/lib/format';
 import type { Freshness, ProjectDetail, RealtimeSnapshot } from '@/lib/types';
 
@@ -53,7 +53,7 @@ export default async function ProjectPage({
 
   const { project, totals, comparison, visitors, breakdowns } = data;
   const initialLive = await live;
-  const hasData = (totals.visits ?? 0) > 0 || (totals.orders ?? 0) > 0;
+  const hasData = hasAnyData(totals);
   const trend = visitsAndVisitors(data);
 
   return (

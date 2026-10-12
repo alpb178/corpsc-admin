@@ -1,12 +1,34 @@
 import { assignSlots } from './series-slots';
 import { logoOf } from './navigation';
-import type { Delta, DimensionSlice, Overview, ProjectSeries, ProjectSummary, SeriesPoint, TopPage } from './types';
+import type {
+  Delta,
+  DimensionSlice,
+  MetricTotals,
+  Overview,
+  ProjectSeries,
+  ProjectSummary,
+  SeriesPoint,
+  TopPage,
+} from './types';
 import type { TrendSeries } from '@/components/charts/TrendChart';
 
 /**
  * The group dashboard's data, shaped for its components. Kept out of the page
  * so it can be tested without rendering a server component.
  */
+
+/**
+ * Whether a period has anything at all worth showing a KPI section for.
+ *
+ * `totals` only has a key when `metric_daily` has a row for it, so any key at
+ * all — even one holding an explicit `0` — means the project sent something
+ * for this period. Checking individual metrics like `visits`/`orders`
+ * instead would hide every other metric a project sends (`users_total`,
+ * `signups`, `leads`...) whenever those two happen to be zero.
+ */
+export function hasAnyData(totals: MetricTotals): boolean {
+  return Object.keys(totals).length > 0;
+}
 
 /** Visits and unique visitors per day, on one axis: same unit, same scale. */
 export function visitsAndVisitors(overview: Pick<Overview, 'series' | 'visitors'>): {

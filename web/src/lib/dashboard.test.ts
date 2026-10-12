@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { acquisitionRows, bucketed, metricTrend, projectCards, topPageSlices, trafficByProject, visitorsHint, visitsAndVisitors } from './dashboard';
+import { acquisitionRows, bucketed, hasAnyData, metricTrend, projectCards, topPageSlices, trafficByProject, visitorsHint, visitsAndVisitors } from './dashboard';
 import type { Overview } from './types';
 
 function overview(overrides: Partial<Overview> = {}): Overview {
@@ -24,6 +24,19 @@ function overview(overrides: Partial<Overview> = {}): Overview {
     ...overrides,
   };
 }
+
+describe('hasAnyData', () => {
+  it('is true when the only thing a project sent is a business metric, with no visits or orders', () => {
+    // Tu Chamba on a quiet day: no visits tracked yet, no orders ever (it
+    // doesn't sell), but it did send `users_total`. Gating on visits/orders
+    // alone would hide this project's whole KPI section.
+    expect(hasAnyData({ users_total: 0 })).toBe(true);
+  });
+
+  it('is false only when the project sent nothing at all for the period', () => {
+    expect(hasAnyData({})).toBe(false);
+  });
+});
 
 describe('visitsAndVisitors', () => {
   it('puts visits and unique visitors on the same days, with gaps where there is nothing', () => {
