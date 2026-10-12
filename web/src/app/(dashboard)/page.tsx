@@ -3,7 +3,7 @@ import { requireUser } from '@/lib/dal';
 import { deleteRow } from '@/app/(dashboard)/records/actions';
 import { DEFAULT_PRESET, presetFrom, resolveRange } from '@/lib/ranges';
 import { formatMetric } from '@/lib/format';
-import { metricTrend, projectCards, topPageSlices, trafficByProject, visitorsHint, visitsAndVisitors } from '@/lib/dashboard';
+import { hasAnyData, metricTrend, projectCards, topPageSlices, trafficByProject, visitorsHint, visitsAndVisitors } from '@/lib/dashboard';
 import { PageHeader } from '@/components/PageHeader';
 import { StatTile } from '@/components/StatTile';
 import { RankBar } from '@/components/RankBar';
@@ -47,7 +47,7 @@ export default async function DashboardPage({
 
   const { totals, comparison, visitors, counts, breakdowns } = data;
   const initialLive = await live;
-  const hasData = Object.keys(totals).length > 0;
+  const hasData = hasAnyData(totals);
   const trend = visitsAndVisitors(data);
   const byProject = trafficByProject(
     data.seriesByProject,
