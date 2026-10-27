@@ -57,7 +57,7 @@ export default async function SubmissionsPage() {
   return (
     <>
       <div className="mb-6">
-        <h1 className="text-[22px] font-semibold text-fg">Envíos</h1>
+        <h1 className="font-serif-display text-[22px] font-semibold text-fg">Envíos</h1>
         <p className="mt-1 max-w-[70ch] text-[13px] text-fg-muted">
           Cada proyecto envía sus agregados diarios al hub. Si uno deja de hacerlo, sus
           gráficas se quedan planas sin que falle nada: por eso el silencio se vigila aquí.
