@@ -18,9 +18,13 @@ services:
     plan: free
     region: oregon
     rootDir: api
-    # Render's free plan doesn't run preDeployCommand, so migrations go in
-    # the build. `migrate deploy` is idempotent.
-    buildCommand: pnpm install && pnpm prisma generate && pnpm build && pnpm prisma migrate deploy
+    # Render's free plan doesn't run preDeployCommand, so migrations and the
+    # seed go in the build. Both are idempotent (`migrate deploy`, `upsert` by
+    # slug/key in seed.ts): a project registered in the seed is live on the
+    # next deploy without a manual `pnpm seed`. `seedAdmin` only acts when
+    # SEED_ADMIN_EMAIL/SEED_ADMIN_PASSWORD are set, which they aren't here, so
+    # it's a no-op on every other deploy.
+    buildCommand: pnpm install && pnpm prisma generate && pnpm build && pnpm prisma migrate deploy && pnpm seed
     startCommand: node dist/main
     healthCheckPath: /api/health
     envVars:
