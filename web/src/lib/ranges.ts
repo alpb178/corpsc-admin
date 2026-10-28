@@ -15,7 +15,7 @@ export const PRESETS: Preset[] = [
   { key: '12m', label: '12 meses', days: 365 },
 ];
 
-export const DEFAULT_PRESET = '28d';
+export const DEFAULT_PRESET = 'today';
 
 /**
  * The group's calendar. Facts are dated in each project's time zone, and every
@@ -59,7 +59,8 @@ export function lastDays(days: number, now = new Date()): { from: string; to: st
  * empty until tomorrow, and the chart shows it as a gap, not as a zero.
  */
 export function resolveRange(preset: string, now = new Date()): { from: string; to: string } {
-  const days = PRESETS.find((p) => p.key === preset)?.days ?? 28;
+  const days = PRESETS.find((p) => p.key === preset)?.days
+    ?? PRESETS.find((p) => p.key === DEFAULT_PRESET)!.days;
   return lastDays(days, now);
 }
 
