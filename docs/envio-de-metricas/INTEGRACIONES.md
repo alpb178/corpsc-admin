@@ -38,6 +38,7 @@ Lo que se paga por ello está en [Lo que no se mide](#lo-que-no-se-mide).
 | Iris Natural | `iris-natural` | eventos | ✅ | `Iris Natural/front` — `components/analytics/hub-analytics.tsx` |
 | Take | `take` | eventos | ✅ | `toma/fronted` — `components/analytics/hub-analytics.tsx` |
 | Invoices | `invoices` | eventos | ✅ | `invoice-gen/frontend` — `src/components/HubAnalytics.tsx` |
+| Line Hot | `line-hot` | eventos | ✅ | `match-date/landing-page` — `src/app/layout.tsx` |
 
 Los `slug` de esta tabla son los que manda `api/prisma/seed.ts`. **Son ellos los
 que deciden con qué nombre se guarda un clic**, no el cintillo de cada repo: un

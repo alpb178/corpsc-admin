@@ -1,11 +1,11 @@
 /**
- * Hub seed: the corporate site, the four products and the metrics.
+ * Hub seed: the corporate site, the five products and the metrics.
  *
  * The canonical project registry lives in
- * corpsc-portfolio/src/content/projects.ts; this file is its mirror. If a site
+ * corpsc-web/src/content/projects.ts; this file is its mirror. If a site
  * is added there, it has to be added here — they share the `slug`.
  *
- * Only the five ecosystem sites are here. The rest of the portfolio catalog
+ * Only the six ecosystem sites are here. The rest of the portfolio catalog
  * (HumanCore, the client sites…) doesn't belong to it and was removed from
  * the hub on 2026-09-22.
  *
@@ -40,6 +40,7 @@ const PROJECTS: ProjectSeed[] = [
   { slug: 'invoices',     name: 'Invoices',     domain: 'invoices.corpsc.com',   kind: ProjectKind.OWN },
   { slug: 'iris-natural', name: 'Iris Natural', domain: 'irisnatural.corpsc.com', kind: ProjectKind.OWN },
   { slug: 'tu-chamba',    name: 'Tu Chamba',    domain: 'tu-chamba.corpsc.com',  kind: ProjectKind.OWN },
+  { slug: 'line-hot',     name: 'Line Hot',     domain: 'linehot.corpsc.com',    kind: ProjectKind.OWN },
 ];
 
 interface MetricSeed {
