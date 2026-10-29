@@ -4,6 +4,7 @@ import { requireUser } from '@/lib/dal';
 import { deleteRow } from '@/app/(dashboard)/records/actions';
 import { presetFrom, resolveRange } from '@/lib/ranges';
 import { PageHeader } from '@/components/PageHeader';
+import { logoOf } from '@/lib/navigation';
 import { StatTile } from '@/components/StatTile';
 import { RankBar } from '@/components/RankBar';
 import { TrendChart } from '@/components/charts/TrendChart';
@@ -64,6 +65,8 @@ export default async function ProjectPage({
         range={data.range}
         preset={preset}
         comparedTo={comparison?.range}
+        siteHeader
+        logo={logoOf(project.slug)}
       />
 
       <PushStatus
