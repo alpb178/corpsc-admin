@@ -46,10 +46,26 @@ export const getUser = cache(async (): Promise<AuthUser | null> => {
   }
 });
 
-/** For pages and actions: either there's a user, or we go no further. */
+/**
+ * For pages and actions: either there's a user, or we go no further.
+ *
+ * A cookie that didn't resolve to a user (the token expired, the API
+ * rejected it, the user was deleted) is not the same as never having logged
+ * in: the first is a session that just died, worth explaining instead of
+ * silently landing back on the login form. `getUser` can't tell the two
+ * apart by the time it returns null (a dead cookie already failed `/auth/me`
+ * the same way a missing one would), so the token is checked here, before
+ * asking.
+ *
+ * The dead cookie itself is cleared client-side (`SessionExpiredToast`
+ * calls `DELETE /api/session`), not here: this runs from plain pages and
+ * layouts, and Next only allows a cookie write from a Server Action or a
+ * Route Handler, never from a Server Component's render.
+ */
 export async function requireUser(): Promise<AuthUser> {
+  const hadToken = (await getToken()) !== null;
   const user = await getUser();
-  if (!user) redirect('/login');
+  if (!user) redirect(hadToken ? '/login?reason=expired' : '/login');
   return user;
 }
 

@@ -34,7 +34,7 @@ describe('buildNav', () => {
   });
 
   it('gives every current site its logo', () => {
-    const slugs = ['corpsc', 'tu-chamba', 'iris-natural', 'take', 'invoices'];
+    const slugs = ['corpsc', 'tu-chamba', 'iris-natural', 'take', 'invoices', 'line-hot'];
     const [, sites] = buildNav(slugs.map((slug) => ({ slug, name: slug })), 'VIEWER');
     expect(sites.items.map((i) => i.logo)).toEqual(slugs.map((slug) => `/project-icons/${slug}.png`));
   });
@@ -88,6 +88,7 @@ describe('groupSiteOf', () => {
     expect(groupSiteOf('www.corpsc.com')).toBe('corpsc');
     expect(groupSiteOf('corpsc.com')).toBe('corpsc');
     expect(groupSiteOf('irisnatural.corpsc.com')).toBe('iris-natural');
+    expect(groupSiteOf('linehot.corpsc.com')).toBe('line-hot');
     expect(groupSiteOf('tu-chamba')).toBe('tu-chamba');
     expect(groupSiteOf('google.com')).toBeUndefined();
     expect(groupSiteOf('evil.corpsc.com')).toBeUndefined();

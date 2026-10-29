@@ -29,6 +29,7 @@ const PROJECT_LOGOS: Record<string, string> = {
   'iris-natural': '/project-icons/iris-natural.png',
   take: '/project-icons/take.png',
   invoices: '/project-icons/invoices.png',
+  'line-hot': '/project-icons/line-hot.png',
 };
 
 /** The site's logo, if the panel ships one; the caller shows initials otherwise. */
@@ -41,6 +42,7 @@ const GROUP_HOSTS: Record<string, string> = {
   'www.corpsc.com': 'corpsc',
   'corpsc.com': 'corpsc',
   'irisnatural.corpsc.com': 'iris-natural',
+  'linehot.corpsc.com': 'line-hot',
 };
 
 /**

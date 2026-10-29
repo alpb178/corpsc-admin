@@ -2,6 +2,7 @@
 
 import { useActionState, useId } from 'react';
 import { createUser, type ActionState } from '../actions';
+import { useActionToast } from '@/components/Toast';
 
 const fieldClass =
   'mt-1 w-full rounded-[6px] border border-line bg-surface px-2.5 py-1.5 text-[13px] text-fg outline-none focus:border-accent';
@@ -17,6 +18,7 @@ const labelClass = 'block text-[12px] font-medium text-fg-muted';
 export function NewUserForm() {
   const id = useId();
   const [state, action, pending] = useActionState<ActionState, FormData>(createUser, {});
+  useActionToast(state);
 
   return (
     <form action={action} className="card p-4">

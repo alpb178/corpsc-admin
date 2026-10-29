@@ -43,6 +43,10 @@ describe('visitsAndVisitors', () => {
     const { data, series } = visitsAndVisitors(overview());
 
     expect(series.map((s) => [s.key, s.slot])).toEqual([['visits', 1], ['visitors', 2]]);
+    // The legend's totals come from the period's real figures (30 visits,
+    // 12 unique visitors), not a sum of the per-day points above (10+20
+    // visits, 8+6 visitors): a visitor counted on two days is still one.
+    expect(series.map((s) => s.total)).toEqual([30, 12]);
     expect(data).toEqual([
       { date: '2026-09-01', visits: 10, visitors: 8 },
       { date: '2026-09-02', visits: null, visitors: null },

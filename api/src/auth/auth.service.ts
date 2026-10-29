@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Role } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
@@ -53,6 +53,23 @@ export class AuthService {
     });
 
     return user;
+  }
+
+  /**
+   * An admin sets someone's password directly: no current-password check,
+   * since the point is recovering an account whose current password is the
+   * problem (lost, or — across environments with separate databases, like a
+   * local one seeded from scratch — simply a different password than the one
+   * that works elsewhere).
+   */
+  async resetPassword(id: string, password: string): Promise<void> {
+    const user = await this.prisma.hubUser.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+
+    await this.prisma.hubUser.update({
+      where: { id },
+      data: { passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS) },
+    });
   }
 
   listUsers() {

@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { POLL_MS, RealtimePanel } from './RealtimePanel';
 import type { RealtimeSnapshot } from '@/lib/types';
@@ -75,6 +75,14 @@ describe('RealtimePanel', () => {
     expect(screen.getByText(/contact_submit/)).toBeTruthy();
     expect(screen.getByText('Perú')).toBeTruthy();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps the active-user count in the card header, next to the live indicator, freeing the table to run full width', () => {
+    render(<RealtimePanel initial={snapshot()} />);
+
+    const header = screen.getByRole('heading', { name: 'En vivo' }).parentElement as HTMLElement;
+    expect(within(header).getByText('Usuarios activos')).toBeTruthy();
+    expect(within(header).getByText('3')).toBeTruthy();
   });
 
   it('polls every 20 seconds', async () => {

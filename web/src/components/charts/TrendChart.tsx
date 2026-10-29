@@ -18,6 +18,8 @@ export interface TrendSeries {
    *  guarantee, so it's assigned per entity and never by position in the
    *  ranking: filtering series must not repaint the ones that remain. */
   slot: number;
+  /** The period's total for this line, shown next to its name in the legend. */
+  total?: number;
 }
 
 interface Props {
@@ -36,7 +38,7 @@ export function TrendChart({ data, series, unit = 'COUNT', height = 260 }: Props
           With two or more there always is one, so identity doesn't depend on
           colour. */}
       {!single ? (
-        <ul className="mb-3 flex flex-wrap gap-x-4 gap-y-1.5">
+        <ul className="mb-3 grid grid-cols-2 gap-x-6 gap-y-1.5">
           {series.map((s) => (
             <li key={s.key} className="flex items-center gap-1.5 text-[12px] text-fg-muted">
               <span
@@ -45,6 +47,9 @@ export function TrendChart({ data, series, unit = 'COUNT', height = 260 }: Props
                 style={{ background: `var(--series-${s.slot})` }}
               />
               {s.label}
+              {s.total !== undefined ? (
+                <span className="tabular font-medium text-fg">{formatMetric(s.total, unit)}</span>
+              ) : null}
             </li>
           ))}
         </ul>
