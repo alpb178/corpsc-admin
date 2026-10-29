@@ -75,39 +75,6 @@ export default async function ProjectPage({
         hoursSince={project.hoursSince}
       />
 
-      {/* KPIs always render, project data or not: each tile shows "—" for a
-          metric this project never sent, and `BusinessKpis` quietly renders
-          nothing if it has nothing at all. Hiding the whole module behind
-          `hasData` made "no orders this period" indistinguishable from "we
-          never show this project's numbers" — the exact complaint this page
-          exists to fix. */}
-      <section aria-label="Indicadores del sitio" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <StatTile label="Visitas" hint="sesiones" value={totals.visits} delta={comparison?.deltas.visits} />
-        <StatTile
-          label="Visitantes únicos"
-          hint={
-            visitors.since
-              ? `${formatMetric(visitors.new)} nuevos · ${formatMetric(visitors.returning)} recurrentes`
-              : visitorsHint(null, data.range.from)
-          }
-          value={visitors.since ? visitors.unique : undefined}
-          delta={visitors.since ? comparison?.deltas.unique_visitors : undefined}
-        />
-        <StatTile label="Páginas vistas" value={totals.page_views} delta={comparison?.deltas.page_views} />
-        <StatTile label="Clics" value={totals.clicks} delta={comparison?.deltas.clicks} />
-        <StatTile
-          label="Páginas por visita"
-          value={totals.pages_per_visit}
-          unit="AVERAGE"
-          delta={comparison?.deltas.pages_per_visit}
-        />
-        {totals.conversions !== undefined ? (
-          <StatTile label="Conversiones" value={totals.conversions} delta={comparison?.deltas.conversions} />
-        ) : null}
-      </section>
-
-      <BusinessKpis totals={totals} comparison={comparison} />
-
       {!hasData ? (
         <EmptyState
           message={`Sin datos de tráfico de ${project.name} en este periodo.`}
@@ -115,6 +82,33 @@ export default async function ProjectPage({
         />
       ) : (
         <>
+          <section aria-label="Indicadores del sitio" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <StatTile label="Visitas" hint="sesiones" value={totals.visits} delta={comparison?.deltas.visits} />
+            <StatTile
+              label="Visitantes únicos"
+              hint={
+                visitors.since
+                  ? `${formatMetric(visitors.new)} nuevos · ${formatMetric(visitors.returning)} recurrentes`
+                  : visitorsHint(null, data.range.from)
+              }
+              value={visitors.since ? visitors.unique : undefined}
+              delta={visitors.since ? comparison?.deltas.unique_visitors : undefined}
+            />
+            <StatTile label="Páginas vistas" value={totals.page_views} delta={comparison?.deltas.page_views} />
+            <StatTile label="Clics" value={totals.clicks} delta={comparison?.deltas.clicks} />
+            <StatTile
+              label="Páginas por visita"
+              value={totals.pages_per_visit}
+              unit="AVERAGE"
+              delta={comparison?.deltas.pages_per_visit}
+            />
+            {totals.conversions !== undefined ? (
+              <StatTile label="Conversiones" value={totals.conversions} delta={comparison?.deltas.conversions} />
+            ) : null}
+          </section>
+
+          <BusinessKpis totals={totals} comparison={comparison} />
+
           <section className="mt-3 card p-4">
             <h2 className="mb-3 text-[13px] font-semibold text-fg">
               {trend.series.length > 1 ? 'Visitas y visitantes por día' : 'Visitas por día'}
