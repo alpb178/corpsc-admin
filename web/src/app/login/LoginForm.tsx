@@ -11,6 +11,11 @@ const INPUT_CLASS =
 export function LoginForm({ next }: { next: string }) {
   const [state, action, pending] = useActionState<LoginState, FormData>(login, {});
   const [showPassword, setShowPassword] = useState(false);
+  // Controlled, so a failed attempt (wrong credentials, 401; rate-limited,
+  // 429; API unreachable) never wipes what was typed — only a successful
+  // login navigates away, and the field no longer needs to hold anything.
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   useActionToast(state);
 
   return (
@@ -26,6 +31,8 @@ export function LoginForm({ next }: { next: string }) {
         type="email"
         autoComplete="email"
         required
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
         className={INPUT_CLASS}
       />
 
@@ -39,6 +46,8 @@ export function LoginForm({ next }: { next: string }) {
           type={showPassword ? 'text' : 'password'}
           autoComplete="current-password"
           required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
           className={`${INPUT_CLASS} pr-10`}
         />
         <button
