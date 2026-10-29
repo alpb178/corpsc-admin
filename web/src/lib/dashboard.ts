@@ -31,7 +31,7 @@ export function hasAnyData(totals: MetricTotals): boolean {
 }
 
 /** Visits and unique visitors per day, on one axis: same unit, same scale. */
-export function visitsAndVisitors(overview: Pick<Overview, 'series' | 'visitors'>): {
+export function visitsAndVisitors(overview: Pick<Overview, 'series' | 'visitors' | 'totals'>): {
   data: Array<Record<string, string | number | null>>;
   series: TrendSeries[];
 } {
@@ -45,8 +45,10 @@ export function visitsAndVisitors(overview: Pick<Overview, 'series' | 'visitors'
       ...(hasVisitors ? { visitors: visitors.get(point.date) ?? null } : {}),
     })),
     series: [
-      { key: 'visits', label: 'Visitas', slot: 1 },
-      ...(hasVisitors ? [{ key: 'visitors', label: 'Visitantes únicos', slot: 2 }] : []),
+      { key: 'visits', label: 'Visitas', slot: 1, total: overview.totals.visits ?? 0 },
+      // Unique visitors is counted at read time, never summed per day, so the
+      // legend uses the same `unique` the KPI tile shows, not a sum of `data`.
+      ...(hasVisitors ? [{ key: 'visitors', label: 'Visitantes únicos', slot: 2, total: overview.visitors.unique }] : []),
     ],
   };
 }

@@ -18,6 +18,8 @@ export interface TrendSeries {
    *  guarantee, so it's assigned per entity and never by position in the
    *  ranking: filtering series must not repaint the ones that remain. */
   slot: number;
+  /** The period's total for this line, shown next to its name in the legend. */
+  total?: number;
 }
 
 interface Props {
@@ -45,6 +47,9 @@ export function TrendChart({ data, series, unit = 'COUNT', height = 260 }: Props
                 style={{ background: `var(--series-${s.slot})` }}
               />
               {s.label}
+              {s.total !== undefined ? (
+                <span className="tabular font-medium text-fg">{formatMetric(s.total, unit)}</span>
+              ) : null}
             </li>
           ))}
         </ul>

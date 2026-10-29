@@ -23,7 +23,7 @@ export default defineConfig({
       exclude: ['src/**/*.test.*'],
       // The floor, not the goal: raised with every test PR until 95 %. CI
       // fails if coverage drops below it.
-      thresholds: { lines: 91, statements: 91, branches: 85, functions: 90 },
+      thresholds: { lines: 92, statements: 91, branches: 85, functions: 91 },
     },
   },
 });
