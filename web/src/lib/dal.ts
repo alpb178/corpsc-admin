@@ -1,7 +1,7 @@
 import 'server-only';
 import { cache } from 'react';
 import { redirect } from 'next/navigation';
-import { clearSession, getToken } from './session';
+import { getToken } from './session';
 import type { HubRole } from './types';
 
 /** The same enum as the API. It lives in `types.ts` so client components,
@@ -55,15 +55,17 @@ export const getUser = cache(async (): Promise<AuthUser | null> => {
  * silently landing back on the login form. `getUser` can't tell the two
  * apart by the time it returns null (a dead cookie already failed `/auth/me`
  * the same way a missing one would), so the token is checked here, before
- * asking, and the dead cookie is cleared so it doesn't keep failing.
+ * asking.
+ *
+ * The dead cookie itself is cleared client-side (`SessionExpiredToast`
+ * calls `DELETE /api/session`), not here: this runs from plain pages and
+ * layouts, and Next only allows a cookie write from a Server Action or a
+ * Route Handler, never from a Server Component's render.
  */
 export async function requireUser(): Promise<AuthUser> {
   const hadToken = (await getToken()) !== null;
   const user = await getUser();
-  if (!user) {
-    if (hadToken) await clearSession();
-    redirect(hadToken ? '/login?reason=expired' : '/login');
-  }
+  if (!user) redirect(hadToken ? '/login?reason=expired' : '/login');
   return user;
 }
 

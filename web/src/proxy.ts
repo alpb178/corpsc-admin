@@ -16,6 +16,11 @@ export function proxy(request: NextRequest) {
   const hasCookie = request.cookies.has(SESSION_COOKIE);
   const { pathname } = request.nextUrl;
   const isLogin = pathname === '/login';
+  // `requireUser()` sends a dead cookie here with this reason: bouncing it
+  // straight back to `/` on the cookie's mere presence would recreate the
+  // very loop that redirect exists to break (`/` fails the real check, lands
+  // back here, proxy bounces again, forever).
+  const isExpired = isLogin && request.nextUrl.searchParams.get('reason') === 'expired';
 
   if (!hasCookie && !isLogin) {
     const url = request.nextUrl.clone();
@@ -25,7 +30,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (hasCookie && isLogin) {
+  if (hasCookie && isLogin && !isExpired) {
     const url = request.nextUrl.clone();
     url.pathname = '/';
     url.search = '';
