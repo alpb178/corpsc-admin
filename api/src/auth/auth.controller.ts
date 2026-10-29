@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { LOGIN_ATTEMPTS, LOGIN_WINDOW_MS, LoginThrottlerGuard } from '../common/throttle';
@@ -6,6 +6,7 @@ import { Role } from '@prisma/client';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { CreateUserDto } from './dto/create-user.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { Roles } from './decorators/roles.decorator';
@@ -49,5 +50,15 @@ export class AuthController {
   @ApiOperation({ summary: 'Creates a hub user' })
   createUser(@Body() dto: CreateUserDto) {
     return this.auth.createUser(dto);
+  }
+
+  @Patch('users/:id/password')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: "Resets a hub user's password" })
+  resetPassword(@Param('id') id: string, @Body() dto: ResetPasswordDto) {
+    return this.auth.resetPassword(id, dto.password);
   }
 }
