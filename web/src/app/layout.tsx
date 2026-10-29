@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { ToastProvider } from '@/components/Toast';
 import { fontVariables } from './fonts';
 import './globals.css';
 
@@ -11,7 +12,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" className={fontVariables}>
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased">
+        <ToastProvider>{children}</ToastProvider>
+      </body>
     </html>
   );
 }

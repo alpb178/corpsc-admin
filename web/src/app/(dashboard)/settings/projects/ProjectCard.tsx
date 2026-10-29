@@ -3,6 +3,7 @@
 import { useActionState, useId, useState } from 'react';
 import { formatFullDate } from '@/lib/format';
 import { assignKey, createKey, revokeKey, updateProject, type ActionState, type KeyState } from '../actions';
+import { useActionToast } from '@/components/Toast';
 import type { AdminProject, CredentialSummary } from '@/lib/types';
 
 /** The group's time zones, as a shortcut. The API accepts any the runtime knows. */
@@ -24,6 +25,10 @@ export function ProjectCard({ project, credential, unassigned }: Props) {
   const [key, generate, generating] = useActionState<KeyState, FormData>(createKey, {});
   const [assignment, assign, assigning] = useActionState<ActionState, FormData>(assignKey, {});
   const [revocation, revoke, revoking] = useActionState<ActionState, FormData>(revokeKey, {});
+  useActionToast(settings);
+  useActionToast(key);
+  useActionToast(assignment);
+  useActionToast(revocation);
 
   return (
     <details className="group card">

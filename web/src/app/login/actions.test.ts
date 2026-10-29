@@ -2,11 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   setSession: vi.fn(),
+  getToken: vi.fn(async () => null as string | null),
   redirect: vi.fn((to: string) => {
     throw new Error(`NEXT_REDIRECT ${to}`);
   }),
 }));
-vi.mock('@/lib/session', () => ({ setSession: mocks.setSession }));
+// `login` now calls the hub through `lib/api.ts`, which reads the token from
+// this same module: mocking only `setSession` would leave `getToken`
+// undefined and break the call before it reaches `fetch`.
+vi.mock('@/lib/session', () => ({ setSession: mocks.setSession, getToken: mocks.getToken }));
 vi.mock('next/navigation', () => ({ redirect: mocks.redirect }));
 
 import { login } from './actions';
@@ -26,6 +30,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock);
   fetchMock.mockReset();
   mocks.setSession.mockReset();
+  mocks.getToken.mockClear();
   mocks.redirect.mockClear();
 });
 

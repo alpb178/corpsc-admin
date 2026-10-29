@@ -2,9 +2,11 @@
 
 import { useActionState } from 'react';
 import { login, type LoginState } from './actions';
+import { useActionToast } from '@/components/Toast';
 
 export function LoginForm({ next }: { next: string }) {
   const [state, action, pending] = useActionState<LoginState, FormData>(login, {});
+  useActionToast(state);
 
   return (
     <form action={action} className="card p-5">

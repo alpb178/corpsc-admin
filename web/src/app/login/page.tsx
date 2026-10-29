@@ -1,12 +1,13 @@
 import Image from 'next/image';
 import { LoginForm } from './LoginForm';
+import { SessionExpiredToast } from './SessionExpiredToast';
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; reason?: string }>;
 }) {
-  const { next } = await searchParams;
+  const { next, reason } = await searchParams;
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-elevated px-4">
@@ -33,6 +34,8 @@ export default async function LoginPage({
           Panel interno. Si no tienes acceso, pídeselo a un administrador.
         </p>
       </div>
+
+      {reason === 'expired' ? <SessionExpiredToast /> : null}
     </main>
   );
 }
