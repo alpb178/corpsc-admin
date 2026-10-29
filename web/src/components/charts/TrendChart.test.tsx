@@ -21,6 +21,7 @@ describe('TrendChart', () => {
 
     expect(screen.getByText('Visitas').closest('li')?.textContent).toBe('Visitas30');
     expect(screen.getByText('Visitantes únicos').closest('li')?.textContent).toBe('Visitantes únicos12');
+    expect(screen.getByText('Visitas').closest('ul')?.className).toContain('grid-cols-2');
   });
 
   it('has no legend at all for a single series: the title already names it', () => {

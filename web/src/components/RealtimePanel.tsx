@@ -78,7 +78,7 @@ export function RealtimePanel({ initial, project, deletion }: Props) {
 
   return (
     <section aria-label="Tiempo real" className="card">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-line px-4 py-3">
         <h2 className="flex items-center gap-2 text-[13px] font-semibold text-fg">
           {/* The dot says "live"; the word says it too, so it isn't colour alone. */}
           <span aria-hidden className="relative flex h-2 w-2">
@@ -87,6 +87,17 @@ export function RealtimePanel({ initial, project, deletion }: Props) {
           </span>
           En vivo
         </h2>
+
+        {snapshot ? (
+          <div className="flex items-baseline gap-2">
+            <span className="text-[12px] text-fg-muted">Usuarios activos</span>
+            <span className="tabular text-[20px] font-bold leading-none text-accent">
+              <AnimatedNumber value={snapshot.activeVisitors} />
+            </span>
+            <span className="text-[11px] text-fg-faint">en los últimos {snapshot.minutes} min</span>
+          </div>
+        ) : null}
+
         {stale ? (
           <p role="status" className="text-[12px] text-fg-faint">
             Sin conexión con el hub: se muestran los últimos datos recibidos.
@@ -97,30 +108,22 @@ export function RealtimePanel({ initial, project, deletion }: Props) {
       {!snapshot ? (
         <p className="px-4 py-3 text-[13px] text-fg-faint">Todavía no hay datos en tiempo real.</p>
       ) : (
-        <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-          <div className="border-b border-line p-4 lg:border-b-0 lg:border-r">
-            <p className="text-[13px] font-medium text-fg-muted">Usuarios activos</p>
-            <p className="mt-1 text-[42px] font-bold leading-none text-accent">
-              <AnimatedNumber value={snapshot.activeVisitors} />
-            </p>
-            <p className="mt-1 text-[12px] text-fg-faint">en los últimos {snapshot.minutes} min</p>
+        <>
+          {!project && snapshot.byProject.length > 0 ? (
+            <ul className="flex flex-wrap gap-x-5 gap-y-1 border-b border-line px-4 py-2.5">
+              {snapshot.byProject.map((p) => (
+                <li key={p.slug} className="flex items-baseline gap-1.5 text-[12px]">
+                  <span className="text-fg-muted">{p.name}</span>
+                  <span className="tabular font-medium text-fg">{formatMetric(p.activeVisitors)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
 
-            {!project && snapshot.byProject.length > 0 ? (
-              <ul className="mt-4 flex flex-col gap-1.5">
-                {snapshot.byProject.map((p) => (
-                  <li key={p.slug} className="flex items-baseline justify-between gap-2 text-[13px]">
-                    <span className="truncate text-fg-muted">{p.name}</span>
-                    <span className="tabular font-medium text-fg">{formatMetric(p.activeVisitors)}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-
-          <div className="min-w-0 p-4">
+          <div className="p-4">
             <RecentEventsTable events={snapshot.recent} now={now} showProject={!project} deletion={deletion} bare />
           </div>
-        </div>
+        </>
       )}
     </section>
   );

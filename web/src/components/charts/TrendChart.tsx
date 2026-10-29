@@ -38,7 +38,7 @@ export function TrendChart({ data, series, unit = 'COUNT', height = 260 }: Props
           With two or more there always is one, so identity doesn't depend on
           colour. */}
       {!single ? (
-        <ul className="mb-3 flex flex-wrap gap-x-4 gap-y-1.5">
+        <ul className="mb-3 grid grid-cols-2 gap-x-6 gap-y-1.5">
           {series.map((s) => (
             <li key={s.key} className="flex items-center gap-1.5 text-[12px] text-fg-muted">
               <span
