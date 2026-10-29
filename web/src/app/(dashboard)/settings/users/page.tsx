@@ -2,6 +2,7 @@ import { api, ApiError } from '@/lib/api';
 import { requireRole } from '@/lib/dal';
 import { ErrorPanel } from '@/components/ErrorPanel';
 import { NewUserForm } from './NewUserForm';
+import { ResetPasswordForm } from './ResetPasswordForm';
 import type { HubUserRow } from '@/lib/types';
 
 const ROLE_LABEL: Record<HubUserRow['role'], string> = {
@@ -36,6 +37,7 @@ export default async function UsersPage() {
               <th scope="col" className="px-4 py-2 font-medium">Nombre</th>
               <th scope="col" className="px-4 py-2 font-medium">Rol</th>
               <th scope="col" className="px-4 py-2 font-medium">Último acceso</th>
+              <th scope="col" className="px-4 py-2 font-medium">Contraseña</th>
             </tr>
           </thead>
           <tbody>
@@ -52,6 +54,9 @@ export default async function UsersPage() {
                 </td>
                 <td className="px-4 py-2.5 text-fg-muted">
                   {user.lastLoginAt ? dateFormat.format(new Date(user.lastLoginAt)) : 'nunca ha entrado'}
+                </td>
+                <td className="px-4 py-2.5">
+                  <ResetPasswordForm userId={user.id} userName={user.name} />
                 </td>
               </tr>
             ))}

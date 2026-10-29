@@ -137,6 +137,23 @@ export async function revokeKey(_prev: ActionState, formData: FormData): Promise
   return { ok: 'Clave revocada. Los datos ya enviados se conservan.' };
 }
 
+export async function resetPassword(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
+
+  const userId = String(formData.get('userId') ?? '');
+  const password = String(formData.get('password') ?? '');
+  if (!userId) return { error: 'Falta el usuario.' };
+  if (password.length < 10) return { error: 'La contraseña debe tener al menos 10 caracteres.' };
+
+  try {
+    await apiWrite(`/auth/users/${userId}/password`, 'PATCH', { password });
+  } catch (error) {
+    return { error: readableError(error, 'No se pudo restablecer la contraseña.') };
+  }
+
+  return { ok: 'Contraseña actualizada.' };
+}
+
 export async function createUser(_prev: ActionState, formData: FormData): Promise<ActionState> {
   await requireAdmin();
 

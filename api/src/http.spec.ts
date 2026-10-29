@@ -169,6 +169,42 @@ describe('auth', () => {
     expect(list.body.some((u: { email: string }) => u.email === ADMIN)).toBe(true);
     expect(JSON.stringify(list.body)).not.toContain('passwordHash');
   });
+
+  it('lets only an admin reset a password, which replaces the old one entirely', async () => {
+    const email = `${PREFIX}-reset@corpsc.test`;
+    const created = await call('POST', '/auth/users', {
+      token: adminToken,
+      body: { email, name: 'Para resetear', password: 'la-original-larga' },
+    });
+    const id = created.body.id as string;
+
+    expect(
+      (await call('PATCH', `/auth/users/${id}/password`, { token: viewerToken, body: { password: 'la-nueva-contrasena' } }))
+        .status,
+    ).toBe(403);
+
+    expect(
+      (await call('PATCH', `/auth/users/${id}/password`, { token: adminToken, body: { password: 'corta' } })).status,
+    ).toBe(400);
+
+    const reset = await call('PATCH', `/auth/users/${id}/password`, {
+      token: adminToken,
+      body: { password: 'la-nueva-contrasena' },
+    });
+    expect(reset.status).toBe(204);
+
+    expect((await call('POST', '/auth/login', { body: { email, password: 'la-original-larga' } })).status).toBe(401);
+    expect((await call('POST', '/auth/login', { body: { email, password: 'la-nueva-contrasena' } })).status).toBe(200);
+
+    expect(
+      (
+        await call('PATCH', '/auth/users/00000000-0000-0000-0000-000000000000/password', {
+          token: adminToken,
+          body: { password: 'otra-contrasena-larga' },
+        })
+      ).status,
+    ).toBe(404);
+  });
 });
 
 describe('projects and goals', () => {
