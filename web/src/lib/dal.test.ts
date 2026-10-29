@@ -2,12 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   getToken: vi.fn(async () => null as string | null),
-  clearSession: vi.fn(),
   redirect: vi.fn((to: string) => {
     throw new Error(`NEXT_REDIRECT ${to}`);
   }),
 }));
-vi.mock('./session', () => ({ getToken: mocks.getToken, clearSession: mocks.clearSession }));
+vi.mock('./session', () => ({ getToken: mocks.getToken }));
 vi.mock('next/navigation', () => ({ redirect: mocks.redirect }));
 
 import { getUser, requireUser } from './dal';
@@ -20,7 +19,6 @@ beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock);
   fetchMock.mockReset();
   mocks.getToken.mockReset().mockResolvedValue(null);
-  mocks.clearSession.mockReset();
   mocks.redirect.mockClear();
 });
 
@@ -55,24 +53,24 @@ describe('requireUser', () => {
   it('sends a never-logged-in visitor to a plain /login', async () => {
     await expect(requireUser()).rejects.toThrow('NEXT_REDIRECT /login');
     expect(mocks.redirect).toHaveBeenCalledWith('/login');
-    expect(mocks.clearSession).not.toHaveBeenCalled();
   });
 
-  it('clears a dead session and says so, instead of a silent /login', async () => {
+  it('says so instead of a silent /login when a token died, without touching the cookie itself', async () => {
+    // A page/layout render can't write a cookie (Next only allows that from a
+    // Server Action or a Route Handler) — clearing the dead one happens
+    // client-side instead, once the browser lands on `/login?reason=expired`.
     mocks.getToken.mockResolvedValue('dead-token');
     fetchMock.mockResolvedValue(new Response(null, { status: 401 }));
 
     await expect(requireUser()).rejects.toThrow('NEXT_REDIRECT /login?reason=expired');
     expect(mocks.redirect).toHaveBeenCalledWith('/login?reason=expired');
-    expect(mocks.clearSession).toHaveBeenCalledTimes(1);
   });
 
-  it('returns the user when the session is valid, without touching the cookie', async () => {
+  it('returns the user when the session is valid', async () => {
     mocks.getToken.mockResolvedValue('a-token');
     fetchMock.mockResolvedValue(Response.json(user));
 
     await expect(requireUser()).resolves.toEqual(user);
     expect(mocks.redirect).not.toHaveBeenCalled();
-    expect(mocks.clearSession).not.toHaveBeenCalled();
   });
 });
