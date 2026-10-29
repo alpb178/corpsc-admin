@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { ToastProvider } from '@/components/Toast';
 
 vi.mock('./actions', () => ({ wipeProject: vi.fn() }));
 
@@ -7,7 +8,11 @@ import { WipeProjectForm } from './WipeProjectForm';
 
 describe('WipeProjectForm', () => {
   it('keeps the button off until the name is typed exactly', () => {
-    render(<WipeProjectForm slug="take" name="Take" />);
+    render(
+      <ToastProvider>
+        <WipeProjectForm slug="take" name="Take" />
+      </ToastProvider>,
+    );
 
     const button = screen.getByRole('button', { name: 'Eliminar todo' }) as HTMLButtonElement;
     const input = screen.getByLabelText('Escribe «Take» para confirmar');

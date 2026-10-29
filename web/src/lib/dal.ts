@@ -1,7 +1,7 @@
 import 'server-only';
 import { cache } from 'react';
 import { redirect } from 'next/navigation';
-import { getToken } from './session';
+import { clearSession, getToken } from './session';
 import type { HubRole } from './types';
 
 /** The same enum as the API. It lives in `types.ts` so client components,
@@ -46,10 +46,24 @@ export const getUser = cache(async (): Promise<AuthUser | null> => {
   }
 });
 
-/** For pages and actions: either there's a user, or we go no further. */
+/**
+ * For pages and actions: either there's a user, or we go no further.
+ *
+ * A cookie that didn't resolve to a user (the token expired, the API
+ * rejected it, the user was deleted) is not the same as never having logged
+ * in: the first is a session that just died, worth explaining instead of
+ * silently landing back on the login form. `getUser` can't tell the two
+ * apart by the time it returns null (a dead cookie already failed `/auth/me`
+ * the same way a missing one would), so the token is checked here, before
+ * asking, and the dead cookie is cleared so it doesn't keep failing.
+ */
 export async function requireUser(): Promise<AuthUser> {
+  const hadToken = (await getToken()) !== null;
   const user = await getUser();
-  if (!user) redirect('/login');
+  if (!user) {
+    if (hadToken) await clearSession();
+    redirect(hadToken ? '/login?reason=expired' : '/login');
+  }
   return user;
 }
 

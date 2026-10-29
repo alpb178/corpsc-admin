@@ -3,6 +3,7 @@
 import { useActionState, useId, useState } from 'react';
 import { TriangleAlert } from 'lucide-react';
 import { wipeProject } from './actions';
+import { useActionToast } from '@/components/Toast';
 import type { ActionResult } from '@/lib/types';
 
 /**
@@ -14,6 +15,7 @@ export function WipeProjectForm({ slug, name }: { slug: string; name: string }) 
   const id = useId();
   const [typed, setTyped] = useState('');
   const [state, action, pending] = useActionState<ActionResult, FormData>(wipeProject, {});
+  useActionToast(state);
   const armed = typed.trim() === name;
 
   return (
