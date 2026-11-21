@@ -3,7 +3,8 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaClient, ProjectKind, SiteEventType } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { RecordsService } from './records.service';
-import { elementKey, EventRollupService } from '../ingestion/event-rollup.service';
+import { DIRECT } from '../ingestion/common/channel';
+import { elementKey, ELEMENT_SEPARATOR, EventRollupService } from '../ingestion/event-rollup.service';
 import { FactWriterService } from '../ingestion/fact-writer.service';
 import { toUtcDate } from '../ingestion/common/dates';
 import type { PrismaService } from '../prisma/prisma.service';
@@ -139,8 +140,17 @@ describe('RecordsService.deleteRows', () => {
   });
 
   it('removes the visits of one way in, as the panel names it', async () => {
+    // The key is `channel | source | landing`, so a direct visit is the one whose
+    // source is DIRECT (it doesn't *start* with it). Ordered so the pick doesn't
+    // depend on the order Postgres happens to return the rows in.
     const row = await prisma.metricDaily.findFirst({
-      where: { projectId: project.id, dimension: 'acquisition', date: toUtcDate(DAY1), NOT: { dimValue: { startsWith: '__direct__' } } },
+      where: {
+        projectId: project.id,
+        dimension: 'acquisition',
+        date: toUtcDate(DAY1),
+        NOT: { dimValue: { contains: `${ELEMENT_SEPARATOR}${DIRECT}${ELEMENT_SEPARATOR}` } },
+      },
+      orderBy: { dimValue: 'asc' },
     });
     expect(row?.dimValue).toContain('google');
 
