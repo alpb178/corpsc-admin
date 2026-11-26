@@ -186,6 +186,78 @@ interface DayDimCount {
   total: bigint;
 }
 
+/** How many goal events a visit fired on a day. */
+export interface GoalEventCount {
+  day: Date;
+  session_id: string;
+  total: bigint;
+}
+
+/** The breakdowns of `conversions` that follow the visit's origin. */
+const CONVERSION_ORIGIN_DIMENSIONS = ['channel', 'source'];
+
+/** Postgres returns a `date` as a Date at UTC midnight. */
+function isoDay(day: Date): IsoDate {
+  return day.toISOString().slice(0, 10);
+}
+
+/**
+ * Conversions by the channel and source of the visit they happened in, so a
+ * goal reads next to the visits of the same row: "Organic Social, 412 visits,
+ * 9 conversions".
+ *
+ * The origin is the one `visitStarts` gave the visit. A visit that crosses
+ * midnight —it landed at 23:50 from Instagram and ordered at 00:10— has a start
+ * on both days, but only the one the day before carries the origin: the
+ * tracker only sends it on the landing, and the 30-minute session means the
+ * same session id on the day before can only be that same visit. So the day
+ * before wins when it has the session; otherwise the same day. A goal event
+ * with no start at all (it arrived between the two queries) goes to
+ * `__unknown__`: every goal event lands in some row, so each breakdown adds up
+ * to the day's `conversions`.
+ *
+ * `starts` has to cover the day before the window for the first day to find
+ * its midnight crossings.
+ */
+export function conversionRows(goalEvents: GoalEventCount[], starts: VisitStart[]): MetricRow[] {
+  const startOf = new Map<string, VisitStart>();
+  for (const start of starts) startOf.set(`${isoDay(start.day)}\u0000${start.session_id}`, start);
+
+  const counts = new Map<string, MetricRow>();
+  const add = (date: IsoDate, dimension: string, dimValue: string, value: number) => {
+    const key = `${date}\u0000${dimension}\u0000${dimValue}`;
+    const row = counts.get(key);
+    if (row) row.value += value;
+    else counts.set(key, { date, metricKey: 'conversions', dimension, dimValue, value });
+  };
+
+  for (const event of goalEvents) {
+    const date = isoDay(event.day);
+    const start =
+      startOf.get(`${addDays(date, -1)}\u0000${event.session_id}`) ??
+      startOf.get(`${date}\u0000${event.session_id}`);
+    const value = Number(event.total);
+
+    if (!start) {
+      add(date, 'channel', UNKNOWN, value);
+      add(date, 'source', UNKNOWN, value);
+      continue;
+    }
+
+    const origin = { referrer: start.referrer, utmSource: start.utm_source, utmMedium: start.utm_medium };
+    add(date, 'channel', channelOf(origin), value);
+    add(date, 'source', sourceOf(origin).slice(0, 512), value);
+  }
+
+  const rows = [...counts.values()];
+  return CONVERSION_ORIGIN_DIMENSIONS.flatMap((dimension) =>
+    collapseToTopN(
+      rows.filter((r) => r.dimension === dimension),
+      { dimension, topN: TOP_N, rankBy: 'conversions' },
+    ),
+  );
+}
+
 /**
  * Turns raw events into the same daily metrics any other project sends.
  *
@@ -451,7 +523,7 @@ export class EventRollupService implements OnModuleDestroy {
     const hasGoals = goals.length > 0;
 
     for (const day of totals) {
-      const date = this.isoDay(day.day);
+      const date = isoDay(day.day);
       rows.push(
         this.total(date, 'visits', day.visits),
         this.total(date, 'page_views', day.page_views),
@@ -467,7 +539,12 @@ export class EventRollupService implements OnModuleDestroy {
     const byPath = await this.breakdown(project, from, to, 'PAGE_VIEW', 'path');
     const clicksByPath = await this.clickBreakdown(project, from, to, 'path');
     const clicksByElement = await this.clickBreakdown(project, from, to, 'element');
-    const visitStarts = await this.visitStarts(project, from, to);
+    // With goals, the starts reach one day further back: a conversion just
+    // after midnight takes its origin from the visit that landed the day before.
+    const startsFrom = hasGoals ? addDays(from, -1) : from;
+    const allStarts = await this.visitStarts(project, startsFrom, to);
+    const visitStarts = allStarts.filter((start) => isoDay(start.day) >= from);
+    const goalEvents = hasGoals ? await this.goalEventsBySession(project, from, to, goals) : [];
     const pageViewsByHour = await this.pageViewsByHour(project, from, to);
     const byEvent = sendsCustomEvents ? await this.eventBreakdown(project, from, to) : [];
 
@@ -505,7 +582,7 @@ export class EventRollupService implements OnModuleDestroy {
       // What time people browse, in the project's zone. It's 24 values: no
       // need to truncate.
       ...pageViewsByHour.map((row) => ({
-        date: this.isoDay(row.day),
+        date: isoDay(row.day),
         metricKey: 'page_views',
         dimension: 'hour',
         dimValue: this.hourValue(row.hour),
@@ -528,6 +605,8 @@ export class EventRollupService implements OnModuleDestroy {
             { dimension: 'event', topN: TOP_N, rankBy: 'conversions' },
           )
         : []),
+      // And by where the visit that converted came from.
+      ...(hasGoals ? conversionRows(goalEvents, allStarts) : []),
     );
 
     return rows;
@@ -540,6 +619,31 @@ export class EventRollupService implements OnModuleDestroy {
       select: { eventName: true },
     });
     return goals.map((g) => g.eventName);
+  }
+
+  /** Goal events per visit and day: what `conversionRows` attributes to an origin. */
+  private goalEventsBySession(
+    project: RollupProject,
+    from: IsoDate,
+    to: IsoDate,
+    goals: string[],
+  ): Promise<GoalEventCount[]> {
+    const tz = project.timezone;
+    const guardFrom = toUtcDate(addDays(from, -1));
+    const guardTo = toUtcDate(addDays(to, 2));
+
+    return this.prisma.$queryRaw<GoalEventCount[]>`
+      SELECT (occurred_at AT TIME ZONE 'UTC' AT TIME ZONE ${tz})::date AS day,
+             session_id,
+             count(*) AS total
+        FROM site_event
+       WHERE project_id = ${project.id}
+         AND type = 'CUSTOM'
+         AND name = ANY(${goals}::varchar[])
+         AND occurred_at >= ${guardFrom} AND occurred_at < ${guardTo}
+         AND (occurred_at AT TIME ZONE 'UTC' AT TIME ZONE ${tz})::date
+             BETWEEN ${toUtcDate(from)}::date AND ${toUtcDate(to)}::date
+       GROUP BY 1, 2`;
   }
 
   private eventBreakdown(project: RollupProject, from: IsoDate, to: IsoDate): Promise<DayDimCount[]> {
@@ -624,7 +728,7 @@ export class EventRollupService implements OnModuleDestroy {
          AND v.date = ANY(${days.map(toUtcDate)}::date[])
        GROUP BY 1`;
 
-    return counts.map((row) => this.total(this.isoDay(row.day), 'new_visitors', row.fresh));
+    return counts.map((row) => this.total(isoDay(row.day), 'new_visitors', row.fresh));
   }
 
   private breakdown(
@@ -703,7 +807,7 @@ export class EventRollupService implements OnModuleDestroy {
     for (const row of rows) {
       const value =
         by === 'path' ? row.dim_value : elementKey(row.dim_value ?? '', row.section, row.label);
-      const key = `${this.isoDay(row.day)}\u0000${value}`;
+      const key = `${isoDay(row.day)}\u0000${value}`;
       const bucket = counts.get(key);
       if (bucket) bucket.total += row.total;
       else counts.set(key, { day: row.day, dim_value: value, total: row.total });
@@ -796,7 +900,7 @@ export class EventRollupService implements OnModuleDestroy {
     };
 
     for (const start of starts) {
-      const date = this.isoDay(start.day);
+      const date = isoDay(start.day);
       const origin = {
         referrer: start.referrer,
         utmSource: start.utm_source,
@@ -845,7 +949,7 @@ export class EventRollupService implements OnModuleDestroy {
     return counts
       .filter((row) => row.dim_value !== null)
       .map((row) => ({
-        date: this.isoDay(row.day),
+        date: isoDay(row.day),
         metricKey,
         dimension,
         dimValue: row.dim_value as string,
@@ -855,10 +959,5 @@ export class EventRollupService implements OnModuleDestroy {
 
   private total(date: IsoDate, metricKey: string, value: bigint): MetricRow {
     return { date, metricKey, dimension: TOTAL_DIMENSION, dimValue: TOTAL, value: Number(value) };
-  }
-
-  /** Postgres returns a `date` as a Date at UTC midnight. */
-  private isoDay(day: Date): IsoDate {
-    return day.toISOString().slice(0, 10);
   }
 }

@@ -16,6 +16,7 @@ import { HourlyActivity } from '@/components/HourlyActivity';
 import { DeviceSplit } from '@/components/DeviceSplit';
 import { CountriesCard } from '@/components/CountriesCard';
 import { AcquisitionTable } from '@/components/AcquisitionTable';
+import { ConversionsByChannel } from '@/components/ConversionsByChannel';
 import { PathTable } from '@/components/PathTable';
 import { RealtimePanel } from '@/components/RealtimePanel';
 import { hasAnyData, visitorsHint, visitsAndVisitors } from '@/lib/dashboard';
@@ -128,6 +129,10 @@ export default async function ProjectPage({
             <RankBar title="Canales" slices={breakdowns.channel} metricKey="visits" kind="channel" />
             <RankBar title="Fuentes" slices={breakdowns.source} metricKey="visits" kind="source" />
           </div>
+          {/* Only for a project with goals: the same condition as the tile. */}
+          {totals.conversions !== undefined ? (
+            <ConversionsByChannel channels={breakdowns.channel} sources={breakdowns.source} />
+          ) : null}
           <div className="mt-3">
             <AcquisitionTable slices={breakdowns.acquisition ?? []} deletion={deletion} />
           </div>

@@ -7,6 +7,7 @@ import {
   VISITOR_RETENTION_DAYS,
   acquisitionKey,
   cityValue,
+  conversionRows,
   elementKey,
   regionValue,
 } from './event-rollup.service';
@@ -556,6 +557,147 @@ describe('custom events and conversions', () => {
     const keys = new Set((await stored()).map((r) => r.metricKey));
     expect(keys.has('custom_events')).toBe(false);
     expect(keys.has('conversions')).toBe(false);
+  });
+});
+
+describe('conversions by where the visit came from', () => {
+  const PV = SiteEventType.PAGE_VIEW;
+  const CUSTOM = SiteEventType.CUSTOM;
+
+  async function withGoal() {
+    await prisma.conversionGoal.create({
+      data: { projectId: project.id, eventName: 'order_placed', label: 'Pedido realizado' },
+    });
+  }
+
+  it("attributes a conversion to its visit's landing channel and source", async () => {
+    await withGoal();
+    await seedEvents([
+      { type: PV, sessionId: 'session-one-aaa', at: '2026-03-01T14:00:00Z', utmSource: 'instagram', utmMedium: 'social' },
+      // The page where the order happens carries no origin: the landing's counts.
+      { type: PV, sessionId: 'session-one-aaa', at: '2026-03-01T14:05:00Z', path: '/checkout' },
+      { type: CUSTOM, sessionId: 'session-one-aaa', at: '2026-03-01T14:06:00Z', name: 'order_placed' },
+      { type: CUSTOM, sessionId: 'session-one-aaa', at: '2026-03-01T14:30:00Z', name: 'order_placed' },
+      { type: PV, sessionId: 'session-two-bbb', at: '2026-03-01T15:00:00Z', referrer: 'google.com' },
+      { type: CUSTOM, sessionId: 'session-two-bbb', at: '2026-03-01T15:10:00Z', name: 'order_placed' },
+      // Not a goal: it never counts.
+      { type: CUSTOM, sessionId: 'session-two-bbb', at: '2026-03-01T15:11:00Z', name: 'whatsapp_click' },
+      { type: PV, sessionId: 'session-three-c', at: '2026-03-01T16:00:00Z' },
+    ]);
+
+    await service.rollupWindow(project, FROM, TO);
+
+    expect(await valueOf('conversions', 'Organic Social', 'channel')).toBe(2);
+    expect(await valueOf('conversions', 'instagram', 'source')).toBe(2);
+    expect(await valueOf('conversions', 'Organic Search', 'channel')).toBe(1);
+    expect(await valueOf('conversions', 'google.com', 'source')).toBe(1);
+    // A channel with visits but no conversions has no conversions row.
+    expect(await valueOf('conversions', 'Direct', 'channel')).toBeNull();
+    // The visits rows of the same dimension are untouched.
+    expect(await valueOf('visits', 'Organic Social', 'channel')).toBe(1);
+    expect(await valueOf('visits', 'Direct', 'channel')).toBe(1);
+    expect(await valueOf('visits', 'google.com', 'source')).toBe(1);
+  });
+
+  it('takes the origin from the day before when the visit crosses midnight', async () => {
+    await withGoal();
+    await seedEvents([
+      // 03:50 UTC on the 2nd is 23:50 on the 1st in La Paz.
+      { type: PV, sessionId: 'session-late-aa', at: '2026-03-02T03:50:00Z', referrer: 'facebook.com' },
+      // 00:05 and 00:10 on the 2nd, local time.
+      { type: PV, sessionId: 'session-late-aa', at: '2026-03-02T04:05:00Z', path: '/checkout' },
+      { type: CUSTOM, sessionId: 'session-late-aa', at: '2026-03-02T04:10:00Z', name: 'order_placed' },
+    ]);
+
+    await service.rollupWindow(project, '2026-03-02', TO);
+
+    const rows = (await stored()).filter((r) => r.metricKey === 'conversions' && r.dimension === 'channel');
+    expect(rows.map((r) => [r.date.toISOString().slice(0, 10), r.dimValue, Number(r.value)])).toEqual([
+      ['2026-03-02', 'Organic Social', 1],
+    ]);
+    expect(await valueOf('conversions', 'facebook.com', 'source')).toBe(1);
+    // The day before is only read, never written: it's outside the window.
+    expect((await stored()).some((r) => r.date.toISOString().startsWith('2026-03-01'))).toBe(false);
+  });
+
+  it('every conversions breakdown adds up to the day total', async () => {
+    await withGoal();
+    await prisma.conversionGoal.create({
+      data: { projectId: project.id, eventName: 'contact_submit', label: 'Contacto' },
+    });
+    await seedEvents([
+      { type: PV, sessionId: 'session-one-aaa', at: '2026-03-01T14:00:00Z', referrer: 'google.com' },
+      { type: CUSTOM, sessionId: 'session-one-aaa', at: '2026-03-01T14:01:00Z', name: 'order_placed' },
+      { type: CUSTOM, sessionId: 'session-two-bbb', at: '2026-03-01T15:00:00Z', name: 'contact_submit' },
+      { type: PV, sessionId: 'session-three-c', at: '2026-03-02T15:00:00Z', utmSource: 'newsletter', utmMedium: 'email' },
+      { type: CUSTOM, sessionId: 'session-three-c', at: '2026-03-02T15:01:00Z', name: 'order_placed' },
+      { type: CUSTOM, sessionId: 'session-three-c', at: '2026-03-02T15:02:00Z', name: 'contact_submit' },
+    ]);
+
+    await service.rollupWindow(project, FROM, TO);
+
+    const rows = (await stored()).filter((r) => r.metricKey === 'conversions');
+    for (const day of ['2026-03-01', '2026-03-02']) {
+      const ofDay = rows.filter((r) => r.date.toISOString().startsWith(day));
+      const sum = (dimension: string) =>
+        ofDay.filter((r) => r.dimension === dimension).reduce((acc, r) => acc + Number(r.value), 0);
+      const total = sum('total');
+      expect(total, day).toBe(2);
+      for (const dimension of ['channel', 'source', 'event']) expect(sum(dimension), `${day} ${dimension}`).toBe(total);
+    }
+  });
+
+  it('writes no conversions breakdown for a project without goals', async () => {
+    await seedEvents([
+      { type: PV, sessionId: 'session-one-aaa', at: '2026-03-01T14:00:00Z', referrer: 'google.com' },
+      { type: CUSTOM, sessionId: 'session-one-aaa', at: '2026-03-01T14:01:00Z', name: 'order_placed' },
+    ]);
+
+    await service.rollupWindow(project, FROM, TO);
+
+    expect((await stored()).filter((r) => r.metricKey === 'conversions')).toEqual([]);
+    expect(await valueOf('visits', 'Organic Search', 'channel')).toBe(1);
+  });
+
+  it('sends a goal event whose visit has no start to __unknown__, and sums visits of the same origin', () => {
+    const day = new Date('2026-03-01T00:00:00Z');
+    const start = {
+      day,
+      session_id: 'session-one-aaa',
+      hour: 10,
+      country: null,
+      region: null,
+      city: null,
+      device: null,
+      browser: null,
+      os: null,
+      language: null,
+      screen: null,
+      referrer: 'google.com',
+      utm_source: null,
+      utm_medium: null,
+      utm_campaign: null,
+      landing: '/es',
+      exit: '/es',
+    };
+
+    const rows = conversionRows(
+      [
+        { day, session_id: 'session-one-aaa', total: 1n },
+        { day, session_id: 'session-two-bbb', total: 1n },
+        // It arrived between reading the starts and reading the goal events.
+        { day, session_id: 'session-ghost-z', total: 3n },
+      ],
+      [start, { ...start, session_id: 'session-two-bbb' }],
+    );
+
+    expect(rows.map((r) => [r.dimension, r.dimValue, r.value])).toEqual([
+      ['channel', '__unknown__', 3],
+      ['channel', 'Organic Search', 2],
+      ['source', '__unknown__', 3],
+      ['source', 'google.com', 2],
+    ]);
+    expect(rows.every((r) => r.metricKey === 'conversions' && r.date === '2026-03-01')).toBe(true);
   });
 });
 
