@@ -107,6 +107,12 @@ de salida puede exponer `credential.ciphertext`.
   canal, fuente, campaña y hora salen de ahí (`visitStarts`), para que cada
   desglose de `visits` sume el total. El país lo resuelve el hosting del sitio;
   del origen solo llega el dominio, nunca la URL entera.
+- **Una conversión cuenta para el origen de su visita** (`conversionRows`):
+  `conversions` por `channel` y `source` toma el canal y la fuente del inicio
+  de esa sesión. Si la sesión ya existía el día anterior, manda ese inicio: la
+  visita cruzó la medianoche y el primer evento de hoy no trae origen (la
+  sesión caduca a los 30 min, así que es la misma visita). Sin inicio, va a
+  `__unknown__`, para que cada desglose sume el total del día.
 - **`visitor_daily` sobrevive a los eventos crudos** (800 días frente a 90):
   es lo único que sabe si un visitante es nuevo y cuántos distintos hubo en un
   año. Por eso la consolidación solo reescribe los días que todavía tienen
